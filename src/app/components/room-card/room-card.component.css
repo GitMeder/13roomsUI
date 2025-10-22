@@ -4,6 +4,10 @@
   min-height: 200px;
 }
 
+.room-card--occupied {
+  background-color: rgba(255, 0, 0, 0.1); /* Light red background */
+}
+
 .room-card__avatar {
   background: var(--mat-sys-primary-container);
   color: var(--mat-sys-on-primary-container);

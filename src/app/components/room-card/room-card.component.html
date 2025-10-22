@@ -1,7 +1,7 @@
-<mat-card class="room-card" appearance="outlined">
+<mat-card class="room-card" appearance="outlined" [ngClass]="{'room-card--occupied': room.status === 'occupied'}">
   <mat-card-header>
     <div mat-card-avatar class="room-card__avatar">
-      <mat-icon>meeting_room</mat-icon>
+      <mat-icon>{{ room.icon || 'meeting_room' }}</mat-icon>
     </div>
     <mat-card-title>{{ room.name }}</mat-card-title>
     <mat-card-subtitle>{{ room.location || 'Standort unbekannt' }}</mat-card-subtitle>
@@ -33,4 +33,10 @@
       </ng-template>
     </div>
   </mat-card-content>
+
+  <mat-card-actions>
+    <button mat-icon-button color="warn" (click)="onDelete()">
+      <mat-icon>delete</mat-icon>
+    </button>
+  </mat-card-actions>
 </mat-card>

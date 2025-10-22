@@ -9,6 +9,7 @@ export interface Room {
   status: 'available' | 'occupied' | 'maintenance' | string;
   location?: string | null;
   amenities?: string[] | null;
+  icon?: string | null;
 }
 
 export interface BookingPayload {
@@ -27,6 +28,7 @@ interface ApiRoom {
   status: string;
   location?: string | null;
   amenities?: string[] | string | null;
+  icon?: string | null;
 }
 
 interface CreateBookingRequest {
@@ -40,6 +42,15 @@ interface CreateBookingRequest {
 export interface BookingResponse {
   message: string;
   bookingId?: number;
+}
+
+export interface CreateRoomPayload {
+  name: string;
+  capacity: number;
+  status: string;
+  location?: string;
+  amenities?: string[];
+  icon?: string;
 }
 
 @Injectable({
@@ -60,7 +71,8 @@ export class ApiService {
       capacity: 6,
       location: '1. Etage · Westflügel',
       amenities: ['Bildschirm', 'Konferenztelefon', 'Whiteboard'],
-      status: 'available'
+      status: 'available',
+      icon: 'meeting_room'
     },
     {
       id: 2,
@@ -68,7 +80,8 @@ export class ApiService {
       capacity: 12,
       location: '2. Etage · Ostflügel',
       amenities: ['Videokonferenz', 'Projektor', 'Höhenverstellbare Tische'],
-      status: 'occupied'
+      status: 'occupied',
+      icon: 'business'
     },
     {
       id: 3,
@@ -76,7 +89,8 @@ export class ApiService {
       capacity: 4,
       location: 'EG · Nord',
       amenities: ['Whiteboard', 'Ruhezonen-Licht', 'USB-C Charging'],
-      status: 'maintenance'
+      status: 'maintenance',
+      icon: 'lightbulb'
     }
   ];
 
@@ -91,8 +105,12 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
+    console.log(`API GET: ${url}`);
     return this.http.get<T>(url, options).pipe(
-      catchError((error) => throwError(() => error))
+      catchError((error) => {
+        console.error(`API GET Error for ${url}:`, error);
+        return throwError(() => error);
+      })
     );
   }
 
@@ -102,8 +120,12 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
+    console.log(`API POST: ${url}`, body);
     return this.http.post<T>(url, body, options).pipe(
-      catchError((error) => throwError(() => error))
+      catchError((error) => {
+        console.error(`API POST Error for ${url}:`, error);
+        return throwError(() => error);
+      })
     );
   }
 
@@ -113,8 +135,12 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
+    console.log(`API PUT: ${url}`, body);
     return this.http.put<T>(url, body, options).pipe(
-      catchError((error) => throwError(() => error))
+      catchError((error) => {
+        console.error(`API PUT Error for ${url}:`, error);
+        return throwError(() => error);
+      })
     );
   }
 
@@ -124,17 +150,35 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
+    console.log(`API DELETE: ${url}`);
     return this.http.delete<T>(url, options).pipe(
-      catchError((error) => throwError(() => error))
+      catchError((error) => {
+        console.error(`API DELETE Error for ${url}:`, error);
+        return throwError(() => error);
+      })
     );
   }
 
   getRooms(): Observable<Room[]> {
+    console.log('Fetching rooms...');
     // Attempt to reach the real API first, otherwise fall back to the mock data.
     return this.get<ApiRoom[]>('rooms').pipe(
       map((rooms) => rooms.map((room) => this.normalizeRoom(room))),
-      catchError(() => of(this.mockRooms).pipe(delay(300)))
+      catchError((error) => {
+        console.error('Error fetching rooms, falling back to mock data:', error);
+        return of(this.mockRooms).pipe(delay(300));
+      })
     );
+  }
+
+  createRoom(roomData: CreateRoomPayload): Observable<Room> {
+    console.log('Creating room:', roomData);
+    return this.post<Room>('rooms', roomData);
+  }
+
+  deleteRoom(id: number): Observable<void> {
+    console.log(`Deleting room with ID: ${id}`);
+    return this.delete<void>(`rooms/${id}`);
   }
 
   createBooking(payload: BookingPayload): Observable<BookingResponse> {
@@ -167,7 +211,8 @@ export class ApiService {
       capacity: room.capacity,
       status: status ?? 'available',
       location: room.location ?? null,
-      amenities: amenitiesArray.length ? amenitiesArray : null
+      amenities: amenitiesArray.length ? amenitiesArray : null,
+      icon: room.icon ?? null
     };
   }
 

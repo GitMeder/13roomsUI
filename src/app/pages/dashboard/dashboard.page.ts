@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, DestroyRef } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService, Room } from '../../services/api.service';
 import { RoomCardComponent } from '../../components/room-card/room-card.component';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -16,7 +17,8 @@ import { RoomCardComponent } from '../../components/room-card/room-card.componen
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    RoomCardComponent
+    RoomCardComponent,
+    RouterLink
   ],
   templateUrl: './dashboard.page.html',
   styleUrls: ['./dashboard.page.css'],
@@ -24,6 +26,7 @@ import { RoomCardComponent } from '../../components/room-card/room-card.componen
 })
 export class DashboardPageComponent {
   private readonly api = inject(ApiService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly loading = signal<boolean>(true);
   readonly error = signal<string | null>(null);
@@ -43,28 +46,48 @@ export class DashboardPageComponent {
   });
 
   constructor() {
+    console.log('DashboardPageComponent constructor called.');
     this.loadRooms();
   }
 
   reload(): void {
+    console.log('Reloading rooms...');
     this.loadRooms();
   }
 
   private loadRooms(): void {
+    console.log('loadRooms called.');
     // Fetch data once now and on demand; destroyRef handling lives in takeUntilDestroyed.
     this.loading.set(true);
     this.error.set(null);
 
     this.api.getRooms()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (rooms) => {
+          console.log('Rooms loaded successfully:', rooms);
           this.rooms.set(rooms);
           this.loading.set(false);
         },
-        error: () => {
+        error: (err) => {
+          console.error('Error loading rooms:', err);
           this.error.set('Die Räume konnten nicht geladen werden. Bitte versuchen Sie es erneut.');
           this.loading.set(false);
+        }
+      });
+  }
+
+  onDeleteRoom(roomId: number): void {
+    console.log(`Attempting to delete room with ID: ${roomId}`);
+    this.api.deleteRoom(roomId)
+      .subscribe({
+        next: () => {
+          console.log(`Room with ID: ${roomId} deleted successfully.`);
+          this.loadRooms(); // Reload rooms after deletion
+        },
+        error: (err) => {
+          console.error(`Error deleting room with ID: ${roomId}:`, err);
+          // Optionally, display an error message to the user
         }
       });
   }

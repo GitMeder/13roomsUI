@@ -10,6 +10,10 @@
       <mat-icon aria-hidden="true">refresh</mat-icon>
       Aktualisieren
     </button>
+    <button mat-flat-button color="primary" routerLink="/rooms/new">
+      <mat-icon aria-hidden="true">add</mat-icon>
+      Neues Zimmer
+    </button>
   </header>
 
   <div class="dashboard-page__content" *ngIf="!loading() && !error()">
@@ -17,6 +21,7 @@
       <app-room-card
         *ngFor="let room of rooms()"
         [room]="room"
+        (deleteRoomEvent)="onDeleteRoom($event)"
       ></app-room-card>
     </div>
   </div>
