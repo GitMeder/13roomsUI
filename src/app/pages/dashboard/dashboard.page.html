@@ -1,0 +1,33 @@
+<section class="dashboard-page">
+  <header class="dashboard-page__header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="dashboard-page__subtitle">
+        {{ subtitle() }}
+      </p>
+    </div>
+    <button mat-stroked-button color="primary" (click)="reload()" [disabled]="loading()">
+      <mat-icon aria-hidden="true">refresh</mat-icon>
+      Aktualisieren
+    </button>
+  </header>
+
+  <div class="dashboard-page__content" *ngIf="!loading() && !error()">
+    <div class="dashboard-page__grid">
+      <app-room-card
+        *ngFor="let room of rooms()"
+        [room]="room"
+      ></app-room-card>
+    </div>
+  </div>
+
+  <div class="dashboard-page__empty" *ngIf="!loading() && error()">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p>{{ error() }}</p>
+  </div>
+
+  <div class="dashboard-page__loading" *ngIf="loading()">
+    <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+    <span>Daten werden geladen …</span>
+  </div>
+</section>

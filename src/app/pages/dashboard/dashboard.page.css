@@ -1,0 +1,50 @@
+:host,
+.dashboard-page {
+  display: block;
+}
+
+.dashboard-page {
+  padding: clamp(1.5rem, 2vw + 1rem, 3rem);
+  display: grid;
+  gap: 2rem;
+}
+
+.dashboard-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 1.4vw + 1.5rem, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-page__subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.dashboard-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.dashboard-page__loading,
+.dashboard-page__empty {
+  display: grid;
+  place-items: center;
+  gap: 1rem;
+  color: var(--mat-sys-on-surface-variant);
+  min-height: 240px;
+  text-align: center;
+}
+
+.dashboard-page__empty mat-icon {
+  font-size: 3rem;
+}

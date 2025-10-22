@@ -1,0 +1,59 @@
+:host {
+  display: block;
+}
+
+.bookings-page {
+  display: grid;
+  gap: 2rem;
+  padding: clamp(1.5rem, 2vw + 1rem, 3rem);
+  position: relative;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 1.4vw + 1.5rem, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.bookings-page__subtitle {
+  margin: 0.5rem 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+mat-card {
+  padding: 0;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.bookings-page__loading,
+.bookings-page__error {
+  display: grid;
+  place-items: center;
+  gap: 1rem;
+  text-align: center;
+  min-height: 240px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.bookings-page__error mat-icon {
+  font-size: 3rem;
+}
+
+.bookings-page__inflight {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  margin-inline: auto;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgb(15 23 42 / 0.9);
+  color: white;
+  box-shadow: 0 20px 40px -16px rgb(15 23 42 / 0.5);
+}

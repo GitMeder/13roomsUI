@@ -1,0 +1,68 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.9), rgba(240, 245, 255, 0.6));
+}
+
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--mat-sys-surface) 90%, transparent);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.app-toolbar__logo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+}
+
+.app-toolbar__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.75rem;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font-size: 1rem;
+}
+
+.app-toolbar__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mat-mdc-button.app-toolbar__link--active {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.app-shell {
+  display: block;
+  max-width: min(1200px, 100%);
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .app-toolbar {
+    padding-inline: 1.5rem;
+  }
+
+  .app-toolbar__nav {
+    gap: 0.25rem;
+  }
+}

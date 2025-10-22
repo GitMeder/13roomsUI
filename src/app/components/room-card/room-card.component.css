@@ -1,0 +1,61 @@
+.room-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.room-card__avatar {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  display: grid;
+  place-items: center;
+}
+
+.room-card__meta {
+  display: grid;
+  gap: 0.75rem;
+  margin-block: 0.5rem 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.room-card__meta div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.room-card__amenities {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.room-card__label {
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.room-card__status {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.room-card__status--available {
+  color: var(--mat-sys-on-secondary-container);
+  background: var(--mat-sys-secondary-container);
+}
+
+.room-card__status--occupied {
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+}
+
+.room-card__status--maintenance {
+  color: var(--mat-sys-on-tertiary-container);
+  background: var(--mat-sys-tertiary-container);
+}

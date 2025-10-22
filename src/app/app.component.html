@@ -1,0 +1,28 @@
+<mat-toolbar class="app-toolbar" color="transparent">
+  <a routerLink="/" class="app-toolbar__logo" aria-label="13rooms Startseite">
+    <span class="app-toolbar__mark">13</span>
+    <span>rooms</span>
+  </a>
+
+  <nav class="app-toolbar__nav">
+    <a
+      mat-button
+      routerLink="/"
+      routerLinkActive="app-toolbar__link--active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Dashboard
+    </a>
+    <a
+      mat-button
+      routerLink="/bookings"
+      routerLinkActive="app-toolbar__link--active"
+    >
+      Buchungen
+    </a>
+  </nav>
+</mat-toolbar>
+
+<main class="app-shell">
+  <router-outlet></router-outlet>
+</main>

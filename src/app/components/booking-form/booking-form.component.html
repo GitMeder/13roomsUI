@@ -1,0 +1,56 @@
+<form class="booking-form" [formGroup]="form" (ngSubmit)="submit()">
+  <section class="booking-form__grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Raum</mat-label>
+      <mat-select formControlName="roomId" required>
+        <mat-option *ngFor="let room of rooms" [value]="room.id">
+          {{ room.name }} · {{ room.capacity }} Personen
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Datum</mat-label>
+      <input matInput [matDatepicker]="picker" formControlName="date" required />
+      <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Beginn</mat-label>
+      <input matInput type="time" formControlName="startTime" required />
+      <mat-error *ngIf="form.get('startTime')?.hasError('required') && (form.get('startTime')?.dirty || form.get('startTime')?.touched)">
+        Bitte eine Startzeit wählen.
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Ende</mat-label>
+      <input matInput type="time" formControlName="endTime" required />
+      <mat-error *ngIf="form.get('endTime')?.hasError('required') && (form.get('endTime')?.dirty || form.get('endTime')?.touched)">
+        Bitte eine Endzeit wählen.
+      </mat-error>
+      <mat-error *ngIf="form.hasError('invalidTimeRange') && (form.get('endTime')?.dirty || form.get('endTime')?.touched)">
+        Die Endzeit muss nach der Startzeit liegen.
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Ihr Name</mat-label>
+      <input matInput formControlName="name" required />
+    </mat-form-field>
+  </section>
+
+  <mat-form-field appearance="outline" class="booking-form__comment">
+    <mat-label>Kommentar (optional)</mat-label>
+    <textarea matInput rows="3" formControlName="comment"></textarea>
+  </mat-form-field>
+
+  <div class="booking-form__actions">
+    <button mat-stroked-button type="button" color="primary" (click)="reset()">Zurücksetzen</button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">
+      <mat-icon aria-hidden="true">event_available</mat-icon>
+      Buchung speichern
+    </button>
+  </div>
+</form>
