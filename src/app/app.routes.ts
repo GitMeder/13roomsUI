@@ -15,6 +15,11 @@ export const routes: Routes = [
     title: '13rooms · Neue Buchung'
   },
   {
+    path: 'bookings/:roomId',
+    component: BookingsPageComponent,
+    title: '13rooms · Neue Buchung'
+  },
+  {
     path: 'rooms/new',
     component: RoomFormComponent,
     title: '13rooms · Neues Zimmer'

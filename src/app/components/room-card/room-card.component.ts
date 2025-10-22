@@ -5,8 +5,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatTooltipModule } from '@angular/material/tooltip'; // Import MatTooltipModule
-import { Room } from '../../services/api.service';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { Room } from '../../models/room.model'; // Updated import
 import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation-dialog.component';
 
 @Component({
@@ -19,34 +19,14 @@ import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation
 })
 export class RoomCardComponent {
   @Input({ required: true }) room!: Room;
+  @Input({ required: true }) statusInfo!: { text: string; cssClass: string }; // New Input
   @Output() deleteRoomEvent = new EventEmitter<number>();
+  @Output() cardClick = new EventEmitter<number>();
 
   private readonly dialog = inject(MatDialog);
 
-  get statusLabel(): string {
-    if (!this.room) {
-      return '';
-    }
-    switch (this.room.status) {
-      case 'available':
-        return 'Verfügbar';
-      case 'occupied':
-        return 'Belegt';
-      case 'maintenance':
-        return 'Wartung';
-      default:
-        return this.room.status;
-    }
-  }
-
-  get statusClass(): string {
-    if (!this.room) {
-      return 'room-card__status';
-    }
-    return `room-card__status room-card__status--${this.room.status}`;
-  }
-
-  onDelete(): void {
+  onDelete(event: Event): void {
+    event.stopPropagation(); // Prevent card click event from firing
     if (this.room && this.room.id) {
       const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
         data: { message: `Möchten Sie Raum '${this.room.name}' wirklich löschen?` }
@@ -57,6 +37,12 @@ export class RoomCardComponent {
           this.deleteRoomEvent.emit(this.room.id);
         }
       });
+    }
+  }
+
+  onCardClick(): void {
+    if (this.room && this.room.id) {
+      this.cardClick.emit(this.room.id);
     }
   }
 }

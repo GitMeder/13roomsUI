@@ -4,8 +4,17 @@
   min-height: 200px;
 }
 
+.room-card--clickable {
+  cursor: pointer;
+}
+
 .room-card--occupied {
   background-color: rgba(255, 0, 0, 0.1); /* Light red background */
+}
+
+.room-card--not-bookable {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .room-card__avatar {
@@ -60,6 +69,45 @@
 }
 
 .room-card__status--maintenance {
+  color: var(--mat-sys-on-tertiary-container);
+  background: var(--mat-sys-tertiary-container);
+}
+
+.room-card__status--orange {
+  color: #fff;
+  background: orange;
+}
+
+.room-card__status--red {
+  color: #fff;
+  background: red;
+}
+
+/* Status-based card styling */
+.room-card.available {
+  border-left: 4px solid var(--mat-sys-primary);
+}
+
+.room-card.available-soon {
+  border-left: 4px solid var(--mat-sys-tertiary);
+}
+
+.room-card.booked {
+  border-left: 4px solid var(--mat-sys-error);
+  opacity: 0.85;
+}
+
+.room-card.booked .room-card__status {
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+}
+
+.room-card.available .room-card__status {
+  color: var(--mat-sys-on-primary-container);
+  background: var(--mat-sys-primary-container);
+}
+
+.room-card.available-soon .room-card__status {
   color: var(--mat-sys-on-tertiary-container);
   background: var(--mat-sys-tertiary-container);
 }

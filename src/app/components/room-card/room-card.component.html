@@ -1,4 +1,4 @@
-<mat-card class="room-card" appearance="outlined" [ngClass]="{'room-card--occupied': room.status === 'occupied'}">
+<mat-card class="room-card room-card--clickable" appearance="outlined" [ngClass]="statusInfo.cssClass" (click)="onCardClick()">
   <mat-card-header>
     <div mat-card-avatar class="room-card__avatar">
       <mat-icon>{{ room.icon || 'meeting_room' }}</mat-icon>
@@ -15,7 +15,7 @@
       </div>
       <div>
         <mat-icon aria-hidden="true">info</mat-icon>
-        <span [ngClass]="statusClass">{{ statusLabel }}</span>
+        <span class="room-card__status">{{ statusInfo.text }}</span>
       </div>
     </div>
 
@@ -35,7 +35,7 @@
   </mat-card-content>
 
   <mat-card-actions>
-    <button mat-icon-button color="warn" (click)="onDelete()">
+    <button mat-icon-button color="warn" (click)="onDelete($event)">
       <mat-icon>delete</mat-icon>
     </button>
   </mat-card-actions>

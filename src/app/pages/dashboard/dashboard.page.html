@@ -19,9 +19,11 @@
   <div class="dashboard-page__content" *ngIf="!loading() && !error()">
     <div class="dashboard-page__grid">
       <app-room-card
-        *ngFor="let room of rooms()"
+        *ngFor="let room of rooms(); trackBy: trackByRoomId"
         [room]="room"
+        [statusInfo]="getRoomStatus(room)"
         (deleteRoomEvent)="onDeleteRoom($event)"
+        (cardClick)="onRoomCardClick($event)"
       ></app-room-card>
     </div>
   </div>

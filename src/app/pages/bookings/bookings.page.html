@@ -6,32 +6,34 @@
     </p>
   </header>
 
-  <div *ngIf="roomsLoading(); else formTemplate" class="bookings-page__loading">
-    <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
-    <span>Räume werden geladen …</span>
-  </div>
-
-  <ng-template #formTemplate>
-    <ng-container *ngIf="roomsError(); else loadedTemplate">
-      <div class="bookings-page__error">
-        <mat-icon aria-hidden="true">error_outline</mat-icon>
-        <p>{{ roomsError() }}</p>
-      </div>
+  <ng-container *ngIf="pageData$ | async as data; else loading">
+    <ng-container *ngIf="data.room; else notFound">
+      <mat-card appearance="outlined">
+        <app-booking-form
+          [roomId]="data.room.id || null"
+          [initialConflict]="data.conflict"
+          [rooms]="[data.room]"
+          [suggestedStartTime]="data.suggestedStartTime"
+          [suggestedEndTime]="data.suggestedEndTime"
+          [isSubmitting]="isSubmitting()"
+          (submitted)="onBookingSubmit($event)"
+        ></app-booking-form>
+      </mat-card>
     </ng-container>
+  </ng-container>
+
+  <ng-template #loading>
+    <div class="page-state">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Buchungsformular wird geladen...</p>
+    </div>
   </ng-template>
 
-  <ng-template #loadedTemplate>
-    <mat-card appearance="outlined">
-      <app-booking-form
-        [rooms]="rooms()"
-        (submitted)="handleBooking($event)"
-        (resetForm)="resetFeedback()"
-      ></app-booking-form>
-    </mat-card>
+  <ng-template #notFound>
+    <div class="page-state error">
+      <mat-icon>error_outline</mat-icon>
+      <p>Der angeforderte Raum konnte nicht gefunden werden.</p>
+      <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
+    </div>
   </ng-template>
-
-  <div class="bookings-page__inflight" *ngIf="bookingInFlight()">
-    <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
-    <span>Buchung wird angelegt …</span>
-  </div>
 </section>

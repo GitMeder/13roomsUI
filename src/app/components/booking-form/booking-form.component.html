@@ -1,56 +1,109 @@
-<form class="booking-form" [formGroup]="form" (ngSubmit)="submit()">
-  <section class="booking-form__grid">
-    <mat-form-field appearance="outline">
-      <mat-label>Raum</mat-label>
-      <mat-select formControlName="roomId" required>
-        <mat-option *ngFor="let room of rooms" [value]="room.id">
-          {{ room.name }} · {{ room.capacity }} Personen
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
+<form class="booking-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+  <!-- Conflict Warning (Full Width) -->
+  <div *ngIf="bookingConflict$ | async as conflict" class="booking-form__conflict-warning">
+    <mat-icon>warning</mat-icon>
+    <span>
+      Dieser Zeitraum ist bereits gebucht von {{ conflict.name }} ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr).
+      <ng-container *ngIf="availabilityCountdown$ | async as countdown">
+        {{ countdown }}
+      </ng-container>
+    </span>
+  </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Datum</mat-label>
-      <input matInput [matDatepicker]="picker" formControlName="date" required />
-      <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-      <mat-datepicker #picker></mat-datepicker>
-    </mat-form-field>
+  <!-- Two-Column Layout -->
+  <div class="booking-form__columns">
 
-    <mat-form-field appearance="outline">
-      <mat-label>Beginn</mat-label>
-      <input matInput type="time" formControlName="startTime" required />
-      <mat-error *ngIf="form.get('startTime')?.hasError('required') && (form.get('startTime')?.dirty || form.get('startTime')?.touched)">
-        Bitte eine Startzeit wählen.
-      </mat-error>
-    </mat-form-field>
+    <!-- LEFT COLUMN: Was & Wann? -->
+    <section class="booking-form__column booking-form__column--left">
+      <h3 class="booking-form__section-title">
+        <mat-icon>event</mat-icon>
+        Was & Wann?
+      </h3>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Ende</mat-label>
-      <input matInput type="time" formControlName="endTime" required />
-      <mat-error *ngIf="form.get('endTime')?.hasError('required') && (form.get('endTime')?.dirty || form.get('endTime')?.touched)">
-        Bitte eine Endzeit wählen.
-      </mat-error>
-      <mat-error *ngIf="form.hasError('invalidTimeRange') && (form.get('endTime')?.dirty || form.get('endTime')?.touched)">
-        Die Endzeit muss nach der Startzeit liegen.
-      </mat-error>
-    </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Raum</mat-label>
+        <mat-select formControlName="roomId" required>
+          <mat-option *ngFor="let room of rooms" [value]="room.id">
+            {{ room.name }} · {{ room.capacity }} Personen
+          </mat-option>
+        </mat-select>
+        <mat-error>Bitte wählen Sie einen Raum.</mat-error>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Ihr Name</mat-label>
-      <input matInput formControlName="name" required />
-    </mat-form-field>
-  </section>
+      <mat-form-field appearance="outline">
+        <mat-label>Datum</mat-label>
+        <input matInput [matDatepicker]="picker" formControlName="date" required />
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+        <mat-error>Bitte wählen Sie ein Datum.</mat-error>
+      </mat-form-field>
 
-  <mat-form-field appearance="outline" class="booking-form__comment">
-    <mat-label>Kommentar (optional)</mat-label>
-    <textarea matInput rows="3" formControlName="comment"></textarea>
-  </mat-form-field>
+      <div class="booking-form__time-fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Beginn</mat-label>
+          <input matInput type="time" formControlName="startTime" required list="available-start-times" />
+          <datalist id="available-start-times">
+            <option *ngFor="let time of availableStartTimes" [value]="time">{{ time }}</option>
+          </datalist>
+          <mat-hint *ngIf="availableStartTimes.length > 0">{{ availableStartTimes.length }} freie Slots</mat-hint>
+          <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
+        </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>Ende</mat-label>
+          <input matInput type="time" formControlName="endTime" required />
+          <mat-hint>Automatisch vorgeschlagen</mat-hint>
+          <mat-error *ngIf="form.get('endTime')?.hasError('required')">
+            Bitte wählen Sie eine Endzeit.
+          </mat-error>
+          <mat-error *ngIf="form.hasError('invalidTimeRange')">
+            Die Endzeit muss nach der Startzeit liegen.
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <button mat-stroked-button type="button" color="accent"
+              (click)="findNextAvailableSlot()"
+              [disabled]="!form.get('roomId')?.value || !form.get('date')?.value || isSearchingSlot()"
+              class="booking-form__asap-button">
+        <mat-spinner *ngIf="isSearchingSlot()" diameter="20"></mat-spinner>
+        <mat-icon *ngIf="!isSearchingSlot()">schedule</mat-icon>
+        {{ isSearchingSlot() ? 'Suche läuft...' : 'Nächster freier Slot' }}
+      </button>
+    </section>
+
+    <!-- RIGHT COLUMN: Wer & Warum? -->
+    <section class="booking-form__column booking-form__column--right">
+      <h3 class="booking-form__section-title">
+        <mat-icon>person</mat-icon>
+        Wer & Warum?
+      </h3>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Ihr Name</mat-label>
+        <input matInput formControlName="name" required #nameInput />
+        <mat-error>Bitte geben Sie Ihren Namen ein.</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="booking-form__comment-field">
+        <mat-label>Kommentar (optional)</mat-label>
+        <textarea matInput rows="6" formControlName="comment"
+                  placeholder="z.B. Team-Meeting, Workshop, etc."></textarea>
+        <mat-hint>Optional: Zweck der Buchung</mat-hint>
+      </mat-form-field>
+    </section>
+  </div>
+
+  <!-- Actions (Bottom Right) -->
   <div class="booking-form__actions">
-    <button mat-stroked-button type="button" color="primary" (click)="reset()">Zurücksetzen</button>
-    <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">
-      <mat-icon aria-hidden="true">event_available</mat-icon>
-      Buchung speichern
+    <button mat-stroked-button type="button" (click)="onReset()" [disabled]="isSubmitting">
+      <mat-icon>refresh</mat-icon>
+      Zurücksetzen
+    </button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="isSubmitDisabled()">
+      <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
+      <mat-icon *ngIf="!isSubmitting">event_available</mat-icon>
+      {{ isSubmitting ? 'Wird gespeichert...' : 'Buchung speichern' }}
     </button>
   </div>
 </form>

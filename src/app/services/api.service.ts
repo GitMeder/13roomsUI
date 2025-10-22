@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, delay, map, of, throwError } from 'rxjs';
+import { Observable, catchError, delay, map, of, throwError, switchMap } from 'rxjs';
 
 export interface Room {
   id: number;
@@ -10,6 +10,10 @@ export interface Room {
   location?: string | null;
   amenities?: string[] | null;
   icon?: string | null;
+  nextAvailableTime?: Date | null;
+  remainingTimeMinutes?: number | null;
+  currentBooking?: Booking;
+  nextBooking?: Booking;
 }
 
 export interface BookingPayload {
@@ -29,6 +33,10 @@ interface ApiRoom {
   location?: string | null;
   amenities?: string[] | string | null;
   icon?: string | null;
+  nextAvailableTime?: string | null; // Backend sends as string
+  remainingTimeMinutes?: number | null;
+  currentBooking?: Booking | null;
+  nextBooking?: Booking | null;
 }
 
 interface CreateBookingRequest {
@@ -51,6 +59,15 @@ export interface CreateRoomPayload {
   location?: string;
   amenities?: string[];
   icon?: string;
+}
+
+export interface Booking {
+  id: number;
+  room_id: number;
+  name: string;
+  start_time: string;
+  end_time: string;
+  comment: string;
 }
 
 @Injectable({
@@ -181,6 +198,56 @@ export class ApiService {
     return this.delete<void>(`rooms/${id}`);
   }
 
+  getRoomBookings(roomId: number, date?: string): Observable<Booking[]> {
+    console.log(`Fetching bookings for room ID: ${roomId}${date ? ' on ' + date : ''}`);
+
+    if (date) {
+      const params = new HttpParams().set('date', date);
+      return this.get<Booking[]>(`bookings/room/${roomId}`, { params });
+    }
+
+    return this.get<Booking[]>(`bookings/room/${roomId}`);
+  }
+
+  checkBookingConflict(roomId: number, date: string, startTime: string, endTime: string): Observable<Booking | null> {
+    console.log(`Checking for conflicts for room: ${roomId} on ${date} from ${startTime} to ${endTime}`);
+
+    // Call the backend API to check for conflicts
+    const params = new HttpParams()
+      .set('date', date)
+      .set('startTime', startTime)
+      .set('endTime', endTime);
+
+    return this.http.get<Booking | null>(`${this.baseUrl}/bookings/check-conflict/${roomId}`, { params }).pipe(
+      catchError(error => {
+        console.error('Error checking booking conflict:', error);
+        // Return null on error to allow form submission (fail open)
+        return of(null);
+      })
+    );
+  }
+
+  getRoom(roomId: number): Observable<Room> {
+    // Make a real API call to the backend
+    return this.http.get<Room>(`${this.baseUrl}/rooms/${roomId}`).pipe(
+      catchError(err => {
+        console.error('Error fetching room:', err);
+        // throwError is important to let the component know the call failed
+        return throwError(() => new Error('Room not found'));
+      })
+    );
+  }
+
+  getBookingPageData(roomId: number): Observable<{ room: Room; conflict: Booking | null }> {
+    return this.getRoom(roomId).pipe(
+      switchMap(room => 
+        this.checkBookingConflict(roomId, new Date().toISOString().split('T')[0], '00:00', '23:59').pipe(
+          map(conflict => ({ room, conflict }))
+        )
+      )
+    );
+  }
+
   createBooking(payload: BookingPayload): Observable<BookingResponse> {
     const requestBody: CreateBookingRequest = {
       room_id: payload.roomId,
@@ -212,7 +279,11 @@ export class ApiService {
       status: status ?? 'available',
       location: room.location ?? null,
       amenities: amenitiesArray.length ? amenitiesArray : null,
-      icon: room.icon ?? null
+      icon: room.icon ?? null,
+      nextAvailableTime: room.nextAvailableTime ? new Date(room.nextAvailableTime) : null,
+      remainingTimeMinutes: room.remainingTimeMinutes ?? null,
+      currentBooking: room.currentBooking ?? undefined,
+      nextBooking: room.nextBooking ?? undefined
     };
   }
 
