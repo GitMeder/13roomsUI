@@ -1,14 +1,14 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, delay, of, throwError } from 'rxjs';
+import { Observable, catchError, delay, map, of, throwError } from 'rxjs';
 
 export interface Room {
   id: number;
   name: string;
   capacity: number;
-  location: string;
-  amenities: string[];
-  status: 'available' | 'occupied' | 'maintenance';
+  status: 'available' | 'occupied' | 'maintenance' | string;
+  location?: string | null;
+  amenities?: string[] | null;
 }
 
 export interface BookingPayload {
@@ -18,6 +18,28 @@ export interface BookingPayload {
   endTime: string;
   name: string;
   comment?: string;
+}
+
+interface ApiRoom {
+  id: number;
+  name: string;
+  capacity: number;
+  status: string;
+  location?: string | null;
+  amenities?: string[] | string | null;
+}
+
+interface CreateBookingRequest {
+  room_id: number;
+  name: string;
+  start_time: string;
+  end_time: string;
+  comment?: string | null;
+}
+
+export interface BookingResponse {
+  message: string;
+  bookingId?: number;
 }
 
 @Injectable({
@@ -57,6 +79,8 @@ export class ApiService {
       status: 'maintenance'
     }
   ];
+
+  private readonly knownStatuses = new Set(['available', 'occupied', 'maintenance']);
 
   get<T>(endpoint: string, options?: {
     headers?: HttpHeaders | {
@@ -107,19 +131,51 @@ export class ApiService {
 
   getRooms(): Observable<Room[]> {
     // Attempt to reach the real API first, otherwise fall back to the mock data.
-    return this.get<Room[]>('rooms').pipe(
+    return this.get<ApiRoom[]>('rooms').pipe(
+      map((rooms) => rooms.map((room) => this.normalizeRoom(room))),
       catchError(() => of(this.mockRooms).pipe(delay(300)))
     );
   }
 
-  createBooking(payload: BookingPayload): Observable<BookingPayload> {
-    // Submit to the backend in production; the mock keeps the flow interactive for now.
-    return this.post<BookingPayload>('bookings', payload).pipe(
-      catchError(() =>
-        of(payload).pipe(
-          delay(300)
-        )
-      )
-    );
+  createBooking(payload: BookingPayload): Observable<BookingResponse> {
+    const requestBody: CreateBookingRequest = {
+      room_id: payload.roomId,
+      name: payload.name,
+      start_time: this.combineDateAndTime(payload.date, payload.startTime),
+      end_time: this.combineDateAndTime(payload.date, payload.endTime),
+      comment: payload.comment?.trim() || null
+    };
+
+    return this.post<BookingResponse>('bookings', requestBody);
+  }
+
+  private normalizeRoom(room: ApiRoom): Room {
+    const rawStatus = room.status?.toString().toLowerCase();
+    const status = rawStatus && this.knownStatuses.has(rawStatus)
+      ? rawStatus
+      : room.status;
+
+    const amenitiesArray = Array.isArray(room.amenities)
+      ? room.amenities
+      : typeof room.amenities === 'string' && room.amenities.length
+        ? room.amenities.split(',').map((item) => item.trim()).filter(Boolean)
+        : [];
+
+    return {
+      id: room.id,
+      name: room.name,
+      capacity: room.capacity,
+      status: status ?? 'available',
+      location: room.location ?? null,
+      amenities: amenitiesArray.length ? amenitiesArray : null
+    };
+  }
+
+  private combineDateAndTime(dateIso: string, time: string): string {
+    const [datePart] = dateIso.split('T');
+    const [hours, minutes] = time.split(':');
+    const normalizedHours = hours?.padStart(2, '0') ?? '00';
+    const normalizedMinutes = minutes?.padStart(2, '0') ?? '00';
+    return `${datePart ?? ''} ${normalizedHours}:${normalizedMinutes}:00`;
   }
 }

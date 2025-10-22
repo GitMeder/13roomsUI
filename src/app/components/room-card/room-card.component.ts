@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
-import { NgClass, NgFor, SlicePipe } from '@angular/common';
+import { NgClass, NgFor, NgIf, SlicePipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,7 +8,7 @@ import { Room } from '../../services/api.service';
 @Component({
   selector: 'app-room-card',
   standalone: true,
-  imports: [MatCardModule, MatIconModule, MatChipsModule, NgClass, NgFor, SlicePipe],
+  imports: [MatCardModule, MatIconModule, MatChipsModule, NgClass, NgFor, NgIf, SlicePipe],
   templateUrl: './room-card.component.html',
   styleUrls: ['./room-card.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush

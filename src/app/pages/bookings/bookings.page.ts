@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ApiService, BookingPayload, Room } from '../../services/api.service';
+import { ApiService, BookingPayload, BookingResponse, Room } from '../../services/api.service';
 import { BookingFormComponent } from '../../components/booking-form/booking-form.component';
 
 @Component({
@@ -43,9 +43,10 @@ export class BookingsPageComponent {
     this.api.createBooking(payload)
       .pipe(takeUntilDestroyed())
       .subscribe({
-        next: () => {
+        next: (response: BookingResponse) => {
           this.bookingInFlight.set(false);
-          this.snackBar.open('Buchung gespeichert (Mock)', 'Schließen', {
+          const message = response?.message ?? 'Buchung gespeichert.';
+          this.snackBar.open(message, 'Schließen', {
             duration: 4000,
             panelClass: ['snackbar-success']
           });

@@ -4,7 +4,7 @@
       <mat-icon>meeting_room</mat-icon>
     </div>
     <mat-card-title>{{ room.name }}</mat-card-title>
-    <mat-card-subtitle>{{ room.location }}</mat-card-subtitle>
+    <mat-card-subtitle>{{ room.location || 'Standort unbekannt' }}</mat-card-subtitle>
   </mat-card-header>
 
   <mat-card-content>
@@ -22,10 +22,15 @@
     <div class="room-card__amenities">
       <span class="room-card__label">Ausstattung</span>
       <mat-chip-set>
-        <mat-chip *ngFor="let amenity of room.amenities | slice:0:4" color="primary" selected>
-          {{ amenity }}
-        </mat-chip>
+        <ng-container *ngIf="room.amenities?.length; else noAmenities">
+          <mat-chip *ngFor="let amenity of room.amenities | slice:0:4" color="primary" selected>
+            {{ amenity }}
+          </mat-chip>
+        </ng-container>
       </mat-chip-set>
+      <ng-template #noAmenities>
+        <mat-chip color="primary" selected>Keine Angaben</mat-chip>
+      </ng-template>
     </div>
   </mat-card-content>
 </mat-card>
