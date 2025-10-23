@@ -10,6 +10,51 @@
     </span>
   </div>
 
+  <!-- Booking Timeline (Full Width) - Visual timeline showing current and upcoming bookings -->
+  <div *ngIf="liveStatus().type === 'currently-booked' && liveStatus().timelineSegments" class="booking-timeline">
+    <!-- Header -->
+    <div class="booking-timeline__header">
+      <mat-icon class="booking-timeline__icon">schedule</mat-icon>
+      <div class="booking-timeline__title">
+        Raum aktuell belegt bis {{ liveStatus().blockEndTime | date:'HH:mm' }} Uhr
+      </div>
+    </div>
+
+    <!-- Segmented Timeline Bar -->
+    <div class="booking-timeline__bar">
+      <div
+        *ngFor="let segment of liveStatus().timelineSegments; let i = index"
+        class="booking-timeline__segment"
+        [class.booking-timeline__segment--active]="i === liveStatus().currentSegmentIndex"
+        [style.flex-grow]="segment.widthPercent">
+
+        <!-- Segment Label -->
+        <span class="booking-timeline__segment-label">{{ segment.booker }}</span>
+
+        <!-- Progress Fill (only for active segment) -->
+        <div
+          *ngIf="i === liveStatus().currentSegmentIndex"
+          class="booking-timeline__progress"
+          [style.width.%]="liveStatus().currentSegmentProgress">
+        </div>
+      </div>
+    </div>
+
+    <!-- Countdown for Current Meeting -->
+    <div class="booking-timeline__countdown" *ngIf="shouldShowCountdown()">
+      <mat-icon class="countdown-icon">timer</mat-icon>
+      <span class="countdown-text">
+        {{ getCurrentSegmentBooker() }}'s Meeting endet in: {{ countdownText() }}
+      </span>
+    </div>
+
+    <!-- Next Booking Info -->
+    <div class="booking-timeline__next" *ngIf="liveStatus().nextBooker">
+      <mat-icon class="next-icon">arrow_forward</mat-icon>
+      <span>Nächste Buchung: {{ liveStatus().nextBooker }} um {{ liveStatus().nextBookingStartTime | date:'HH:mm' }} Uhr</span>
+    </div>
+  </div>
+
   <!-- Two-Column Layout -->
   <div class="booking-form__columns">
 
@@ -41,11 +86,8 @@
       <div class="booking-form__time-fields">
         <mat-form-field appearance="outline">
           <mat-label>Beginn</mat-label>
-          <input matInput type="time" formControlName="startTime" required list="available-start-times" />
-          <datalist id="available-start-times">
-            <option *ngFor="let time of availableStartTimes" [value]="time">{{ time }}</option>
-          </datalist>
-          <mat-hint *ngIf="availableStartTimes.length > 0">{{ availableStartTimes.length }} freie Slots</mat-hint>
+          <input matInput type="time" formControlName="startTime" required />
+          <mat-hint>Automatisch vorausgewählt</mat-hint>
           <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
         </mat-form-field>
 
@@ -62,14 +104,31 @@
         </mat-form-field>
       </div>
 
-      <button mat-stroked-button type="button" color="accent"
-              (click)="findNextAvailableSlot()"
-              [disabled]="!form.get('roomId')?.value || !form.get('date')?.value || isSearchingSlot()"
-              class="booking-form__asap-button">
-        <mat-spinner *ngIf="isSearchingSlot()" diameter="20"></mat-spinner>
-        <mat-icon *ngIf="!isSearchingSlot()">schedule</mat-icon>
-        {{ isSearchingSlot() ? 'Suche läuft...' : 'Nächster freier Slot' }}
-      </button>
+      <!-- Loading indicator -->
+      <div class="booking-form__loading" *ngIf="isLoadingSlots()">
+        <mat-spinner diameter="24"></mat-spinner>
+        <span>Suche nach verfügbaren Slots...</span>
+      </div>
+
+      <!-- Suggestion Chips: Proactive time slot suggestions -->
+      <div class="booking-form__suggestions" *ngIf="!isLoadingSlots() && suggestedSlots().length > 0">
+        <span class="booking-form__suggestions-label">Verfügbare Slots:</span>
+        <mat-chip-set aria-label="Available time slots">
+          <mat-chip-option
+            *ngFor="let slot of suggestedSlots(); let i = index"
+            [selected]="selectedSlotIndex() === i"
+            (click)="selectSlot(i)"
+            [class.booking-form__chip--selected]="selectedSlotIndex() === i">
+            {{ slot.startTime }} Uhr
+          </mat-chip-option>
+        </mat-chip-set>
+      </div>
+
+      <!-- Empty state message when no slots available -->
+      <div class="booking-form__no-slots" *ngIf="!isLoadingSlots() && form.get('roomId')?.value && form.get('date')?.value && suggestedSlots().length === 0">
+        <mat-icon>event_busy</mat-icon>
+        <span>Keine freien Slots für diesen Tag verfügbar.</span>
+      </div>
     </section>
 
     <!-- RIGHT COLUMN: Wer & Warum? -->

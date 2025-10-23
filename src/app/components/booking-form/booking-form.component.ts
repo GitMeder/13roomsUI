@@ -28,6 +28,25 @@ interface BookingFormControls {
   comment: FormControl<string | null>;
 }
 
+interface TimelineSegment {
+  booker: string;
+  startTime: Date;
+  endTime: Date;
+  durationMinutes: number;
+  widthPercent: number;
+}
+
+interface RoomLiveStatus {
+  type: 'currently-booked' | 'available-soon' | 'available' | null;
+  // Timeline visualization data
+  timelineSegments?: TimelineSegment[];
+  currentSegmentIndex?: number;
+  currentSegmentProgress?: number; // 0-100%
+  blockEndTime?: Date;
+  nextBooker?: string;
+  nextBookingStartTime?: Date;
+}
+
 @Component({
   selector: 'app-booking-form',
   standalone: true,
@@ -59,11 +78,17 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
   public availableEndTimes: string[] = [];
 
   // Suggested slots for proactive UX
-  public suggestedSlots: { startTime: string; endTime: string }[] = [];
-  public selectedSlotIndex: number | null = null;
+  public readonly suggestedSlots = signal<{ startTime: string; endTime: string }[]>([]);
+  public readonly selectedSlotIndex = signal<number | null>(null);
 
   // UI State
   public readonly isSearchingSlot = signal<boolean>(false);
+  public readonly isLoadingSlots = signal<boolean>(false);
+
+  // Live Status Banner State
+  public readonly liveStatus = signal<RoomLiveStatus>({ type: null });
+  public readonly countdownText = signal<string>('');
+  private liveStatusTimer: any = null;
 
   // ViewChild for focus management
   @ViewChild('nameInput') nameInput?: ElementRef<HTMLInputElement>;
@@ -81,9 +106,10 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input()
   set initialConflict(conflict: Booking | null) {
-    // Dieser Input setzt den initialen Zustand SOFORT!
-    this.bookingConflict$.next(conflict);
-    this.updateCountdown(conflict);
+    // DO NOT set initial conflict automatically
+    // The conflict should only be shown when user actively selects a time that conflicts
+    // The checkConflict() method will handle this properly
+    console.log('initialConflict input received (ignored):', conflict);
   }
 
   @Input() suggestedStartTime: string | null = null;
@@ -139,24 +165,85 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       // Check for conflicts
       this.checkConflict();
     });
+
+    // CRITICAL FIX: Handle initial load state
+    // The roomId setter uses { emitEvent: false }, so valueChanges doesn't trigger for the initial value.
+    // We must explicitly check and load bookings for the initial state after the current change detection cycle.
+    setTimeout(() => {
+      const currentRoomId = this.form.get('roomId')?.value;
+      const currentDate = this.form.get('date')?.value;
+
+      console.log('\n=== INITIAL LOAD CHECK (ngOnInit) ===');
+      console.log('Initial roomId:', currentRoomId);
+      console.log('Initial date:', currentDate);
+
+      if (currentRoomId && currentDate) {
+        console.log('✓ Initial values found - triggering loadDayBookings');
+        this.loadDayBookings(currentRoomId, currentDate);
+      } else {
+        console.log('⚠️ Initial values incomplete - waiting for user input');
+        // If no initial values, ensure loading state is false
+        this.isLoadingSlots.set(false);
+      }
+      console.log('=== END INITIAL LOAD CHECK ===\n');
+    }, 0);
   }
 
   private loadDayBookings(roomId: number, date: Date): void {
     const dateStr = date.toISOString().split('T')[0];
-    console.log(`Loading bookings for room ${roomId} on ${dateStr}`);
+    console.log(`\n=== LOADING BOOKINGS ===`);
+    console.log(`Room ID: ${roomId}`);
+    console.log(`Date: ${dateStr}`);
+    console.log(`Full Date Object:`, date);
+
+    // Set loading state
+    this.isLoadingSlots.set(true);
+
+    // Clear previous slots while loading
+    this.suggestedSlots.set([]);
+    this.selectedSlotIndex.set(null);
 
     this.apiService.getRoomBookings(roomId, dateStr)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(bookings => {
-        console.log(`Loaded ${bookings.length} bookings for the day:`, bookings);
-        this.dayBookings$.next(bookings);
-        this.calculateAvailableTimes(bookings, date);
+      .subscribe({
+        next: (bookings) => {
+          console.log(`✓ Successfully loaded ${bookings.length} bookings for the day`);
+          if (bookings.length > 0) {
+            console.log('Bookings details:', bookings);
+          } else {
+            console.log('✓ No bookings found - day is completely free!');
+          }
+          this.dayBookings$.next(bookings);
+          this.calculateAvailableTimes(bookings, date);
+
+          // LIVE STATUS BANNER: Calculate live status after bookings are loaded
+          this.calculateLiveStatus();
+
+          // CRITICAL FIX: Set loading state to false AFTER all calculations are complete
+          // This ensures the UI never sees an intermediate state where loading=false but suggestedSlots is still empty
+        },
+        error: (error) => {
+          console.error('❌ Error loading bookings:', error);
+          // On error, assume no bookings and continue
+          this.dayBookings$.next([]);
+          this.calculateAvailableTimes([], date);
+
+          // LIVE STATUS BANNER: Calculate live status even on error
+          this.calculateLiveStatus();
+
+          // CRITICAL FIX: Set loading state to false AFTER all calculations are complete
+        }
       });
   }
 
   private calculateAvailableTimes(bookings: Booking[], selectedDate: Date): void {
+    console.log('\n=== CALCULATING AVAILABLE TIMES ===');
+    console.log('Selected date:', selectedDate.toISOString());
+    console.log('Number of bookings:', bookings.length);
+
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
+    console.log('Is today:', isToday);
 
     // Business hours: 8:00 - 20:00
     const startHour = 8;
@@ -172,11 +259,39 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
 
+    console.log(`Generated ${allSlots.length} total time slots (${startHour}:00 - ${endHour}:00)`);
+
     // Filter out past times if today
+    // UX IMPROVEMENT: Allow retroactive bookings where end time is still in the future
     let availableSlots = allSlots;
     if (isToday) {
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      availableSlots = allSlots.filter(time => time > currentTime);
+      console.log('Current time:', currentTime);
+
+      const defaultDurationMinutes = 30; // Standard meeting duration
+
+      availableSlots = allSlots.filter(time => {
+        // Parse the time slot
+        const [hours, minutes] = time.split(':').map(Number);
+        const slotStart = new Date(selectedDate);
+        slotStart.setHours(hours, minutes, 0, 0);
+
+        // Calculate the default end time (30 minutes later)
+        const slotEnd = new Date(slotStart.getTime() + defaultDurationMinutes * 60000);
+
+        // Allow the slot if the end time is in the future
+        // This enables retroactive bookings (e.g., booking a meeting that started at 13:00 when it's now 13:15)
+        const isValid = slotEnd > now;
+
+        if (!isValid) {
+          // Log why this slot was filtered out for debugging
+          console.log(`Filtered out slot ${time} (end time ${slotEnd.toLocaleTimeString()} is in the past)`);
+        }
+
+        return isValid;
+      });
+
+      console.log(`After filtering past times: ${availableSlots.length} slots remain (allowing retroactive bookings)`);
     }
 
     // Filter out booked times
@@ -184,7 +299,8 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       return !this.isTimeBlocked(time, bookings, selectedDate);
     });
 
-    console.log(`Available start times: ${this.availableStartTimes.length}`);
+    console.log(`After filtering booked times: ${this.availableStartTimes.length} available start times`);
+    console.log('=== END CALCULATING AVAILABLE TIMES ===\n');
 
     // PROACTIVE UX: Find and pre-select suggested slots
     this.findSuggestedSlots(bookings, selectedDate);
@@ -218,50 +334,107 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
    * This transforms the booking experience from "empty fields" to "smart suggestions".
    */
   private findSuggestedSlots(bookings: Booking[], selectedDate: Date): void {
+    console.log('=== findSuggestedSlots START ===');
+    console.log('Selected date:', selectedDate.toISOString());
+    console.log('Number of bookings:', bookings.length);
+    console.log('Bookings:', bookings);
+
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
+    console.log('Is today:', isToday);
+    console.log('Current time:', now.toISOString());
 
     // Start from current time if today, otherwise from 8:00
+    // UX IMPROVEMENT: Allow retroactive bookings by searching backwards from current time
     let searchTime: Date;
     if (isToday) {
-      searchTime = new Date(now);
-      // Round up to next 15-minute interval
+      // Start search 30 minutes before now to find retroactive slots
+      // (where end time is still in the future)
+      searchTime = new Date(now.getTime() - 30 * 60000);
+
+      // Don't search before business hours start
+      const businessStart = new Date(selectedDate);
+      businessStart.setHours(8, 0, 0, 0);
+      if (searchTime < businessStart) {
+        searchTime = businessStart;
+      }
+
+      // Round down to 15-minute interval
       const minutes = searchTime.getMinutes();
-      const roundedMinutes = Math.ceil(minutes / 15) * 15;
+      const roundedMinutes = Math.floor(minutes / 15) * 15;
       searchTime.setMinutes(roundedMinutes, 0, 0);
+
+      console.log('Search start time (today, allowing retroactive bookings):', searchTime.toISOString());
     } else {
       searchTime = new Date(selectedDate);
       searchTime.setHours(8, 0, 0, 0);
+      console.log('Search start time (future date):', searchTime.toISOString());
     }
 
     const endOfDay = new Date(selectedDate);
     endOfDay.setHours(20, 0, 0, 0);
+    console.log('End of business day:', endOfDay.toISOString());
+
+    // If search time is already past business hours, use full day
+    if (searchTime >= endOfDay && isToday) {
+      console.log('⚠️ Current time is past business hours. No slots available for today.');
+      this.suggestedSlots.set([]);
+      this.selectedSlotIndex.set(null);
+      // CRITICAL FIX: Also set loading state to false on early return
+      this.isLoadingSlots.set(false);
+      console.log('✓ Loading complete. Final state: 0 slots available (past business hours)');
+      return;
+    }
 
     const duration = 30; // 30 minutes
     const maxSuggestions = 4; // Find up to 4 slots
     const foundSlots: { startTime: string; endTime: string }[] = [];
 
+    let iterationCount = 0;
+    const maxIterations = 200; // Safety limit
+
     // Search for available slots
-    while (searchTime < endOfDay && foundSlots.length < maxSuggestions) {
+    while (searchTime < endOfDay && foundSlots.length < maxSuggestions && iterationCount < maxIterations) {
+      iterationCount++;
+
       const endTime = new Date(searchTime.getTime() + duration * 60000);
 
       // Check if end time is within business hours
       if (endTime > endOfDay) {
+        console.log('End time exceeds business hours, stopping search');
         break;
+      }
+
+      // UX IMPROVEMENT: Skip slots where end time is in the past (retroactive booking not possible)
+      if (isToday && endTime <= now) {
+        console.log(`Skipping slot ${searchTime.toLocaleTimeString()} (end time ${endTime.toLocaleTimeString()} is in the past)`);
+        searchTime = new Date(searchTime.getTime() + 15 * 60000);
+        continue;
       }
 
       // Check if this slot overlaps with any booking
       const hasConflict = bookings.some(booking => {
         const bookingStart = new Date(booking.start_time);
         const bookingEnd = new Date(booking.end_time);
-        return (searchTime < bookingEnd && endTime > bookingStart);
+        const overlaps = (searchTime < bookingEnd && endTime > bookingStart);
+
+        if (overlaps) {
+          console.log(`  Conflict detected: ${searchTime.toLocaleTimeString()} conflicts with booking ${bookingStart.toLocaleTimeString()}-${bookingEnd.toLocaleTimeString()}`);
+        }
+
+        return overlaps;
       });
 
       if (!hasConflict) {
         // Found a free slot!
+        const slotStart = `${searchTime.getHours().toString().padStart(2, '0')}:${searchTime.getMinutes().toString().padStart(2, '0')}`;
+        const slotEnd = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
+
+        console.log(`✓ Found available slot: ${slotStart} - ${slotEnd}`);
+
         foundSlots.push({
-          startTime: `${searchTime.getHours().toString().padStart(2, '0')}:${searchTime.getMinutes().toString().padStart(2, '0')}`,
-          endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`
+          startTime: slotStart,
+          endTime: slotEnd
         });
       }
 
@@ -269,17 +442,27 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       searchTime = new Date(searchTime.getTime() + 15 * 60000);
     }
 
-    this.suggestedSlots = foundSlots;
+    console.log(`Total iterations: ${iterationCount}`);
     console.log(`Found ${foundSlots.length} suggested slots:`, foundSlots);
+
+    // CRITICAL: Use .set() to update the signal, triggering UI update
+    this.suggestedSlots.set(foundSlots);
 
     // AUTOMATIC PRE-SELECTION: Fill the first available slot
     if (foundSlots.length > 0) {
       this.selectSlot(0);
     } else {
       // No slots available - clear selection
-      this.selectedSlotIndex = null;
-      console.log('No available slots found for this date');
+      this.selectedSlotIndex.set(null);
+      console.log('⚠️ No available slots found for this date');
     }
+
+    // CRITICAL FIX: Set loading state to false AFTER all slot calculations and signal updates are complete
+    // This prevents the UI from showing "no slots available" error during the brief moment when
+    // isLoadingSlots=false but suggestedSlots is still being populated
+    this.isLoadingSlots.set(false);
+    console.log(`✓ Loading complete. Final state: ${foundSlots.length} slots available`);
+    console.log('=== findSuggestedSlots END ===');
   }
 
   /**
@@ -287,12 +470,13 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
    * Called when user clicks on a suggestion chip.
    */
   public selectSlot(index: number): void {
-    if (index < 0 || index >= this.suggestedSlots.length) {
+    const slots = this.suggestedSlots();
+    if (index < 0 || index >= slots.length) {
       return;
     }
 
-    const slot = this.suggestedSlots[index];
-    this.selectedSlotIndex = index;
+    const slot = slots[index];
+    this.selectedSlotIndex.set(index);
 
     // Update form fields without triggering change detection cascade
     this.form.patchValue({
@@ -325,22 +509,44 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
     if (this.countdownSubscription) {
       this.countdownSubscription.unsubscribe();
     }
+    // CRITICAL: Clean up live status timer to prevent memory leaks
+    if (this.liveStatusTimer) {
+      clearInterval(this.liveStatusTimer);
+      this.liveStatusTimer = null;
+    }
   }
   
   private checkConflict(): void {
     const formValue = this.form.getRawValue();
     const { roomId, date, startTime, endTime } = formValue;
 
+    // CRITICAL: Only check for conflicts if ALL required fields are filled
+    // This ensures the warning only appears when user has actually selected a time range
     if (!roomId || !date || !startTime || !endTime) {
+      // Clear any existing conflict warning when fields are incomplete
       this.bookingConflict$.next(null);
       this.updateCountdown(null);
       return;
     }
+
+    // Validate that times are properly formatted
+    if (!startTime.includes(':') || !endTime.includes(':')) {
+      this.bookingConflict$.next(null);
+      this.updateCountdown(null);
+      return;
+    }
+
     const formattedDate = date.toISOString().split('T')[0];
+    console.log(`Checking conflict for: ${formattedDate} ${startTime}-${endTime}`);
 
     this.apiService.checkBookingConflict(roomId, formattedDate, startTime, endTime)
       .pipe(takeUntil(this.destroy$))
       .subscribe(conflict => {
+        if (conflict) {
+          console.log('Conflict detected:', conflict);
+        } else {
+          console.log('No conflict - time slot is available');
+        }
         this.bookingConflict$.next(conflict);
         this.updateCountdown(conflict);
       });
@@ -430,6 +636,38 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    // UX VALIDATION: Prevent booking meetings that are entirely in the past
+    // Parse the end time and check if it's before now
+    const dateStr = formValue.date.toISOString().split('T')[0];
+    const endTimeStr = formValue.endTime;
+    const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+
+    const endDateTime = new Date(dateStr);
+    endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+    const now = new Date();
+
+    if (endDateTime <= now) {
+      console.warn('Booking rejected: End time is in the past', {
+        endDateTime: endDateTime.toISOString(),
+        now: now.toISOString()
+      });
+
+      // Show elegant snackbar feedback (no red error bar in form)
+      this.snackBar.open(
+        'Fehler: Ein Meeting kann nicht vollständig in der Vergangenheit gebucht werden.',
+        'OK',
+        {
+          duration: 5000,
+          panelClass: ['error-snackbar'],
+          horizontalPosition: 'center',
+          verticalPosition: 'bottom'
+        }
+      );
+
+      return; // Abort submission
+    }
+
     const payload: BookingPayload = {
       roomId: formValue.roomId,
       name: formValue.name,
@@ -446,6 +684,280 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
   onReset(): void {
     this.form.reset();
     this.resetForm.emit();
+  }
+
+  /**
+   * TIMELINE: Finds all consecutive bookings in a block and returns them as an ordered array.
+   * This builds the complete timeline for visualization.
+   */
+  private findBookingBlock(currentBooking: Booking, allBookings: Booking[]): Booking[] {
+    const blockBookings: Booking[] = [currentBooking];
+
+    console.log(`\n=== BUILDING BOOKING BLOCK TIMELINE ===`);
+    console.log(`Starting with booking:`, {
+      id: currentBooking.id,
+      booker: currentBooking.name,
+      start: new Date(currentBooking.start_time).toLocaleTimeString('de-DE'),
+      end: new Date(currentBooking.end_time).toLocaleTimeString('de-DE')
+    });
+
+    // Look for consecutive bookings
+    let foundConsecutive = true;
+    let currentEnd = new Date(currentBooking.end_time);
+
+    while (foundConsecutive) {
+      foundConsecutive = false;
+
+      for (const booking of allBookings) {
+        const bookingStart = new Date(booking.start_time);
+        const bookingEnd = new Date(booking.end_time);
+
+        // Check if this booking starts exactly when the current block ends
+        if (bookingStart.getTime() === currentEnd.getTime()) {
+          console.log(`✓ Found consecutive booking:`, {
+            id: booking.id,
+            booker: booking.name,
+            start: bookingStart.toLocaleTimeString('de-DE'),
+            end: bookingEnd.toLocaleTimeString('de-DE')
+          });
+
+          blockBookings.push(booking);
+          currentEnd = bookingEnd;
+          foundConsecutive = true;
+          break;
+        }
+      }
+    }
+
+    console.log(`✓ Block contains ${blockBookings.length} consecutive bookings`);
+    console.log(`Block runs from ${new Date(blockBookings[0].start_time).toLocaleTimeString('de-DE')} to ${new Date(blockBookings[blockBookings.length - 1].end_time).toLocaleTimeString('de-DE')}`);
+    console.log(`=== END BUILDING BOOKING BLOCK TIMELINE ===\n`);
+
+    return blockBookings;
+  }
+
+  /**
+   * LIVE STATUS BANNER: Calculates the current room status for the live banner.
+   * Only active for today's date.
+   */
+  private calculateLiveStatus(): void {
+    const formValue = this.form.getRawValue();
+    const { date } = formValue;
+
+    if (!date) {
+      this.liveStatus.set({ type: null });
+      return;
+    }
+
+    const now = new Date();
+    const selectedDate = new Date(date);
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    // Only show banner for today
+    if (!isToday) {
+      this.liveStatus.set({ type: null });
+      this.stopLiveCountdown();
+      return;
+    }
+
+    const bookings = this.dayBookings$.getValue();
+
+    console.log('\n=== CALCULATING LIVE STATUS BANNER ===');
+    console.log('Current time:', now.toISOString());
+    console.log('Bookings for today:', bookings.length);
+
+    // Find current booking (room is occupied right now)
+    const currentBooking = bookings.find(booking => {
+      const start = new Date(booking.start_time);
+      const end = new Date(booking.end_time);
+      return start <= now && end > now;
+    });
+
+    if (currentBooking) {
+      // Room is currently booked! Build the complete timeline
+      const blockBookings = this.findBookingBlock(currentBooking, bookings);
+      const blockStartTime = new Date(blockBookings[0].start_time);
+      const blockEndTime = new Date(blockBookings[blockBookings.length - 1].end_time);
+
+      // Calculate total block duration in minutes
+      const totalBlockMinutes = Math.floor((blockEndTime.getTime() - blockStartTime.getTime()) / 60000);
+
+      console.log(`\n=== BUILDING TIMELINE SEGMENTS ===`);
+      console.log(`Total block duration: ${totalBlockMinutes} minutes`);
+
+      // Build timeline segments with proportional widths
+      const timelineSegments: TimelineSegment[] = blockBookings.map(booking => {
+        const start = new Date(booking.start_time);
+        const end = new Date(booking.end_time);
+        const durationMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+        const widthPercent = (durationMinutes / totalBlockMinutes) * 100;
+
+        console.log(`Segment: ${booking.name} (${durationMinutes} min, ${widthPercent.toFixed(1)}%)`);
+
+        return {
+          booker: booking.name,
+          startTime: start,
+          endTime: end,
+          durationMinutes,
+          widthPercent
+        };
+      });
+
+      // Find which segment is currently active
+      const currentSegmentIndex = timelineSegments.findIndex(segment => {
+        return now >= segment.startTime && now < segment.endTime;
+      });
+
+      console.log(`Current segment index: ${currentSegmentIndex}`);
+
+      // Calculate progress of current segment (0-100%)
+      let currentSegmentProgress = 0;
+      if (currentSegmentIndex >= 0) {
+        const currentSegment = timelineSegments[currentSegmentIndex];
+        const segmentDurationMs = currentSegment.endTime.getTime() - currentSegment.startTime.getTime();
+        const elapsedMs = now.getTime() - currentSegment.startTime.getTime();
+        currentSegmentProgress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
+        console.log(`Current segment progress: ${currentSegmentProgress.toFixed(1)}%`);
+      }
+
+      console.log(`=== END BUILDING TIMELINE SEGMENTS ===\n`);
+
+      // Find next booking after the block ends
+      const nextBooking = bookings
+        .filter(b => new Date(b.start_time) >= blockEndTime)
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
+
+      const status: RoomLiveStatus = {
+        type: 'currently-booked',
+        timelineSegments,
+        currentSegmentIndex,
+        currentSegmentProgress,
+        blockEndTime,
+        nextBooker: nextBooking?.name,
+        nextBookingStartTime: nextBooking ? new Date(nextBooking.start_time) : undefined
+      };
+
+      console.log('✓ Room is currently booked with timeline:', status);
+
+      this.liveStatus.set(status);
+      this.startLiveCountdown();
+      return;
+    }
+
+    // Room is not currently booked
+    console.log('⚠️ Room is currently available (no banner needed)');
+    this.liveStatus.set({ type: null });
+    this.stopLiveCountdown();
+    console.log('=== END CALCULATING LIVE STATUS BANNER ===\n');
+  }
+
+  /**
+   * TIMELINE: Starts the live countdown timer for the current segment.
+   * Updates every second, showing countdown for active meeting and progress.
+   */
+  private startLiveCountdown(): void {
+    // Clear any existing timer
+    this.stopLiveCountdown();
+
+    console.log('▶️ Starting live timeline countdown');
+
+    // Update immediately
+    this.updateTimeline();
+
+    // Update every second
+    this.liveStatusTimer = setInterval(() => {
+      this.updateTimeline();
+    }, 1000);
+  }
+
+  /**
+   * TIMELINE: Stops the live countdown timer.
+   */
+  private stopLiveCountdown(): void {
+    if (this.liveStatusTimer) {
+      clearInterval(this.liveStatusTimer);
+      this.liveStatusTimer = null;
+      this.countdownText.set('');
+      console.log('⏸️ Stopped live timeline countdown');
+    }
+  }
+
+  /**
+   * TIMELINE: Updates the countdown text and segment progress.
+   * Shows countdown for the current segment only.
+   */
+  private updateTimeline(): void {
+    const status = this.liveStatus();
+
+    if (!status.timelineSegments || status.currentSegmentIndex === undefined || status.currentSegmentIndex < 0) {
+      // No active segment
+      this.calculateLiveStatus();
+      return;
+    }
+
+    const currentSegment = status.timelineSegments[status.currentSegmentIndex];
+    const now = new Date();
+
+    // Check if current segment has ended
+    if (now >= currentSegment.endTime) {
+      console.log('⏱️ Current segment ended - recalculating timeline');
+      this.calculateLiveStatus();
+      return;
+    }
+
+    // Calculate remaining time for current segment
+    const remainingMs = currentSegment.endTime.getTime() - now.getTime();
+    const totalSeconds = Math.floor(remainingMs / 1000);
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    this.countdownText.set(formattedTime);
+
+    // Calculate and update segment progress
+    const segmentDurationMs = currentSegment.endTime.getTime() - currentSegment.startTime.getTime();
+    const elapsedMs = now.getTime() - currentSegment.startTime.getTime();
+    const progress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
+
+    // Update the live status with new progress
+    const updatedStatus: RoomLiveStatus = {
+      ...status,
+      currentSegmentProgress: progress
+    };
+
+    this.liveStatus.set(updatedStatus);
+  }
+
+  /**
+   * TIMELINE: Helper method to check if countdown should be displayed.
+   * This provides type-safe access to timeline data in the template.
+   */
+  public shouldShowCountdown(): boolean {
+    const status = this.liveStatus();
+    return status.currentSegmentIndex !== undefined &&
+           status.currentSegmentIndex !== null &&
+           status.currentSegmentIndex >= 0 &&
+           status.timelineSegments !== undefined &&
+           status.timelineSegments.length > 0;
+  }
+
+  /**
+   * TIMELINE: Gets the current segment's booker name safely.
+   * Only call this after shouldShowCountdown() returns true.
+   */
+  public getCurrentSegmentBooker(): string {
+    const status = this.liveStatus();
+    if (status.currentSegmentIndex !== undefined &&
+        status.currentSegmentIndex !== null &&
+        status.currentSegmentIndex >= 0 &&
+        status.timelineSegments &&
+        status.timelineSegments.length > status.currentSegmentIndex) {
+      return status.timelineSegments[status.currentSegmentIndex].booker;
+    }
+    return '';
   }
 
   public async findNextAvailableSlot(): Promise<void> {

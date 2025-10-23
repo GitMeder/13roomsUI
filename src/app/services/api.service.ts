@@ -14,6 +14,9 @@ export interface Room {
   remainingTimeMinutes?: number | null;
   currentBooking?: Booking;
   nextBooking?: Booking;
+  totalBookingsToday?: number;
+  totalBookedMinutesToday?: number;
+  allBookingsToday?: Booking[];
 }
 
 export interface BookingPayload {
@@ -37,6 +40,9 @@ interface ApiRoom {
   remainingTimeMinutes?: number | null;
   currentBooking?: Booking | null;
   nextBooking?: Booking | null;
+  totalBookingsToday?: number;
+  totalBookedMinutesToday?: number;
+  allBookingsToday?: Booking[];
 }
 
 interface CreateBookingRequest {
@@ -283,7 +289,10 @@ export class ApiService {
       nextAvailableTime: room.nextAvailableTime ? new Date(room.nextAvailableTime) : null,
       remainingTimeMinutes: room.remainingTimeMinutes ?? null,
       currentBooking: room.currentBooking ?? undefined,
-      nextBooking: room.nextBooking ?? undefined
+      nextBooking: room.nextBooking ?? undefined,
+      totalBookingsToday: room.totalBookingsToday ?? 0,
+      totalBookedMinutesToday: room.totalBookedMinutesToday ?? 0,
+      allBookingsToday: room.allBookingsToday ?? []
     };
   }
 

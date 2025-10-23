@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '../../services/api.service'; // Keep ApiService for API calls
 import { Room } from '../../models/room.model'; // Import Room from the updated model
+import { Booking } from '../../models/booking.model'; // Import Booking model
 import { RoomCardComponent } from '../../components/room-card/room-card.component';
 import { Router, RouterLink, NavigationEnd } from '@angular/router';
 import { timer, Observable } from 'rxjs'; // Import timer and Observable
@@ -131,60 +132,129 @@ export class DashboardPageComponent implements OnInit {
     return room.id;
   }
 
+  /**
+   * Finds the effective end time of a booking block by following consecutive bookings.
+   * A "block" is a series of bookings where each booking's end time equals the next booking's start time.
+   *
+   * Example:
+   * - Booking A: 13:00 - 14:00
+   * - Booking B: 14:00 - 15:30 (directly follows A)
+   * - Booking C: 16:00 - 17:00 (gap after B)
+   *
+   * If currentBooking is A, this returns 15:30 (end of B), not 14:00.
+   *
+   * @param currentBooking The currently active booking
+   * @param allBookings All bookings for today, sorted by start time
+   * @returns The end time of the last booking in the continuous block
+   */
+  private findBlockEndTime(currentBooking: Booking, allBookings: Booking[]): Date {
+    let blockEndTime = new Date(currentBooking.end_time);
+
+    console.log(`\n=== FINDING BOOKING BLOCK ===`);
+    console.log(`Starting with booking:`, {
+      id: currentBooking.id,
+      start: new Date(currentBooking.start_time).toLocaleTimeString('de-DE'),
+      end: new Date(currentBooking.end_time).toLocaleTimeString('de-DE')
+    });
+
+    // Look for consecutive bookings
+    let foundConsecutive = true;
+    let currentEnd = blockEndTime;
+
+    while (foundConsecutive) {
+      foundConsecutive = false;
+
+      for (const booking of allBookings) {
+        const bookingStart = new Date(booking.start_time);
+        const bookingEnd = new Date(booking.end_time);
+
+        // Check if this booking starts exactly when the current block ends
+        if (bookingStart.getTime() === currentEnd.getTime()) {
+          console.log(`✓ Found consecutive booking:`, {
+            id: booking.id,
+            start: bookingStart.toLocaleTimeString('de-DE'),
+            end: bookingEnd.toLocaleTimeString('de-DE')
+          });
+
+          // Extend the block
+          currentEnd = bookingEnd;
+          blockEndTime = bookingEnd;
+          foundConsecutive = true;
+          break;
+        }
+      }
+    }
+
+    console.log(`Block ends at: ${blockEndTime.toLocaleTimeString('de-DE')}`);
+    console.log(`=== END FINDING BOOKING BLOCK ===\n`);
+
+    return blockEndTime;
+  }
+
   getRoomStatus(room: Room): { text: string; cssClass: string } {
-    // Access countdown$ to make this method reactive
-    this.countdown$();
+    // CRITICAL FIX: Don't call countdown$() here - it causes infinite loop
+    // The timer already updates countdown$ every second, triggering change detection
+    // We just need to read the current time directly
 
     const now = new Date();
 
-    // Debug logging
-    if (room.currentBooking || room.nextBooking) {
-      console.log(`Room ${room.name} status:`, {
-        currentBooking: room.currentBooking,
-        nextBooking: room.nextBooking,
-        now: now.toISOString()
-      });
-    }
-
+    // PRIORITÄT 1: Ist der Raum JETZT in diesem Moment belegt?
     if (room.currentBooking) {
-      const endTime = new Date(room.currentBooking.end_time);
-      const diffMs = endTime.getTime() - now.getTime();
+      const currentEndTime = new Date(room.currentBooking.end_time);
+      const diffMs = currentEndTime.getTime() - now.getTime();
       const totalSeconds = Math.floor(diffMs / 1000);
 
       if (totalSeconds <= 0) {
-        // Booking has ended, re-evaluate status
+        // Booking has ended, re-evaluate status without current booking
         return this.getRoomStatus({ ...room, currentBooking: undefined });
       }
 
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
+      // CRITICAL FIX: Find the actual end time of the booking block (consecutive bookings)
+      const allBookings = room.allBookingsToday ?? [];
+      const blockEndTime = this.findBlockEndTime(room.currentBooking, allBookings);
 
-      let countdownText = '';
-      if (hours > 0) {
-        countdownText += `${hours} Std. `;
-      }
-      if (minutes > 0) {
-        countdownText += `${minutes} Min. `;
-      }
-      countdownText += `${seconds} Sek.`;
+      const formattedEndTime = blockEndTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 
       return {
-        text: `NICHT BUCHBAR · Wieder verfügbar in: ${countdownText.trim()}`,
+        text: `Gebucht bis ${formattedEndTime} Uhr`,
         cssClass: 'booked'
       };
-    } else if (room.nextBooking) {
+    }
+
+    // PRIORITÄT 2: Ist der Raum JETZT frei, hat aber noch spätere Buchungen an diesem Tag?
+    if (room.nextBooking) {
+      const totalBookings = room.totalBookingsToday ?? 0;
+      const totalBookedMinutes = room.totalBookedMinutesToday ?? 0;
+
+      // Business hours: 8:00 - 20:00 = 720 minutes (12 hours)
+      const businessHoursMinutes = 720;
+      const bookedPercentage = (totalBookedMinutes / businessHoursMinutes) * 100;
+
+      console.log(`Room ${room.name}: ${totalBookings} bookings, ${totalBookedMinutes} minutes (${bookedPercentage.toFixed(1)}% of day)`);
+
+      // SONDERFALL: Ist der Raum praktisch komplett ausgebucht?
+      // Kriterien: 3+ Buchungen ODER mehr als 66% des Tages gebucht
+      if (totalBookings >= 3 || bookedPercentage > 66) {
+        return {
+          text: 'FÜR HEUTE AUSGEBUCHT',
+          cssClass: 'booked'
+        };
+      }
+
+      // Raum ist verfügbar bis zur nächsten Buchung
       const nextBookingStartTime = new Date(room.nextBooking.start_time);
       const formattedTime = nextBookingStartTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
       return {
         text: `Verfügbar bis ${formattedTime} Uhr`,
         cssClass: 'available-soon'
       };
-    } else {
-      return {
-        text: 'VERFÜGBAR DEN GANZEN TAG',
-        cssClass: 'available'
-      };
     }
+
+    // PRIORITÄT 3: Ist der Raum JETZT frei und hat für den Rest des Tages KEINE weiteren Buchungen mehr?
+    return {
+      text: 'VERFÜGBAR DEN GANZEN TAG',
+      cssClass: 'available'
+    };
   }
 }

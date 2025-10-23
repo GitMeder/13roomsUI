@@ -12,4 +12,7 @@ export interface Room {
   remainingTimeMinutes?: number | null;
   currentBooking?: Booking;
   nextBooking?: Booking;
+  totalBookingsToday?: number;
+  totalBookedMinutesToday?: number;
+  allBookingsToday?: Booking[];
 }
