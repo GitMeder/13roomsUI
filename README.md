@@ -2,6 +2,10 @@
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.3.2.
 
+## Current Status
+
+The booking form has been implemented, allowing users to book rooms. The UI has been enhanced for a better user experience. The latest code has been pushed to the GitHub repository.
+
 ## Development server
 
 Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
