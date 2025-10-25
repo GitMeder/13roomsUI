@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, inject } from '@angular/core';
-import { NgClass, NgFor, NgIf, SlicePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, input, Output, EventEmitter, inject } from '@angular/core';
+import { NgClass, SlicePipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,14 +12,14 @@ import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation
 @Component({
   selector: 'app-room-card',
   standalone: true,
-  imports: [MatCardModule, MatIconModule, MatChipsModule, NgClass, NgFor, NgIf, SlicePipe, MatButtonModule, MatDialogModule, MatTooltipModule],
+  imports: [MatCardModule, MatIconModule, MatChipsModule, NgClass, SlicePipe, MatButtonModule, MatDialogModule, MatTooltipModule],
   templateUrl: './room-card.component.html',
   styleUrls: ['./room-card.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RoomCardComponent {
-  @Input({ required: true }) room!: Room;
-  @Input({ required: true }) statusInfo!: { text: string; cssClass: string }; // New Input
+  readonly room = input.required<Room>();
+  readonly statusInfo = input.required<{ text: string; cssClass: string }>();
   @Output() deleteRoomEvent = new EventEmitter<number>();
   @Output() cardClick = new EventEmitter<number>();
 
@@ -27,22 +27,24 @@ export class RoomCardComponent {
 
   onDelete(event: Event): void {
     event.stopPropagation(); // Prevent card click event from firing
-    if (this.room && this.room.id) {
+    const room = this.room();
+    if (room && room.id) {
       const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
-        data: { message: `Möchten Sie Raum '${this.room.name}' wirklich löschen?` }
+        data: { message: `Möchten Sie Raum '${room.name}' wirklich löschen?` }
       });
 
       dialogRef.afterClosed().subscribe(result => {
         if (result) {
-          this.deleteRoomEvent.emit(this.room.id);
+          this.deleteRoomEvent.emit(room.id);
         }
       });
     }
   }
 
   onCardClick(): void {
-    if (this.room && this.room.id) {
-      this.cardClick.emit(this.room.id);
+    const room = this.room();
+    if (room && room.id) {
+      this.cardClick.emit(room.id);
     }
   }
 }

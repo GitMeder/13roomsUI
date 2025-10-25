@@ -6,8 +6,8 @@
     </p>
   </header>
 
-  <ng-container *ngIf="pageData$ | async as data; else loading">
-    <ng-container *ngIf="data.room; else notFound">
+  @if (pageData$ | async; as data) {
+    @if (data.room) {
       <mat-card appearance="outlined">
         <app-booking-form
           [roomId]="data.room.id || null"
@@ -19,21 +19,17 @@
           (submitted)="onBookingSubmit($event)"
         ></app-booking-form>
       </mat-card>
-    </ng-container>
-  </ng-container>
-
-  <ng-template #loading>
+    } @else {
+      <div class="page-state error">
+        <mat-icon>error_outline</mat-icon>
+        <p>Der angeforderte Raum konnte nicht gefunden werden.</p>
+        <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
+      </div>
+    }
+  } @else {
     <div class="page-state">
       <mat-spinner diameter="48"></mat-spinner>
       <p>Buchungsformular wird geladen...</p>
     </div>
-  </ng-template>
-
-  <ng-template #notFound>
-    <div class="page-state error">
-      <mat-icon>error_outline</mat-icon>
-      <p>Der angeforderte Raum konnte nicht gefunden werden.</p>
-      <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
-    </div>
-  </ng-template>
+  }
 </section>

@@ -1,12 +1,12 @@
-import { Component, OnInit, OnDestroy, inject, Input, Output, EventEmitter, OnChanges, SimpleChanges, ViewChild, ElementRef, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, input, Output, EventEmitter, ViewChild, ElementRef, signal, effect, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, ValidatorFn, ValidationErrors, AbstractControl } from '@angular/forms';
-import { Subject, BehaviorSubject, timer, Subscription } from 'rxjs';
+import { Subject, timer, Subscription } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged, map, takeWhile } from 'rxjs/operators';
 import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
 
-// Other necessary imports for Angular Material, NgIf, AsyncPipe etc.
+// Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
-import { NgFor, NgIf, AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 
 interface BookingFormControls {
   roomId: FormControl<number | null>;
@@ -53,27 +53,33 @@ interface RoomLiveStatus {
   imports: [
     ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule,
     MatDatepickerModule, MatNativeDateModule, MatButtonModule, MatIconModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, NgFor, NgIf, AsyncPipe, CommonModule
+    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, CommonModule
   ],
   templateUrl: './booking-form.component.html',
   styleUrls: ['./booking-form.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
+export class BookingFormComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
   private destroy$ = new Subject<void>();
   private countdownSubscription: Subscription | null = null;
 
-  // --- CRITICAL FIX: USE BEHAVIORSUBJECTS ---
-  public bookingConflict$ = new BehaviorSubject<Booking | null>(null);
-  public availabilityCountdown$ = new BehaviorSubject<string | null>(null);
+  // --- State Management ---
+  public readonly bookingConflict = signal<Booking | null>(null);
+  public readonly availabilityCountdown = signal<string | null>(null);
 
-  @Input({ required: true }) rooms: Room[] = [];
-  @Input() isSubmitting: boolean = false;
+  // --- Input Signals ---
+  readonly rooms = input.required<Room[]>();
+  readonly isSubmitting = input<boolean>(false);
+  readonly roomIdInput = input<number | null>(null, { alias: 'roomId' });
+  readonly suggestedStartTime = input<string | null>(null);
+  readonly suggestedEndTime = input<string | null>(null);
+  readonly initialConflict = input<Booking | null>(null);
 
   // Available time slots and bookings for the selected date
-  public dayBookings$ = new BehaviorSubject<Booking[]>([]);
+  public readonly dayBookings = signal<Booking[]>([]);
   public availableStartTimes: string[] = [];
   public availableEndTimes: string[] = [];
 
@@ -93,27 +99,6 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
   // ViewChild for focus management
   @ViewChild('nameInput') nameInput?: ElementRef<HTMLInputElement>;
 
-  @Input()
-  set roomId(value: number | null) {
-    // Only update if the value actually changes to prevent unnecessary form patching
-    if (this.form.get('roomId')?.value !== value) {
-      this.form.patchValue({ roomId: value }, { emitEvent: false });
-    }
-  }
-  get roomId(): number | null {
-    return this.form.get('roomId')?.value || null;
-  }
-
-  @Input()
-  set initialConflict(conflict: Booking | null) {
-    // DO NOT set initial conflict automatically
-    // The conflict should only be shown when user actively selects a time that conflicts
-    // The checkConflict() method will handle this properly
-    console.log('initialConflict input received (ignored):', conflict);
-  }
-
-  @Input() suggestedStartTime: string | null = null;
-  @Input() suggestedEndTime: string | null = null;
   @Output() submitted = new EventEmitter<BookingPayload>();
   @Output() resetForm = new EventEmitter<void>();
 
@@ -127,6 +112,35 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       endTime: new FormControl('', { nonNullable: true, validators: Validators.required }),
       name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
       comment: new FormControl<string | null>(null),
+    });
+
+    // Effect to sync roomIdInput signal to form control
+    effect(() => {
+      const roomId = this.roomIdInput();
+      if (this.form.get('roomId')?.value !== roomId) {
+        this.form.patchValue({ roomId }, { emitEvent: false });
+      }
+    });
+
+    // Effect to sync suggested times to form controls
+    effect(() => {
+      const startTime = this.suggestedStartTime();
+      const endTime = this.suggestedEndTime();
+
+      if (startTime) {
+        this.form.patchValue({ startTime }, { emitEvent: false });
+      }
+      if (endTime) {
+        this.form.patchValue({ endTime }, { emitEvent: false });
+      }
+    });
+
+    // Effect to sync initialConflict input to bookingConflict state
+    effect(() => {
+      const conflict = this.initialConflict();
+      if (conflict) {
+        this.bookingConflict.set(conflict);
+      }
     });
   }
 
@@ -213,7 +227,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
           } else {
             console.log('✓ No bookings found - day is completely free!');
           }
-          this.dayBookings$.next(bookings);
+          this.dayBookings.set(bookings);
           this.calculateAvailableTimes(bookings, date);
 
           // LIVE STATUS BANNER: Calculate live status after bookings are loaded
@@ -225,7 +239,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
         error: (error) => {
           console.error('❌ Error loading bookings:', error);
           // On error, assume no bookings and continue
-          this.dayBookings$.next([]);
+          this.dayBookings.set([]);
           this.calculateAvailableTimes([], date);
 
           // LIVE STATUS BANNER: Calculate live status even on error
@@ -490,19 +504,6 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
     this.checkConflict();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    // The roomId setter already handles patching roomId, so we only need to patch other inputs here.
-    if (changes['suggestedStartTime'] && this.suggestedStartTime) {
-        this.form.patchValue({ startTime: this.suggestedStartTime }, { emitEvent: false });
-    }
-    if (changes['suggestedEndTime'] && this.suggestedEndTime) {
-        this.form.patchValue({ endTime: this.suggestedEndTime }, { emitEvent: false });
-    }
-    
-    // The initial conflict check is now handled by the initialConflict setter.
-    // No need to call checkConflict() here anymore.
-  }
-
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -524,14 +525,14 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
     // This ensures the warning only appears when user has actually selected a time range
     if (!roomId || !date || !startTime || !endTime) {
       // Clear any existing conflict warning when fields are incomplete
-      this.bookingConflict$.next(null);
+      this.bookingConflict.set(null);
       this.updateCountdown(null);
       return;
     }
 
     // Validate that times are properly formatted
     if (!startTime.includes(':') || !endTime.includes(':')) {
-      this.bookingConflict$.next(null);
+      this.bookingConflict.set(null);
       this.updateCountdown(null);
       return;
     }
@@ -547,7 +548,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
         } else {
           console.log('No conflict - time slot is available');
         }
-        this.bookingConflict$.next(conflict);
+        this.bookingConflict.set(conflict);
         this.updateCountdown(conflict);
       });
   }
@@ -584,10 +585,10 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
         }),
         takeWhile(value => value !== null, true)
       ).subscribe(countdownText => {
-        this.availabilityCountdown$.next(countdownText);
+        this.availabilityCountdown.set(countdownText);
       });
     } else {
-      this.availabilityCountdown$.next(null);
+      this.availabilityCountdown.set(null);
     }
   }
 
@@ -598,7 +599,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
 
   public isSubmitDisabled(): boolean {
     // Check if currently submitting
-    if (this.isSubmitting) {
+    if (this.isSubmitting()) {
       return true;
     }
 
@@ -608,7 +609,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     // Check if there's a booking conflict
-    const conflict = this.bookingConflict$.getValue();
+    const conflict = this.bookingConflict();
     if (conflict !== null) {
       return true;
     }
@@ -760,7 +761,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const bookings = this.dayBookings$.getValue();
+    const bookings = this.dayBookings();
 
     console.log('\n=== CALCULATING LIVE STATUS BANNER ===');
     console.log('Current time:', now.toISOString());
@@ -973,7 +974,7 @@ export class BookingFormComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     // Clear any existing conflict warning
-    this.bookingConflict$.next(null);
+    this.bookingConflict.set(null);
 
     // Show loading state
     this.isSearchingSlot.set(true);

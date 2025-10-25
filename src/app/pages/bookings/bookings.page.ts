@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, BookingPayload } from '../../services/api.service';
 import { Observable, of } from 'rxjs';
@@ -20,6 +20,7 @@ import { BookingFormComponent } from '../../components/booking-form/booking-form
   imports: [CommonModule, BookingFormComponent, MatCardModule, MatProgressSpinnerModule, MatIconModule, MatButtonModule, RouterModule, MatSnackBarModule],
   templateUrl: './bookings.page.html',
   styleUrls: ['./bookings.page.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BookingsPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);

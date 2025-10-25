@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, DestroyRef } from '@angular/core';
-import { NgFor, NgIf } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -16,8 +15,6 @@ import { map, filter } from 'rxjs/operators'; // Import map operator
   selector: 'app-dashboard-page',
   standalone: true,
   imports: [
-    NgIf,
-    NgFor,
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -37,7 +34,7 @@ export class DashboardPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly rooms = signal<Room[]>([]);
 
-  readonly countdown$ = signal<number>(0); // Real-time countdown signal
+  readonly countdown = signal<number>(0); // Real-time countdown signal
 
   // Keep the dashboard subtitle contextual to current state (loading vs. stats).
   readonly subtitle = computed(() => {
@@ -62,7 +59,7 @@ export class DashboardPageComponent implements OnInit {
     timer(0, 1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(tick => {
-        this.countdown$.set(tick);
+        this.countdown.set(tick);
       });
 
     // Reload rooms when navigating back to dashboard
@@ -128,9 +125,6 @@ export class DashboardPageComponent implements OnInit {
     this.router.navigate(['/bookings', roomId]);
   }
 
-  trackByRoomId(index: number, room: Room): number {
-    return room.id;
-  }
 
   /**
    * Finds the effective end time of a booking block by following consecutive bookings.
@@ -192,8 +186,8 @@ export class DashboardPageComponent implements OnInit {
   }
 
   getRoomStatus(room: Room): { text: string; cssClass: string } {
-    // CRITICAL FIX: Don't call countdown$() here - it causes infinite loop
-    // The timer already updates countdown$ every second, triggering change detection
+    // CRITICAL FIX: Don't call countdown() here - it causes infinite loop
+    // The timer already updates countdown every second, triggering change detection
     // We just need to read the current time directly
 
     const now = new Date();

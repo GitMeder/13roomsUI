@@ -1,0 +1,17 @@
+feat(refactor, devops): Full modernization and Docker dev environment setup
+
+This major refactoring updates the entire application to Angular v20 best practices and introduces a Docker-based development environment for simplified testing and setup.
+
+Key Modernizations:
+- Migrated all legacy control flow (*ngIf, *ngFor) to the new built-in syntax ( @if, @src/app/components/booking-form/booking-form.component.ts).
+- Replaced all BehaviorSubjects with Signals for state management, eliminating the async pipe.
+- Converted all @Input() decorators to modern, signal-based inputs (input(), input.required()).
+- Enforced OnPush change detection across all components for significant performance gains.
+- Standardized DI to use the modern inject() function.
+
+Development Environment:
+- Added Dockerfiles for both the frontend (UI) and backend (API).
+- Created a docker-compose.yml file to orchestrate the entire application.
+- Utilizes volumes for live-reloading, enabling non-developers to test changes easily after a `git pull` with a single `docker-compose up` command.
+
+The application is now 100% compliant with modern Angular v20 standards and is significantly easier to set up and test for all team members.

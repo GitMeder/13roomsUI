@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
@@ -29,9 +29,14 @@ import { map, startWith } from 'rxjs/operators';
     MatAutocompleteModule
   ],
   templateUrl: './room-form.component.html',
-  styleUrl: './room-form.component.css'
+  styleUrl: './room-form.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RoomFormComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly apiService = inject(ApiService);
+  private readonly router = inject(Router);
+
   roomForm!: FormGroup;
 
   amenitiesCtrl = new FormControl('');
@@ -41,11 +46,7 @@ export class RoomFormComponent implements OnInit {
 
   @ViewChild('amenityInput') amenityInput!: ElementRef<HTMLInputElement>;
 
-  constructor(
-    private fb: FormBuilder,
-    private apiService: ApiService,
-    private router: Router
-  ) {
+  constructor() {
     console.log('RoomFormComponent constructor called.');
     this.filteredAmenities = this.amenitiesCtrl.valueChanges.pipe(
       startWith(null),

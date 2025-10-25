@@ -16,25 +16,32 @@
     </button>
   </header>
 
-  <div class="dashboard-page__content" *ngIf="!loading() && !error()">
-    <div class="dashboard-page__grid">
-      <app-room-card
-        *ngFor="let room of rooms(); trackBy: trackByRoomId"
-        [room]="room"
-        [statusInfo]="getRoomStatus(room)"
-        (deleteRoomEvent)="onDeleteRoom($event)"
-        (cardClick)="onRoomCardClick($event)"
-      ></app-room-card>
+  @if (!loading() && !error()) {
+    <div class="dashboard-page__content">
+      <div class="dashboard-page__grid">
+        @for (room of rooms(); track room.id) {
+          <app-room-card
+            [room]="room"
+            [statusInfo]="getRoomStatus(room)"
+            (deleteRoomEvent)="onDeleteRoom($event)"
+            (cardClick)="onRoomCardClick($event)"
+          ></app-room-card>
+        }
+      </div>
     </div>
-  </div>
+  }
 
-  <div class="dashboard-page__empty" *ngIf="!loading() && error()">
-    <mat-icon aria-hidden="true">error_outline</mat-icon>
-    <p>{{ error() }}</p>
-  </div>
+  @if (!loading() && error()) {
+    <div class="dashboard-page__empty">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <p>{{ error() }}</p>
+    </div>
+  }
 
-  <div class="dashboard-page__loading" *ngIf="loading()">
-    <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
-    <span>Daten werden geladen …</span>
-  </div>
+  @if (loading()) {
+    <div class="dashboard-page__loading">
+      <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+      <span>Daten werden geladen …</span>
+    </div>
+  }
 </section>
