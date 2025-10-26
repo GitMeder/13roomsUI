@@ -1,15 +1,18 @@
 <form class="booking-form" [formGroup]="form" (ngSubmit)="onSubmit()">
   <!-- Conflict Warning (Full Width) -->
+  <!-- SMART UI: Suppressed when "Live Status" timeline is visible (higher priority) -->
   @if (bookingConflict(); as conflict) {
-    <div class="booking-form__conflict-warning">
-      <mat-icon>warning</mat-icon>
-      <span>
-        Dieser Zeitraum ist bereits gebucht von {{ conflict.name }} ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr).
-        @if (availabilityCountdown(); as countdown) {
-          {{ countdown }}
-        }
-      </span>
-    </div>
+    @if (liveStatus().type !== 'currently-booked') {
+      <div class="booking-form__conflict-warning">
+        <mat-icon>warning</mat-icon>
+        <span>
+          Dieser Zeitraum ist bereits gebucht von {{ conflict.name }} ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr).
+          @if (availabilityCountdown(); as countdown) {
+            {{ countdown }}
+          }
+        </span>
+      </div>
+    }
   }
 
   <!-- Booking Timeline (Full Width) - Visual timeline showing current and upcoming bookings -->
@@ -98,14 +101,53 @@
       <div class="booking-form__time-fields">
         <mat-form-field appearance="outline">
           <mat-label>Beginn</mat-label>
-          <input matInput type="time" formControlName="startTime" required />
+          <input
+            matInput
+            formControlName="startTime"
+            [ngxTimepicker]="startTimePicker"
+            [format]="24"
+            readonly
+            required />
+          <mat-icon matSuffix (click)="startTimePicker.open()">access_time</mat-icon>
+          <ngx-material-timepicker
+            #startTimePicker
+            [confirmBtnTmpl]="confirmTmpl"
+            [cancelBtnTmpl]="cancelTmpl">
+          </ngx-material-timepicker>
           <mat-hint>Automatisch vorausgewählt</mat-hint>
           <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="end-time-field">
           <mat-label>Ende</mat-label>
-          <input matInput type="time" formControlName="endTime" required />
+
+          <!-- THE ICON - direct child for absolute positioning on border -->
+          @if (!devModeService.isDevMode()) {
+            <mat-icon
+              class="info-icon"
+              matTooltip="Buchungen sind nur zwischen 08:00 und 20:00 Uhr möglich."
+              [matTooltipClass]="'custom-tooltip'">
+              info_outline
+            </mat-icon>
+          }
+
+          <input
+            matInput
+            formControlName="endTime"
+            [ngxTimepicker]="endTimePicker"
+            [format]="24"
+            readonly
+            required />
+
+          <!-- The clock icon in the suffix -->
+          <mat-icon matSuffix class="clock-icon" (click)="endTimePicker.open()">access_time</mat-icon>
+
+          <ngx-material-timepicker
+            #endTimePicker
+            [confirmBtnTmpl]="confirmTmpl"
+            [cancelBtnTmpl]="cancelTmpl">
+          </ngx-material-timepicker>
+
           <mat-hint>Automatisch vorgeschlagen</mat-hint>
           @if (form.get('endTime')?.hasError('required')) {
             <mat-error>
@@ -146,7 +188,9 @@
       }
 
       <!-- Empty state message when no slots available -->
-      @if (!isLoadingSlots() && form.get('roomId')?.value && form.get('date')?.value && suggestedSlots().length === 0) {
+      <!-- CRITICAL: Only show error after we've completed at least one slot calculation -->
+      <!-- This prevents the error from showing during initial component load before async data arrives -->
+      @if (!isLoadingSlots() && hasCalculatedSlots() && form.get('roomId')?.value && form.get('date')?.value && suggestedSlots().length === 0) {
         <div class="booking-form__no-slots">
           <mat-icon>event_busy</mat-icon>
           <span>Keine freien Slots für diesen Tag verfügbar.</span>
@@ -182,7 +226,12 @@
       <mat-icon>refresh</mat-icon>
       Zurücksetzen
     </button>
-    <button mat-flat-button color="primary" type="submit" [disabled]="isSubmitDisabled()">
+    <button
+      mat-flat-button
+      color="primary"
+      type="submit"
+      [disabled]="isSubmitDisabled()"
+      [class.rainbow-button]="isSmartRebooking()">
       @if (isSubmitting()) {
         <mat-spinner diameter="20"></mat-spinner>
       } @else {
@@ -191,4 +240,12 @@
       {{ isSubmitting() ? 'Wird gespeichert...' : 'Buchung speichern' }}
     </button>
   </div>
+
+  <!-- German Button Templates for ngx-material-timepicker -->
+  <ng-template #cancelTmpl>
+    <button mat-button style="color: grey;">Abbrechen</button>
+  </ng-template>
+  <ng-template #confirmTmpl>
+    <button mat-flat-button color="primary">OK</button>
+  </ng-template>
 </form>

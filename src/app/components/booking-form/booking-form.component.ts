@@ -1,10 +1,12 @@
 import { Component, OnInit, OnDestroy, inject, input, Output, EventEmitter, ViewChild, ElementRef, signal, effect, ChangeDetectionStrategy } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, ValidatorFn, ValidationErrors, AbstractControl } from '@angular/forms';
 import { Subject, timer, Subscription } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged, map, takeWhile } from 'rxjs/operators';
 import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
+import { DevModeService } from '../../core/services/dev-mode.service';
 
 // Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -17,7 +19,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
+
+// ngx-material-timepicker for 24-hour German time format
+import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
+import * as moment from 'moment';
+import 'moment/locale/de';
 
 interface BookingFormControls {
   roomId: FormControl<number | null>;
@@ -51,10 +59,12 @@ interface RoomLiveStatus {
   selector: 'app-booking-form',
   standalone: true,
   imports: [
-    ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule,
+    DatePipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule,
     MatDatepickerModule, MatNativeDateModule, MatButtonModule, MatIconModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, CommonModule
+    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule,
+    NgxMaterialTimepickerModule
   ],
+  providers: [DatePipe],
   templateUrl: './booking-form.component.html',
   styleUrls: ['./booking-form.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -63,6 +73,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly datePipe = inject(DatePipe);
+  public readonly devModeService = inject(DevModeService);
   private destroy$ = new Subject<void>();
   private countdownSubscription: Subscription | null = null;
 
@@ -73,10 +85,18 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   // --- Input Signals ---
   readonly rooms = input.required<Room[]>();
   readonly isSubmitting = input<boolean>(false);
+  readonly isSmartRebooking = input<boolean>(false); // PHASE 3+: Rainbow highlight for smart rebooking
   readonly roomIdInput = input<number | null>(null, { alias: 'roomId' });
   readonly suggestedStartTime = input<string | null>(null);
   readonly suggestedEndTime = input<string | null>(null);
   readonly initialConflict = input<Booking | null>(null);
+  readonly prefillData = input<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    name: string;
+    comment?: string;
+  } | null>(null); // PHASE 3+: Pre-fill data for smart rebooking
 
   // Available time slots and bookings for the selected date
   public readonly dayBookings = signal<Booking[]>([]);
@@ -89,7 +109,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
   // UI State
   public readonly isSearchingSlot = signal<boolean>(false);
-  public readonly isLoadingSlots = signal<boolean>(false);
+  // CRITICAL FIX: Start with true to prevent error message during initial load
+  // This ensures "loading" state is shown first, not "no slots" error
+  public readonly isLoadingSlots = signal<boolean>(true);
+  public readonly hasCalculatedSlots = signal<boolean>(false); // Track if we've ever calculated slots
 
   // Live Status Banner State
   public readonly liveStatus = signal<RoomLiveStatus>({ type: null });
@@ -105,6 +128,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   readonly form: FormGroup<BookingFormControls>;
 
   constructor() {
+    // Set moment locale to German for 24-hour time format
+    moment.locale('de');
+
     this.form = this.fb.group({
       roomId: new FormControl<number | null>(null, { validators: [Validators.required, this.validRoomIdValidator()] }),
       date: new FormControl(new Date(), { nonNullable: true, validators: Validators.required }),
@@ -112,7 +138,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       endTime: new FormControl('', { nonNullable: true, validators: Validators.required }),
       name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
       comment: new FormControl<string | null>(null),
-    });
+    }, { validators: [this.timeRangeValidator()] });
 
     // Effect to sync roomIdInput signal to form control
     effect(() => {
@@ -142,6 +168,38 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         this.bookingConflict.set(conflict);
       }
     });
+
+    // PHASE 3+: Effect to handle smart rebooking prefill data
+    effect(() => {
+      const prefill = this.prefillData();
+      if (prefill) {
+        console.log('[SmartRebooking] Applying prefill data to form:', prefill);
+
+        // Parse the date string (YYYY-MM-DD) into a Date object
+        const dateObj = new Date(prefill.date + 'T00:00:00');
+
+        // Patch all form values
+        this.form.patchValue({
+          startTime: prefill.startTime,
+          endTime: prefill.endTime,
+          date: dateObj,
+          name: prefill.name,
+          comment: prefill.comment || null
+        }, { emitEvent: false });
+
+        console.log('[SmartRebooking] Form prefilled successfully');
+      }
+    });
+
+    // PART 3: Strategic logging to verify rainbow button activation
+    effect(() => {
+      const isRebooking = this.isSmartRebooking();
+      console.log('[RainbowButton] isSmartRebooking signal value:', isRebooking);
+
+      if (isRebooking) {
+        console.log('[RainbowButton] ✨ RAINBOW BUTTON ACTIVATED! The save button should now have the rainbow ring animation.');
+      }
+    });
   }
 
   private validRoomIdValidator(): ValidatorFn {
@@ -154,29 +212,81 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Custom validator for time range: ensures endTime is after startTime.
+   * Applied at FormGroup level to validate across multiple controls.
+   */
+  private timeRangeValidator(): ValidatorFn {
+    return (group: AbstractControl): ValidationErrors | null => {
+      const startTime = group.get('startTime')?.value;
+      const endTime = group.get('endTime')?.value;
+
+      // Skip validation if either time is empty (handled by required validator)
+      if (!startTime || !endTime) {
+        return null;
+      }
+
+      // Normalize times to handle potential AM/PM format
+      const normalizedStart = this.normalizeTimeFormat(startTime);
+      const normalizedEnd = this.normalizeTimeFormat(endTime);
+
+      // Parse times as "HH:mm"
+      const [startHours, startMinutes] = normalizedStart.split(':').map(Number);
+      const [endHours, endMinutes] = normalizedEnd.split(':').map(Number);
+
+      // Convert to comparable numbers (total minutes since midnight)
+      const startTotalMinutes = startHours * 60 + startMinutes;
+      const endTotalMinutes = endHours * 60 + endMinutes;
+
+      // End time must be after start time
+      if (endTotalMinutes <= startTotalMinutes) {
+        return { invalidTimeRange: true };
+      }
+
+      return null;
+    };
+  }
+
   ngOnInit(): void {
-    // Load day bookings when roomId or date changes
+    // Subscription 1: Reload bookings ONLY when roomId or date changes
     this.form.valueChanges.pipe(
       takeUntil(this.destroy$),
       debounceTime(300),
       distinctUntilChanged((prev, curr) =>
         prev.roomId === curr.roomId &&
-        prev.date?.getTime() === curr.date?.getTime() &&
-        prev.startTime === curr.startTime &&
-        prev.endTime === curr.endTime
-      )
-    ).subscribe((values) => {
-      // Load bookings when room or date changes
-      if (values.roomId && values.date) {
-        this.loadDayBookings(values.roomId, values.date);
+        prev.date?.getTime() === curr.date?.getTime()
+      ),
+      map(values => ({ roomId: values.roomId, date: values.date }))
+    ).subscribe(({ roomId, date }) => {
+      if (roomId && date) {
+        this.loadDayBookings(roomId, date);
       }
+    });
 
-      // Auto-fill end time when start time changes
-      if (values.startTime && !values.endTime) {
-        this.autoFillEndTime(values.startTime);
-      }
+    // Subscription 2: Simple startTime handler
+    this.form.get('startTime')?.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      distinctUntilChanged()
+    ).subscribe(newStartTime => {
+      // 1. Automatically update the end time to be 30 mins later
+      this.autoFillEndTime(newStartTime);
 
-      // Check for conflicts
+      // 2. Un-select any suggestion chip - user is now in manual mode
+      this.selectedSlotIndex.set(null);
+
+      // 3. Immediately check for conflicts with the new time range
+      this.checkConflict();
+    });
+
+    // Subscription 3: Simple endTime handler
+    this.form.get('endTime')?.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      // 1. Un-select any suggestion chip - user is now in manual mode
+      this.selectedSlotIndex.set(null);
+
+      // 2. Check for conflicts
       this.checkConflict();
     });
 
@@ -185,33 +295,48 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     // We must explicitly check and load bookings for the initial state after the current change detection cycle.
     setTimeout(() => {
       const currentRoomId = this.form.get('roomId')?.value;
-      const currentDate = this.form.get('date')?.value;
+      let currentDate = this.form.get('date')?.value;
 
-      console.log('\n=== INITIAL LOAD CHECK (ngOnInit) ===');
-      console.log('Initial roomId:', currentRoomId);
-      console.log('Initial date:', currentDate);
+      console.log(`[FormInit] Initial values: roomId=${currentRoomId}, date=${currentDate?.toISOString()}`);
+
+      // UX ENHANCEMENT: Smart date forwarding for after-hours bookings
+      // If user opens the form after business hours, automatically select tomorrow
+      if (currentDate && !this.devModeService.isDevMode()) {
+        const now = new Date();
+        const isToday = currentDate.toDateString() === now.toDateString();
+        const currentHour = now.getHours();
+        const businessEndHour = 20; // Business hours end at 20:00
+
+        if (isToday && currentHour >= businessEndHour) {
+          console.log(`[SmartForward] After-hours detected. Forwarding date to tomorrow.`);
+
+          // Create tomorrow's date
+          const tomorrow = new Date(currentDate);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+
+          // Update the form - this will trigger valueChanges and load bookings for tomorrow
+          this.form.patchValue({ date: tomorrow }, { emitEvent: true });
+          currentDate = tomorrow;
+        }
+      }
 
       if (currentRoomId && currentDate) {
-        console.log('✓ Initial values found - triggering loadDayBookings');
         this.loadDayBookings(currentRoomId, currentDate);
       } else {
-        console.log('⚠️ Initial values incomplete - waiting for user input');
         // If no initial values, ensure loading state is false
         this.isLoadingSlots.set(false);
       }
-      console.log('=== END INITIAL LOAD CHECK ===\n');
     }, 0);
   }
 
   private loadDayBookings(roomId: number, date: Date): void {
     const dateStr = date.toISOString().split('T')[0];
-    console.log(`\n=== LOADING BOOKINGS ===`);
-    console.log(`Room ID: ${roomId}`);
-    console.log(`Date: ${dateStr}`);
-    console.log(`Full Date Object:`, date);
+    console.log(`[BookingLoad] Loading bookings for room ${roomId} on ${date.toISOString()}`);
 
     // Set loading state
     this.isLoadingSlots.set(true);
+    // Don't reset hasCalculatedSlots here - we want to keep showing the loading state
+    // instead of the error message while new slots are being calculated
 
     // Clear previous slots while loading
     this.suggestedSlots.set([]);
@@ -221,12 +346,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (bookings) => {
-          console.log(`✓ Successfully loaded ${bookings.length} bookings for the day`);
-          if (bookings.length > 0) {
-            console.log('Bookings details:', bookings);
-          } else {
-            console.log('✓ No bookings found - day is completely free!');
-          }
           this.dayBookings.set(bookings);
           this.calculateAvailableTimes(bookings, date);
 
@@ -237,7 +356,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
           // This ensures the UI never sees an intermediate state where loading=false but suggestedSlots is still empty
         },
         error: (error) => {
-          console.error('❌ Error loading bookings:', error);
           // On error, assume no bookings and continue
           this.dayBookings.set([]);
           this.calculateAvailableTimes([], date);
@@ -250,233 +368,247 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * PHASE 3: Simplified and bulletproof slot calculation.
+   * Generates all possible 15-minute slots, then filters using centralized validation.
+   */
   private calculateAvailableTimes(bookings: Booking[], selectedDate: Date): void {
-    console.log('\n=== CALCULATING AVAILABLE TIMES ===');
-    console.log('Selected date:', selectedDate.toISOString());
-    console.log('Number of bookings:', bookings.length);
+    console.log(`[SlotCalc] Starting slot calculation for ${selectedDate.toISOString()}`);
+    console.log(`[SlotCalc] DevMode Active: ${this.devModeService.isDevMode()}`);
 
-    const now = new Date();
-    const isToday = selectedDate.toDateString() === now.toDateString();
-    console.log('Is today:', isToday);
-
-    // Business hours: 8:00 - 20:00
-    const startHour = 8;
-    const endHour = 20;
     const interval = 15; // 15-minute intervals
 
-    // Generate all possible time slots
+    // PHASE 3: Generate all possible 15-minute slots for a full 24-hour day
     const allSlots: string[] = [];
-    for (let hour = startHour; hour < endHour; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
       for (let minute = 0; minute < 60; minute += interval) {
         const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         allSlots.push(timeStr);
       }
     }
 
-    console.log(`Generated ${allSlots.length} total time slots (${startHour}:00 - ${endHour}:00)`);
+    // PHASE 3: Single filter using the new isTimeSlotAvailable helper
+    // This centralized function handles ALL validation: dev mode, business hours, and past time checks
+    const availableSlots = allSlots.filter(time => {
+      // Parse the time slot
+      const [hours, minutes] = time.split(':').map(Number);
 
-    // Filter out past times if today
-    // UX IMPROVEMENT: Allow retroactive bookings where end time is still in the future
-    let availableSlots = allSlots;
-    if (isToday) {
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      console.log('Current time:', currentTime);
+      // Construct slot start time from selectedDate components
+      const slotStart = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
+        hours,
+        minutes,
+        0,
+        0
+      );
 
-      const defaultDurationMinutes = 30; // Standard meeting duration
-
-      availableSlots = allSlots.filter(time => {
-        // Parse the time slot
-        const [hours, minutes] = time.split(':').map(Number);
-        const slotStart = new Date(selectedDate);
-        slotStart.setHours(hours, minutes, 0, 0);
-
-        // Calculate the default end time (30 minutes later)
-        const slotEnd = new Date(slotStart.getTime() + defaultDurationMinutes * 60000);
-
-        // Allow the slot if the end time is in the future
-        // This enables retroactive bookings (e.g., booking a meeting that started at 13:00 when it's now 13:15)
-        const isValid = slotEnd > now;
-
-        if (!isValid) {
-          // Log why this slot was filtered out for debugging
-          console.log(`Filtered out slot ${time} (end time ${slotEnd.toLocaleTimeString()} is in the past)`);
-        }
-
-        return isValid;
-      });
-
-      console.log(`After filtering past times: ${availableSlots.length} slots remain (allowing retroactive bookings)`);
-    }
+      // Use the new centralized validation function
+      return this.isTimeSlotAvailable(slotStart);
+    });
 
     // Filter out booked times
     this.availableStartTimes = availableSlots.filter(time => {
       return !this.isTimeBlocked(time, bookings, selectedDate);
     });
 
-    console.log(`After filtering booked times: ${this.availableStartTimes.length} available start times`);
-    console.log('=== END CALCULATING AVAILABLE TIMES ===\n');
+    console.log(`[SlotCalc] Finished. Found ${this.availableStartTimes.length} available start times.`);
 
     // PROACTIVE UX: Find and pre-select suggested slots
     this.findSuggestedSlots(bookings, selectedDate);
   }
 
-  private isTimeBlocked(time: string, bookings: Booking[], date: Date): boolean {
-    const dateStr = date.toISOString().split('T')[0];
-    const checkTime = new Date(`${dateStr} ${time}:00`);
+  /**
+   * PHASE 3: Core validation logic for time slot availability.
+   * Centralizes all time constraint checks in one place.
+   * @param slotStart The start time of the slot to validate
+   * @returns true if the slot is available for booking
+   */
+  private isTimeSlotAvailable(slotStart: Date): boolean {
+    // MASTER SWITCH: In Developer Mode, all time constraints are bypassed
+    if (this.devModeService.isDevMode()) {
+      return true;
+    }
 
-    return bookings.some(booking => {
-      const bookingStart = new Date(booking.start_time);
-      const bookingEnd = new Date(booking.end_time);
-      return checkTime >= bookingStart && checkTime < bookingEnd;
-    });
+    // BUSINESS HOURS CHECK: Slots must be between 08:00 and 20:00
+    const slotHour = slotStart.getHours();
+    const slotMinute = slotStart.getMinutes();
+    const businessStartHour = 8;
+    const businessEndHour = 20;
+
+    if (slotHour < businessStartHour || slotHour >= businessEndHour) {
+      return false;
+    }
+
+    // PAST TIME CHECK: Slot end time must be in the future
+    // Calculate slot end time (30 minutes after start)
+    const defaultDurationMinutes = 30;
+    const slotEnd = new Date(slotStart.getTime() + defaultDurationMinutes * 60000);
+
+    // Compare timestamps to avoid timezone issues
+    if (slotEnd.getTime() <= new Date().getTime()) {
+      return false;
+    }
+
+    // All checks passed - slot is available
+    return true;
   }
 
+  /**
+   * PHASE 3 CRITICAL BUG FIX: Accurate overlap detection for slot suggestions.
+   * Checks if a time slot (with 30-minute duration) overlaps with any existing booking.
+   *
+   * @param time Start time in HH:mm format (e.g., "14:30")
+   * @param bookings All bookings for the selected date
+   * @param date The selected date
+   * @returns true if the slot is blocked (overlaps with a booking), false if available
+   */
+  private isTimeBlocked(time: string, bookings: Booking[], date: Date): boolean {
+    // Parse the time string
+    const [hours, minutes] = time.split(':').map(Number);
+
+    // CRITICAL FIX: Construct slot start time explicitly from date components
+    // This ensures consistent date handling across all functions
+    const slotStart = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
+
+    // CRITICAL FIX: Calculate slot end time (30 minutes after start)
+    // The previous implementation only checked if the START time was blocked,
+    // completely ignoring the slot's DURATION. This caused suggestions of times
+    // that would overlap with existing bookings.
+    const defaultDuration = 30; // 30 minutes
+    const slotEnd = new Date(slotStart.getTime() + defaultDuration * 60000);
+
+    // STRATEGIC LOGGING: Trace each slot check for debugging
+    console.log(`[isTimeBlocked] Checking slot: ${time} (${slotStart.toISOString()} - ${slotEnd.toISOString()})`);
+
+    // Check if this slot overlaps with ANY existing booking
+    const isBlocked = bookings.some(booking => {
+      const bookingStart = new Date(booking.start_time);
+      const bookingEnd = new Date(booking.end_time);
+
+      // CORRECT OVERLAP DETECTION:
+      // Two time ranges overlap if: Range1.start < Range2.end AND Range1.end > Range2.start
+      // In our case: slotStart < bookingEnd AND slotEnd > bookingStart
+      const overlaps = slotStart.getTime() < bookingEnd.getTime() && slotEnd.getTime() > bookingStart.getTime();
+
+      // STRATEGIC LOGGING: Log every comparison for full visibility
+      if (overlaps) {
+        console.log(`  ❌ BLOCKED by booking: ${booking.name} (${bookingStart.toISOString()} - ${bookingEnd.toISOString()})`);
+      }
+
+      return overlaps;
+    });
+
+    if (!isBlocked) {
+      console.log(`  ✅ AVAILABLE - No conflicts found`);
+    }
+
+    return isBlocked;
+  }
+
+  /**
+   * FINAL FIX: Simple, predictable auto-fill.
+   * Always updates endTime to startTime + 30 minutes.
+   * No complex logic, no scenarios - just one simple rule.
+   */
   private autoFillEndTime(startTime: string): void {
-    // Default duration: 30 minutes
+    if (!startTime) return;
+
     const [hours, minutes] = startTime.split(':').map(Number);
-    const endDate = new Date();
-    endDate.setHours(hours, minutes + 30, 0, 0);
+    const startDate = new Date();
+    startDate.setHours(hours, minutes, 0, 0);
+
+    const endDate = new Date(startDate.getTime() + 30 * 60000); // Add 30 minutes
 
     const endTimeStr = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
 
     this.form.patchValue({ endTime: endTimeStr }, { emitEvent: false });
-    console.log(`Auto-filled end time: ${endTimeStr}`);
   }
 
   /**
-   * PROACTIVE UX: Finds the next 3-4 available time slots and automatically pre-selects the first one.
-   * This transforms the booking experience from "empty fields" to "smart suggestions".
+   * PHASE 3 FINAL: Simplified suggestion logic - zero redundancy.
+   * Uses pre-filtered this.availableStartTimes (already validated and conflict-free).
+   * Simply selects the best 4 slots starting from "now" and calculates their end times.
    */
   private findSuggestedSlots(bookings: Booking[], selectedDate: Date): void {
-    console.log('=== findSuggestedSlots START ===');
-    console.log('Selected date:', selectedDate.toISOString());
-    console.log('Number of bookings:', bookings.length);
-    console.log('Bookings:', bookings);
+    console.log(`[Suggestion] Finding suggestions from ${this.availableStartTimes.length} pre-filtered slots.`);
 
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
-    console.log('Is today:', isToday);
-    console.log('Current time:', now.toISOString());
 
-    // Start from current time if today, otherwise from 8:00
-    // UX IMPROVEMENT: Allow retroactive bookings by searching backwards from current time
-    let searchTime: Date;
+    // STEP 1: Determine the earliest relevant time to start suggesting from
+    let startSearchFrom: string;
     if (isToday) {
-      // Start search 30 minutes before now to find retroactive slots
-      // (where end time is still in the future)
-      searchTime = new Date(now.getTime() - 30 * 60000);
+      // Start search 30 minutes before now to catch retroactive booking opportunities
+      const searchTime = new Date(now.getTime() - 30 * 60000);
 
-      // Don't search before business hours start
-      const businessStart = new Date(selectedDate);
-      businessStart.setHours(8, 0, 0, 0);
-      if (searchTime < businessStart) {
-        searchTime = businessStart;
-      }
-
-      // Round down to 15-minute interval
+      // Round down to 15-minute interval for clean matching
       const minutes = searchTime.getMinutes();
       const roundedMinutes = Math.floor(minutes / 15) * 15;
       searchTime.setMinutes(roundedMinutes, 0, 0);
 
-      console.log('Search start time (today, allowing retroactive bookings):', searchTime.toISOString());
+      // Format as HH:mm for string comparison
+      startSearchFrom = `${searchTime.getHours().toString().padStart(2, '0')}:${roundedMinutes.toString().padStart(2, '0')}`;
     } else {
-      searchTime = new Date(selectedDate);
-      searchTime.setHours(8, 0, 0, 0);
-      console.log('Search start time (future date):', searchTime.toISOString());
+      // For future dates, start from the beginning of available slots
+      startSearchFrom = '00:00';
     }
 
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(20, 0, 0, 0);
-    console.log('End of business day:', endOfDay.toISOString());
+    // STEP 2: Filter available slots to only those >= startSearchFrom
+    // String comparison works perfectly for HH:mm format ("14:30" >= "14:00" is true)
+    const relevantSlots = this.availableStartTimes.filter(time => time >= startSearchFrom);
 
-    // If search time is already past business hours, use full day
-    if (searchTime >= endOfDay && isToday) {
-      console.log('⚠️ Current time is past business hours. No slots available for today.');
-      this.suggestedSlots.set([]);
-      this.selectedSlotIndex.set(null);
-      // CRITICAL FIX: Also set loading state to false on early return
-      this.isLoadingSlots.set(false);
-      console.log('✓ Loading complete. Final state: 0 slots available (past business hours)');
-      return;
-    }
-
+    // STEP 3: Take first 4 slots and calculate their end times
+    const maxSuggestions = 4;
     const duration = 30; // 30 minutes
-    const maxSuggestions = 4; // Find up to 4 slots
-    const foundSlots: { startTime: string; endTime: string }[] = [];
 
-    let iterationCount = 0;
-    const maxIterations = 200; // Safety limit
+    const suggestions = relevantSlots.slice(0, maxSuggestions).map(startTime => {
+      // Parse start time
+      const [hours, minutes] = startTime.split(':').map(Number);
 
-    // Search for available slots
-    while (searchTime < endOfDay && foundSlots.length < maxSuggestions && iterationCount < maxIterations) {
-      iterationCount++;
+      // Create Date objects for calculation
+      const startDate = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
+        hours,
+        minutes,
+        0,
+        0
+      );
 
-      const endTime = new Date(searchTime.getTime() + duration * 60000);
+      // Calculate end time
+      const endDate = new Date(startDate.getTime() + duration * 60000);
+      const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
 
-      // Check if end time is within business hours
-      if (endTime > endOfDay) {
-        console.log('End time exceeds business hours, stopping search');
-        break;
-      }
+      return {
+        startTime: startTime,
+        endTime: endTime
+      };
+    });
 
-      // UX IMPROVEMENT: Skip slots where end time is in the past (retroactive booking not possible)
-      if (isToday && endTime <= now) {
-        console.log(`Skipping slot ${searchTime.toLocaleTimeString()} (end time ${endTime.toLocaleTimeString()} is in the past)`);
-        searchTime = new Date(searchTime.getTime() + 15 * 60000);
-        continue;
-      }
+    // STEP 4: Update signals and pre-select first slot
+    this.suggestedSlots.set(suggestions);
 
-      // Check if this slot overlaps with any booking
-      const hasConflict = bookings.some(booking => {
-        const bookingStart = new Date(booking.start_time);
-        const bookingEnd = new Date(booking.end_time);
-        const overlaps = (searchTime < bookingEnd && endTime > bookingStart);
-
-        if (overlaps) {
-          console.log(`  Conflict detected: ${searchTime.toLocaleTimeString()} conflicts with booking ${bookingStart.toLocaleTimeString()}-${bookingEnd.toLocaleTimeString()}`);
-        }
-
-        return overlaps;
-      });
-
-      if (!hasConflict) {
-        // Found a free slot!
-        const slotStart = `${searchTime.getHours().toString().padStart(2, '0')}:${searchTime.getMinutes().toString().padStart(2, '0')}`;
-        const slotEnd = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
-
-        console.log(`✓ Found available slot: ${slotStart} - ${slotEnd}`);
-
-        foundSlots.push({
-          startTime: slotStart,
-          endTime: slotEnd
-        });
-      }
-
-      // Move to next 15-minute interval
-      searchTime = new Date(searchTime.getTime() + 15 * 60000);
-    }
-
-    console.log(`Total iterations: ${iterationCount}`);
-    console.log(`Found ${foundSlots.length} suggested slots:`, foundSlots);
-
-    // CRITICAL: Use .set() to update the signal, triggering UI update
-    this.suggestedSlots.set(foundSlots);
-
-    // AUTOMATIC PRE-SELECTION: Fill the first available slot
-    if (foundSlots.length > 0) {
-      this.selectSlot(0);
+    if (suggestions.length > 0) {
+      this.selectSlot(0); // Auto-select first suggestion
     } else {
-      // No slots available - clear selection
       this.selectedSlotIndex.set(null);
-      console.log('⚠️ No available slots found for this date');
     }
 
-    // CRITICAL FIX: Set loading state to false AFTER all slot calculations and signal updates are complete
-    // This prevents the UI from showing "no slots available" error during the brief moment when
-    // isLoadingSlots=false but suggestedSlots is still being populated
+    // STEP 5: Mark calculation complete
     this.isLoadingSlots.set(false);
-    console.log(`✓ Loading complete. Final state: ${foundSlots.length} slots available`);
-    console.log('=== findSuggestedSlots END ===');
+    this.hasCalculatedSlots.set(true);
+    console.log(`[Suggestion] Finished. Found ${suggestions.length} suggestions.`);
   }
 
   /**
@@ -497,8 +629,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       startTime: slot.startTime,
       endTime: slot.endTime
     }, { emitEvent: false });
-
-    console.log(`Selected slot ${index}: ${slot.startTime} - ${slot.endTime}`);
 
     // Trigger conflict check manually since we disabled emitEvent
     this.checkConflict();
@@ -538,16 +668,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
 
     const formattedDate = date.toISOString().split('T')[0];
-    console.log(`Checking conflict for: ${formattedDate} ${startTime}-${endTime}`);
 
     this.apiService.checkBookingConflict(roomId, formattedDate, startTime, endTime)
       .pipe(takeUntil(this.destroy$))
       .subscribe(conflict => {
-        if (conflict) {
-          console.log('Conflict detected:', conflict);
-        } else {
-          console.log('No conflict - time slot is available');
-        }
         this.bookingConflict.set(conflict);
         this.updateCountdown(conflict);
       });
@@ -594,38 +718,65 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
   public formatTime(dateString: string): string {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return this.datePipe.transform(new Date(dateString), 'HH:mm') || '';
   }
 
+  /**
+   * PHASE 2: User-Empowering Philosophy - Always-Enabled Save Button
+   *
+   * The button is now enabled by default, trusting the user to submit their intended time.
+   * Only disabled if core required fields are empty.
+   *
+   * REMOVED CONDITIONS:
+   * - isSubmitting() - User can click again if needed
+   * - form.invalid - Validation happens on submission
+   * - bookingConflict() - User may want to proceed anyway
+   */
   public isSubmitDisabled(): boolean {
-    // Check if currently submitting
-    if (this.isSubmitting()) {
-      return true;
-    }
-
-    // Check if form is invalid
-    if (this.form.invalid) {
-      return true;
-    }
-
-    // Check if there's a booking conflict
-    const conflict = this.bookingConflict();
-    if (conflict !== null) {
-      return true;
-    }
-
-    // Check if required fields are filled
+    // ONLY check if required fields are filled
     const formValue = this.form.getRawValue();
+
+    // Disable only if core fields are empty
     if (!formValue.roomId || !formValue.startTime || !formValue.endTime || !formValue.name) {
       return true;
     }
 
+    // All required fields present - enable the button!
     return false;
+  }
+
+  /**
+   * Normalizes time format to 24-hour HH:mm format.
+   * Handles both 24-hour format (already correct) and 12-hour AM/PM format (needs conversion).
+   * @param time Time string in either "HH:mm" or "h:mm AM/PM" format
+   * @returns Time string in "HH:mm" format
+   */
+  private normalizeTimeFormat(time: string): string {
+    // Check if time contains AM/PM (12-hour format)
+    const amPmRegex = /(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+    const match = time.match(amPmRegex);
+
+    if (match) {
+      // Convert 12-hour to 24-hour format
+      let hours = parseInt(match[1], 10);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+
+      return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+
+    // Already in 24-hour format, return as is
+    return time;
   }
 
   onSubmit(): void {
     if (this.isSubmitDisabled()) {
-      console.warn('Form submission blocked: form is invalid or has conflicts');
       return;
     }
 
@@ -633,27 +784,26 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     // Type guard to ensure roomId is not null
     if (!formValue.roomId) {
-      console.error('Cannot submit: roomId is null');
       return;
     }
+
+    // CRITICAL FIX: Normalize time formats to ensure 24-hour HH:mm format
+    // This handles cases where the timepicker might output AM/PM format
+    const startTime24 = this.normalizeTimeFormat(formValue.startTime);
+    const endTime24 = this.normalizeTimeFormat(formValue.endTime);
 
     // UX VALIDATION: Prevent booking meetings that are entirely in the past
     // Parse the end time and check if it's before now
     const dateStr = formValue.date.toISOString().split('T')[0];
-    const endTimeStr = formValue.endTime;
-    const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+    const [endHours, endMinutes] = endTime24.split(':').map(Number);
 
     const endDateTime = new Date(dateStr);
     endDateTime.setHours(endHours, endMinutes, 0, 0);
 
     const now = new Date();
 
-    if (endDateTime <= now) {
-      console.warn('Booking rejected: End time is in the past', {
-        endDateTime: endDateTime.toISOString(),
-        now: now.toISOString()
-      });
-
+    // CRITICAL FIX: Compare timestamps, not Date objects
+    if (endDateTime.getTime() <= now.getTime()) {
       // Show elegant snackbar feedback (no red error bar in form)
       this.snackBar.open(
         'Fehler: Ein Meeting kann nicht vollständig in der Vergangenheit gebucht werden.',
@@ -672,13 +822,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const payload: BookingPayload = {
       roomId: formValue.roomId,
       name: formValue.name,
-      startTime: formValue.startTime,
-      endTime: formValue.endTime,
+      startTime: startTime24,
+      endTime: endTime24,
       date: formValue.date.toISOString().split('T')[0],
       comment: formValue.comment || undefined,
     };
 
-    console.log('Submitting booking payload:', payload);
     this.submitted.emit(payload);
   }
 
@@ -694,14 +843,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private findBookingBlock(currentBooking: Booking, allBookings: Booking[]): Booking[] {
     const blockBookings: Booking[] = [currentBooking];
 
-    console.log(`\n=== BUILDING BOOKING BLOCK TIMELINE ===`);
-    console.log(`Starting with booking:`, {
-      id: currentBooking.id,
-      booker: currentBooking.name,
-      start: new Date(currentBooking.start_time).toLocaleTimeString('de-DE'),
-      end: new Date(currentBooking.end_time).toLocaleTimeString('de-DE')
-    });
-
     // Look for consecutive bookings
     let foundConsecutive = true;
     let currentEnd = new Date(currentBooking.end_time);
@@ -715,13 +856,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
         // Check if this booking starts exactly when the current block ends
         if (bookingStart.getTime() === currentEnd.getTime()) {
-          console.log(`✓ Found consecutive booking:`, {
-            id: booking.id,
-            booker: booking.name,
-            start: bookingStart.toLocaleTimeString('de-DE'),
-            end: bookingEnd.toLocaleTimeString('de-DE')
-          });
-
           blockBookings.push(booking);
           currentEnd = bookingEnd;
           foundConsecutive = true;
@@ -729,10 +863,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         }
       }
     }
-
-    console.log(`✓ Block contains ${blockBookings.length} consecutive bookings`);
-    console.log(`Block runs from ${new Date(blockBookings[0].start_time).toLocaleTimeString('de-DE')} to ${new Date(blockBookings[blockBookings.length - 1].end_time).toLocaleTimeString('de-DE')}`);
-    console.log(`=== END BUILDING BOOKING BLOCK TIMELINE ===\n`);
 
     return blockBookings;
   }
@@ -763,15 +893,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     const bookings = this.dayBookings();
 
-    console.log('\n=== CALCULATING LIVE STATUS BANNER ===');
-    console.log('Current time:', now.toISOString());
-    console.log('Bookings for today:', bookings.length);
-
     // Find current booking (room is occupied right now)
     const currentBooking = bookings.find(booking => {
       const start = new Date(booking.start_time);
       const end = new Date(booking.end_time);
-      return start <= now && end > now;
+      // CRITICAL FIX: Compare timestamps, not Date objects
+      return start.getTime() <= now.getTime() && end.getTime() > now.getTime();
     });
 
     if (currentBooking) {
@@ -783,17 +910,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       // Calculate total block duration in minutes
       const totalBlockMinutes = Math.floor((blockEndTime.getTime() - blockStartTime.getTime()) / 60000);
 
-      console.log(`\n=== BUILDING TIMELINE SEGMENTS ===`);
-      console.log(`Total block duration: ${totalBlockMinutes} minutes`);
-
       // Build timeline segments with proportional widths
       const timelineSegments: TimelineSegment[] = blockBookings.map(booking => {
         const start = new Date(booking.start_time);
         const end = new Date(booking.end_time);
         const durationMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
         const widthPercent = (durationMinutes / totalBlockMinutes) * 100;
-
-        console.log(`Segment: ${booking.name} (${durationMinutes} min, ${widthPercent.toFixed(1)}%)`);
 
         return {
           booker: booking.name,
@@ -806,10 +928,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
       // Find which segment is currently active
       const currentSegmentIndex = timelineSegments.findIndex(segment => {
-        return now >= segment.startTime && now < segment.endTime;
+        // CRITICAL FIX: Compare timestamps, not Date objects
+        return now.getTime() >= segment.startTime.getTime() && now.getTime() < segment.endTime.getTime();
       });
-
-      console.log(`Current segment index: ${currentSegmentIndex}`);
 
       // Calculate progress of current segment (0-100%)
       let currentSegmentProgress = 0;
@@ -818,14 +939,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         const segmentDurationMs = currentSegment.endTime.getTime() - currentSegment.startTime.getTime();
         const elapsedMs = now.getTime() - currentSegment.startTime.getTime();
         currentSegmentProgress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
-        console.log(`Current segment progress: ${currentSegmentProgress.toFixed(1)}%`);
       }
 
-      console.log(`=== END BUILDING TIMELINE SEGMENTS ===\n`);
-
       // Find next booking after the block ends
+      // CRITICAL FIX: Compare timestamps, not Date objects
       const nextBooking = bookings
-        .filter(b => new Date(b.start_time) >= blockEndTime)
+        .filter(b => new Date(b.start_time).getTime() >= blockEndTime.getTime())
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
 
       const status: RoomLiveStatus = {
@@ -838,18 +957,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         nextBookingStartTime: nextBooking ? new Date(nextBooking.start_time) : undefined
       };
 
-      console.log('✓ Room is currently booked with timeline:', status);
-
       this.liveStatus.set(status);
       this.startLiveCountdown();
       return;
     }
 
     // Room is not currently booked
-    console.log('⚠️ Room is currently available (no banner needed)');
     this.liveStatus.set({ type: null });
     this.stopLiveCountdown();
-    console.log('=== END CALCULATING LIVE STATUS BANNER ===\n');
   }
 
   /**
@@ -859,8 +974,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private startLiveCountdown(): void {
     // Clear any existing timer
     this.stopLiveCountdown();
-
-    console.log('▶️ Starting live timeline countdown');
 
     // Update immediately
     this.updateTimeline();
@@ -879,7 +992,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       clearInterval(this.liveStatusTimer);
       this.liveStatusTimer = null;
       this.countdownText.set('');
-      console.log('⏸️ Stopped live timeline countdown');
     }
   }
 
@@ -899,9 +1011,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const currentSegment = status.timelineSegments[status.currentSegmentIndex];
     const now = new Date();
 
+    // CRITICAL FIX: Compare timestamps, not Date objects
     // Check if current segment has ended
-    if (now >= currentSegment.endTime) {
-      console.log('⏱️ Current segment ended - recalculating timeline');
+    if (now.getTime() >= currentSegment.endTime.getTime()) {
       this.calculateLiveStatus();
       return;
     }
@@ -997,11 +1109,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
       if (tomorrowSlot) {
         // Found a slot tomorrow - offer to book it
-        const tomorrowFormatted = tomorrow.toLocaleDateString('de-DE', {
-          weekday: 'long',
-          day: '2-digit',
-          month: 'long'
-        });
+        const tomorrowFormatted = this.datePipe.transform(tomorrow, 'EEEE, dd. MMMM');
 
         const snackBarRef = this.snackBar.open(
           `Heute ist alles belegt. Nächster freier Slot: ${tomorrowFormatted} um ${tomorrowSlot.startTime} Uhr`,
@@ -1053,7 +1161,11 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       const now = new Date();
       const isToday = date.toDateString() === now.toDateString();
 
-      // Start from current time if today, otherwise from 8:00
+      // DEVELOPER MODE: Business hours configuration
+      const businessStartHour = this.devModeService.isDevMode() ? 0 : 8;
+      const businessEndHour = this.devModeService.isDevMode() ? 24 : 20;
+
+      // Start from current time if today, otherwise from business start
       let searchTime: Date;
       if (isToday) {
         searchTime = new Date(now);
@@ -1062,21 +1174,33 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         const roundedMinutes = Math.ceil(minutes / 15) * 15;
         searchTime.setMinutes(roundedMinutes, 0, 0);
       } else {
-        searchTime = new Date(date);
-        searchTime.setHours(8, 0, 0, 0);
+        // CRITICAL FIX: Construct searchTime explicitly from date components
+        searchTime = new Date(
+          date.getFullYear(),
+          date.getMonth(),
+          date.getDate(),
+          businessStartHour, 0, 0, 0
+        );
       }
 
-      const endOfDay = new Date(date);
-      endOfDay.setHours(20, 0, 0, 0);
+      // CRITICAL FIX: Construct endOfDay explicitly from date components
+      const endOfDay = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        businessEndHour, 0, 0, 0
+      );
 
       const duration = 30; // 30 minutes
 
+      // CRITICAL FIX: Compare timestamps throughout
       // Search for the next free slot
-      while (searchTime < endOfDay) {
+      while (searchTime.getTime() < endOfDay.getTime()) {
         const endTime = new Date(searchTime.getTime() + duration * 60000);
 
+        // CRITICAL FIX: Compare timestamps, not Date objects
         // Check if end time is within business hours
-        if (endTime > endOfDay) {
+        if (endTime.getTime() > endOfDay.getTime()) {
           break;
         }
 
@@ -1084,7 +1208,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         const hasConflict = bookings.some(booking => {
           const bookingStart = new Date(booking.start_time);
           const bookingEnd = new Date(booking.end_time);
-          return (searchTime < bookingEnd && endTime > bookingStart);
+          // CRITICAL FIX: Compare timestamps, not Date objects
+          return (searchTime.getTime() < bookingEnd.getTime() && endTime.getTime() > bookingStart.getTime());
         });
 
         if (!hasConflict) {
@@ -1102,14 +1227,11 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       // No slot found for this date
       return null;
     } catch (error) {
-      console.error('Error searching for slot:', error);
       return null;
     }
   }
 
   private fillSlotAndFocus(slot: { startTime: string; endTime: string }): void {
-    console.log(`Filling slot: ${slot.startTime} - ${slot.endTime}`);
-
     // Fill the form fields
     this.form.patchValue({
       startTime: slot.startTime,

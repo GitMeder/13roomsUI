@@ -46,6 +46,11 @@
   gap: 0.5rem;
 }
 
+.app-toolbar__dev-toggle {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .mat-mdc-button.app-toolbar__link--active {
   background: rgba(37, 99, 235, 0.08);
 }

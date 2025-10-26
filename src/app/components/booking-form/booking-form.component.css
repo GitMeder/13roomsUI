@@ -402,3 +402,144 @@
   color: white !important;
   font-weight: 600;
 }
+
+/* Establish the positioning context for the icon */
+.end-time-field {
+  position: relative;
+}
+
+/* Position the INFO icon on the top-right border */
+.info-icon {
+  position: absolute;
+  top: -9px;
+  right: 5px; /* Final position */
+  z-index: 2;
+  background-color: white;
+  border-radius: 50%;
+  font-size: 18px;
+  height: 18px;
+  width: 18px;
+  color: #9e9e9e;
+  cursor: help;
+}
+
+.info-icon:hover {
+  color: rgba(0, 0, 0, 0.87); /* Darker on hover for better visibility */
+}
+
+/* Position the CLOCK icon inside the field on the far right */
+.clock-icon {
+  position: absolute;
+  top: 50%;
+  right: 16px; /* Position from the right edge */
+  transform: translateY(-50%); /* Vertically center it */
+  z-index: 1; /* Sits below the info icon's z-index */
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.54);
+}
+
+/* Professional Custom Tooltip Styling */
+::ng-deep .custom-tooltip {
+  background-color: #323232 !important; /* Dark background for contrast */
+  color: white !important;
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important; /* Subtle shadow for depth */
+  max-width: 300px !important;
+  line-height: 1.4 !important;
+}
+
+/* Disable Textarea Resizing for Clean Layout */
+/* Target the textarea inside the comment form field and disable resizing */
+.booking-form__columns .mat-mdc-form-field textarea[formControlName="comment"] {
+  resize: none;
+}
+
+/* ============================================================================
+   PHASE 3+: RAINBOW BUTTON - Delightful "Smart Rebooking" Visual Treatment
+   ============================================================================ */
+
+/**
+ * Apple-style shifting gradient outline for the "Buchung speichern" button.
+ * Uses a subtle linear gradient with background-position animation for a professional look.
+ */
+.rainbow-button {
+  position: relative;
+  overflow: visible !important;
+  isolation: isolate;
+  transform: scale(1.02);
+  transition: transform 0.3s ease;
+}
+
+/* Main gradient ring */
+.rainbow-button::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: calc(100% + 6px);
+  height: calc(100% + 6px);
+  z-index: -2;
+
+  /* Apple-style shifting gradient */
+  background: linear-gradient(
+    60deg,
+    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+  );
+  background-size: 300% 300%;
+  animation: shifting-gradient 8s ease infinite;
+
+  border-radius: inherit;
+}
+
+/* Blurred glow effect for extra polish */
+.rainbow-button::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: calc(100% + 6px);
+  height: calc(100% + 6px);
+  z-index: -3;
+
+  background: linear-gradient(
+    60deg,
+    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+  );
+  background-size: 300% 300%;
+  animation: shifting-gradient 8s ease infinite;
+
+  filter: blur(15px);
+  opacity: 0.6;
+  border-radius: inherit;
+}
+
+/* Shifting gradient animation */
+@keyframes shifting-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Hover effect */
+.rainbow-button:hover {
+  transform: scale(1.05);
+}
+
+/* Ensure button content sits on top with proper background */
+.rainbow-button {
+  background: var(--mdc-filled-button-container-color, var(--mat-sys-primary)) !important;
+}
+
+.rainbow-button .mat-button-wrapper,
+.rainbow-button .mdc-button__label {
+  position: relative;
+  z-index: 1;
+}

@@ -111,3 +111,102 @@
   color: var(--mat-sys-on-tertiary-container);
   background: var(--mat-sys-tertiary-container);
 }
+
+/* ============================================================================
+   PART 2: RAINBOW HIGHLIGHT - Celebratory effect for newly booked room
+   ============================================================================ */
+
+/**
+ * Apple-style shifting gradient outline for room cards after successful booking.
+ * Uses a subtle linear gradient with background-position animation.
+ * The effect is temporary (5 seconds) and automatically fades out.
+ */
+.rainbow-highlight {
+  position: relative;
+  overflow: visible !important;
+  isolation: isolate;
+  transform: scale(1.02);
+  z-index: 10; /* Ensure it appears above other cards */
+  animation: rainbow-card-fade 5s ease-out forwards;
+  transition: all 0.3s ease;
+  background: var(--mdc-elevated-card-container-color, white) !important;
+}
+
+/* Main gradient ring */
+.rainbow-highlight::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  z-index: -2;
+
+  /* Apple-style shifting gradient */
+  background: linear-gradient(
+    60deg,
+    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+  );
+  background-size: 300% 300%;
+  animation: shifting-gradient 8s ease infinite;
+
+  border-radius: inherit;
+}
+
+/* Blurred glow effect for extra polish */
+.rainbow-highlight::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  z-index: -3;
+
+  background: linear-gradient(
+    60deg,
+    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+  );
+  background-size: 300% 300%;
+  animation: shifting-gradient 8s ease infinite;
+
+  filter: blur(20px);
+  opacity: 0.5;
+  border-radius: inherit;
+}
+
+/* Shifting gradient animation */
+@keyframes shifting-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Fade out animation - card scales back */
+@keyframes rainbow-card-fade {
+  0% {
+    transform: scale(1.02);
+  }
+  70% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Ensure card content sits on top */
+.rainbow-highlight .mat-mdc-card-content,
+.rainbow-highlight .mat-mdc-card-header,
+.rainbow-highlight .mat-mdc-card-title,
+.rainbow-highlight .mat-mdc-card-subtitle,
+.rainbow-highlight .mat-mdc-card-actions {
+  position: relative;
+  z-index: 1;
+}

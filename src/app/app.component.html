@@ -5,6 +5,13 @@
   </a>
 
   <nav class="app-toolbar__nav">
+    <mat-slide-toggle
+      [checked]="devModeService.isDevMode()"
+      (change)="devModeService.toggleDevMode()"
+      matTooltip="Entwicklermodus: Zeitbeschränkungen für Buchungen aufheben (24/7 Buchungen)"
+      class="app-toolbar__dev-toggle">
+      Dev Mode
+    </mat-slide-toggle>
   </nav>
 </mat-toolbar>
 

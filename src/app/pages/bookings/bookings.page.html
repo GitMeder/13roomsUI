@@ -16,6 +16,8 @@
           [suggestedStartTime]="data.suggestedStartTime"
           [suggestedEndTime]="data.suggestedEndTime"
           [isSubmitting]="isSubmitting()"
+          [isSmartRebooking]="isSmartRebooking()"
+          [prefillData]="data.prefillData || null"
           (submitted)="onBookingSubmit($event)"
         ></app-booking-form>
       </mat-card>

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, DestroyRef } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -21,6 +22,7 @@ import { map, filter } from 'rxjs/operators'; // Import map operator
     RoomCardComponent,
     RouterLink
   ],
+  providers: [DatePipe],
   templateUrl: './dashboard.page.html',
   styleUrls: ['./dashboard.page.css'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,12 +31,14 @@ export class DashboardPageComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  private readonly datePipe = inject(DatePipe);
 
   readonly loading = signal<boolean>(true);
   readonly error = signal<string | null>(null);
   readonly rooms = signal<Room[]>([]);
 
   readonly countdown = signal<number>(0); // Real-time countdown signal
+  readonly highlightedRoomId = signal<number | null>(null); // PART 2: Room to highlight with rainbow
 
   // Keep the dashboard subtitle contextual to current state (loading vs. stats).
   readonly subtitle = computed(() => {
@@ -75,11 +79,33 @@ export class DashboardPageComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('DashboardPageComponent ngOnInit called.');
-    this.loadRooms();
-  }
 
-  reload(): void {
-    console.log('Reloading rooms...');
+    // PART 2: Check for highlighted room from navigation state (after successful booking)
+    // CRITICAL FIX: Use window.history.state since getCurrentNavigation() returns null in ngOnInit
+    const navigation = this.router.getCurrentNavigation();
+    const state = navigation?.extras?.state || window.history.state;
+
+    console.log('[RainbowHighlight] 🌈 Checking for highlighted room...');
+    console.log('[RainbowHighlight] 🌈 navigation:', navigation);
+    console.log('[RainbowHighlight] 🌈 window.history.state:', window.history.state);
+    console.log('[RainbowHighlight] 🌈 Final state:', state);
+
+    if (state && state['highlightedRoomId']) {
+      const roomId = state['highlightedRoomId'] as number;
+      console.log('[RainbowHighlight] ✨ Detected highlighted room:', roomId);
+      console.log('[RainbowHighlight] ✨ Activating rainbow celebration!');
+
+      this.highlightedRoomId.set(roomId);
+
+      // Clear the highlight after 5 seconds for a temporary celebration effect
+      setTimeout(() => {
+        console.log('[RainbowHighlight] 🌈 Clearing highlight after 5 seconds');
+        this.highlightedRoomId.set(null);
+      }, 5000);
+    } else {
+      console.log('[RainbowHighlight] ❌ No highlighted room found');
+    }
+
     this.loadRooms();
   }
 
@@ -207,7 +233,7 @@ export class DashboardPageComponent implements OnInit {
       const allBookings = room.allBookingsToday ?? [];
       const blockEndTime = this.findBlockEndTime(room.currentBooking, allBookings);
 
-      const formattedEndTime = blockEndTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const formattedEndTime = this.datePipe.transform(blockEndTime, 'HH:mm');
 
       return {
         text: `Gebucht bis ${formattedEndTime} Uhr`,
@@ -237,7 +263,7 @@ export class DashboardPageComponent implements OnInit {
 
       // Raum ist verfügbar bis zur nächsten Buchung
       const nextBookingStartTime = new Date(room.nextBooking.start_time);
-      const formattedTime = nextBookingStartTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const formattedTime = this.datePipe.transform(nextBookingStartTime, 'HH:mm');
 
       return {
         text: `Verfügbar bis ${formattedTime} Uhr`,

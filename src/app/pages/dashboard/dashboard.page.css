@@ -29,6 +29,13 @@ h1 {
   color: var(--mat-sys-on-surface-variant);
 }
 
+.dashboard-page__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .dashboard-page__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

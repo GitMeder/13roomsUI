@@ -266,6 +266,33 @@ export class ApiService {
     return this.post<BookingResponse>('bookings', requestBody);
   }
 
+  /**
+   * PHASE 3: Smart Failure Recovery
+   * Searches for alternative rooms that are available for the specified time slot.
+   *
+   * @param date Date in ISO format (YYYY-MM-DD)
+   * @param startTime Time in HH:mm format
+   * @param endTime Time in HH:mm format
+   * @returns Observable of available rooms
+   */
+  getAvailableRooms(date: string, startTime: string, endTime: string): Observable<Room[]> {
+    console.log(`Searching for available rooms on ${date} from ${startTime} to ${endTime}`);
+
+    const params = new HttpParams()
+      .set('date', date)
+      .set('startTime', startTime)
+      .set('endTime', endTime);
+
+    return this.get<ApiRoom[]>('rooms/available', { params }).pipe(
+      map((rooms) => rooms.map((room) => this.normalizeRoom(room))),
+      catchError((error) => {
+        console.error('Error fetching available rooms:', error);
+        // Return empty array on error instead of throwing
+        return of([]);
+      })
+    );
+  }
+
   private normalizeRoom(room: ApiRoom): Room {
     const rawStatus = room.status?.toString().toLowerCase();
     const status = rawStatus && this.knownStatuses.has(rawStatus)
