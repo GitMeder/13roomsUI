@@ -33,7 +33,10 @@ RUN npm install -g @angular/cli@20
 
 COPY package.json package-lock.json ./
 
-RUN npm ci --verbose
+# Using npm install for more flexibility
+# Note: npm install is more forgiving with lock file sync issues
+# and will auto-update lock file if needed during development
+RUN npm install --verbose
 
 COPY . .
 
