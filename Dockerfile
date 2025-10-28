@@ -42,9 +42,15 @@ COPY . .
 
 RUN ng build --configuration production
 
+# DEBUG: List the contents of /app/dist/ to verify the actual folder name
+# This helps diagnose path issues in multi-stage builds
+RUN echo "=== Contents of /app/dist/ ===" && ls -la /app/dist/ && echo "=== End of dist contents ==="
+
 FROM nginx:alpine AS production
 
-COPY --from=build /app/dist/13roomsui/browser /usr/share/nginx/html
+# FIXED: Corrected path from '13roomsui' to '13roomsUI' (case-sensitive)
+# Angular outputPath from angular.json: "dist/13roomsUI"
+COPY --from=build /app/dist/13roomsUI/browser /usr/share/nginx/html
 
 EXPOSE 80
 
