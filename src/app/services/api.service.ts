@@ -182,6 +182,11 @@ export class ApiService {
     );
   }
 
+  /**
+   * Fetches all available rooms from the backend API.
+   * Falls back to mock data if the API is unavailable.
+   * @returns Observable emitting an array of Room objects with current booking information
+   */
   getRooms(): Observable<Room[]> {
     console.log('Fetching rooms...');
     // Attempt to reach the real API first, otherwise fall back to the mock data.
@@ -204,6 +209,12 @@ export class ApiService {
     return this.delete<void>(`rooms/${id}`);
   }
 
+  /**
+   * Fetches all bookings for a specific room, optionally filtered by date.
+   * @param roomId - The ID of the room to fetch bookings for
+   * @param date - Optional date string in YYYY-MM-DD format to filter bookings
+   * @returns Observable emitting an array of Booking objects
+   */
   getRoomBookings(roomId: number, date?: string): Observable<Booking[]> {
     console.log(`Fetching bookings for room ID: ${roomId}${date ? ' on ' + date : ''}`);
 
@@ -215,6 +226,14 @@ export class ApiService {
     return this.get<Booking[]>(`bookings/room/${roomId}`);
   }
 
+  /**
+   * Checks if a booking would conflict with existing bookings for a room.
+   * @param roomId - The ID of the room to check
+   * @param date - Date string in YYYY-MM-DD format
+   * @param startTime - Start time in HH:mm format
+   * @param endTime - End time in HH:mm format
+   * @returns Observable emitting the conflicting Booking or null if no conflict exists
+   */
   checkBookingConflict(roomId: number, date: string, startTime: string, endTime: string): Observable<Booking | null> {
     console.log(`Checking for conflicts for room: ${roomId} on ${date} from ${startTime} to ${endTime}`);
 
@@ -254,6 +273,11 @@ export class ApiService {
     );
   }
 
+  /**
+   * Creates a new booking for a room.
+   * @param payload - Booking details including roomId, date, time range, name, and optional comment
+   * @returns Observable emitting a BookingResponse with success message and booking ID
+   */
   createBooking(payload: BookingPayload): Observable<BookingResponse> {
     const requestBody: CreateBookingRequest = {
       room_id: payload.roomId,
