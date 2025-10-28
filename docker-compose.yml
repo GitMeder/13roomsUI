@@ -1,0 +1,18 @@
+services:
+  # Frontend Angular Application
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: 13rooms-ui-frontend
+    ports:
+      - "4200:4200"
+    volumes:
+      # Mount local code for live reload
+      - .:/app
+      # Prevent node_modules from being overridden
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    restart: unless-stopped
