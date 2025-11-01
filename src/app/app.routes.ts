@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { DashboardPageComponent } from './pages/dashboard/dashboard.page';
 import { BookingsPageComponent } from './pages/bookings/bookings.page';
 import { RoomFormComponent } from './components/room-form/room-form.component';
+import { bookingPageDataResolver } from './resolvers/booking-page-data.resolver';
 
 export const routes: Routes = [
   {
@@ -17,7 +18,10 @@ export const routes: Routes = [
   {
     path: 'bookings/:roomId',
     component: BookingsPageComponent,
-    title: '13rooms · Neue Buchung'
+    title: '13rooms · Neue Buchung',
+    resolve: {
+      pageData: bookingPageDataResolver
+    }
   },
   {
     path: 'rooms/new',

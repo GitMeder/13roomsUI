@@ -1,8 +1,8 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, BookingPayload } from '../../services/api.service';
-import { Observable, of } from 'rxjs';
-import { switchMap, map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Room } from '../../models/room.model';
 import { Booking } from '../../models/booking.model';
 import { CommonModule } from '@angular/common';
@@ -53,82 +53,24 @@ export class BookingsPageComponent implements OnInit {
   }>;
 
   ngOnInit(): void {
-    // STRATEGIC DEBUG LOG: Check navigation state receiving
-    console.log('[SmartRebooking] 📥 ngOnInit called');
-    console.log('[SmartRebooking] 📥 ==================== STATE RETRIEVAL DEBUG ====================');
+    console.log('[BookingsPage] ngOnInit');
+    this.pageData$ = this.route.data.pipe(
+      map(data => {
+        const pageData = data['pageData'];
+        console.log('[BookingsPage] Received resolved data:', pageData);
 
-    // CRITICAL FIX: getCurrentNavigation() only works DURING navigation (in guards/constructors)
-    // After navigation completes (like in ngOnInit), we must use window.history.state
-    // This is where Angular Router stores the navigation state
-    const navigation = this.router.getCurrentNavigation();
-    console.log('[SmartRebooking] 📥 getCurrentNavigation() result:', navigation);
-    console.log('[SmartRebooking] 📥 window.history.state (RAW):', window.history.state);
-    console.log('[SmartRebooking] 📥 window.history.state type:', typeof window.history.state);
-    console.log('[SmartRebooking] 📥 window.history.state keys:', Object.keys(window.history.state || {}));
-
-    // Use history.state as fallback when navigation is null (which happens in ngOnInit)
-    const state = navigation?.extras?.state || window.history.state;
-    console.log('[SmartRebooking] 📥 Final merged state:', state);
-    console.log('[SmartRebooking] 📥 state.isSmartRebooking:', state?.['isSmartRebooking']);
-    console.log('[SmartRebooking] 📥 state.prefillData:', state?.['prefillData']);
-
-    let prefillData: any = null;
-
-    if (state && state['isSmartRebooking']) {
-      this.isSmartRebooking.set(true);
-      prefillData = state['prefillData'];
-      console.log('[SmartRebooking] ✅ Detected smart rebooking mode');
-      console.log('[SmartRebooking] ✅ prefillData captured:', JSON.stringify(prefillData, null, 2));
-      console.log('[SmartRebooking] ✅ prefillData is truthy?', !!prefillData);
-    } else {
-      console.log('[SmartRebooking] ❌ No smart rebooking state detected');
-      console.log('[SmartRebooking] 📥 state exists?', !!state);
-      console.log('[SmartRebooking] 📥 isSmartRebooking flag?', state?.['isSmartRebooking']);
-    }
-    console.log('[SmartRebooking] 📥 ==================== END STATE RETRIEVAL ====================');
-
-    this.pageData$ = this.route.paramMap.pipe(
-      switchMap(params => {
-        console.log('[SmartRebooking] 📦 ==================== OBSERVABLE EMISSION DEBUG ====================');
-        console.log('[SmartRebooking] 📦 route.paramMap emitted with params:', params);
-        console.log('[SmartRebooking] 📦 Captured prefillData variable (from closure):', prefillData);
-        console.log('[SmartRebooking] 📦 prefillData type:', typeof prefillData);
-        console.log('[SmartRebooking] 📦 prefillData is truthy?', !!prefillData);
-        console.log('[SmartRebooking] 📦 prefillData === null?', prefillData === null);
-        console.log('[SmartRebooking] 📦 prefillData === undefined?', prefillData === undefined);
-
-        const roomId = Number(params.get('roomId'));
-        if (roomId) {
-          return this.apiService.getBookingPageData(roomId).pipe(
-            map(data => {
-              console.log('[SmartRebooking] 📦 API data received:', data);
-              console.log('[SmartRebooking] 📦 Checking conditions:');
-              console.log('[SmartRebooking] 📦   - data.room?', !!data.room);
-              console.log('[SmartRebooking] 📦   - !data.conflict?', !data.conflict);
-              console.log('[SmartRebooking] 📦   - !prefillData?', !prefillData);
-
-              // Calculate suggested time slots if room is available AND not in smart rebooking mode
-              if (data.room && !data.conflict && !prefillData) {
-                const { suggestedStartTime, suggestedEndTime } = this.calculateSuggestedTimes();
-                const result = { ...data, suggestedStartTime, suggestedEndTime, prefillData };
-                console.log('[SmartRebooking] 📦 ✅ Taking NORMAL mode branch');
-                console.log('[SmartRebooking] 📦 pageData$ emitting (normal mode):', result);
-                console.log('[SmartRebooking] 📦 result.prefillData:', result.prefillData);
-                return result;
-              }
-              // In smart rebooking mode, use prefillData instead of suggested times
-              const result = { ...data, suggestedStartTime: null, suggestedEndTime: null, prefillData };
-              console.log('[SmartRebooking] 📦 ✅ Taking SMART REBOOKING mode branch');
-              console.log('[SmartRebooking] 📦 pageData$ emitting (smart rebooking mode):', result);
-              console.log('[SmartRebooking] 📦 result.prefillData:', result.prefillData);
-              console.log('[SmartRebooking] 📦 result.prefillData is null?', result.prefillData === null);
-              console.log('[SmartRebooking] 📦 ==================== END OBSERVABLE EMISSION ====================');
-              return result;
-            })
-          );
+        // Set smart rebooking flag if present
+        if (pageData.isSmartRebooking) {
+          this.isSmartRebooking.set(true);
         }
-        // Handle case where ID is missing or invalid
-        return of({ room: null, conflict: null, suggestedStartTime: null, suggestedEndTime: null, prefillData: undefined });
+
+        // Add suggested times for normal booking mode
+        if (pageData.room && !pageData.conflict && !pageData.isSmartRebooking) {
+          const { suggestedStartTime, suggestedEndTime } = this.calculateSuggestedTimes();
+          return { ...pageData, suggestedStartTime, suggestedEndTime };
+        }
+
+        return pageData;
       })
     );
   }

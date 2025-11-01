@@ -162,11 +162,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     });
 
     // Effect to sync initialConflict input to bookingConflict state
+    // CRITICAL FIX: Always sync the value, including null, to ensure clean state
     effect(() => {
       const conflict = this.initialConflict();
-      if (conflict) {
-        this.bookingConflict.set(conflict);
-      }
+      this.bookingConflict.set(conflict);
     });
 
     // PHASE 3+: Effect to handle smart rebooking prefill data
@@ -199,6 +198,16 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       if (isRebooking) {
         console.log('[RainbowButton] ✨ RAINBOW BUTTON ACTIVATED! The save button should now have the rainbow ring animation.');
       }
+    });
+
+    // CRITICAL FIX: Clear conflict state when navigating to a different room
+    // This ensures Smart Rebooking navigation shows a clean form without old conflict warnings
+    effect(() => {
+      const roomId = this.roomIdInput();
+      // This effect runs whenever the room context changes.
+      console.log(`[StateClear] Room ID changed to ${roomId}. Resetting conflict state.`);
+      this.bookingConflict.set(null);
+      this.availabilityCountdown.set(null);
     });
   }
 
@@ -258,6 +267,13 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       ),
       map(values => ({ roomId: values.roomId, date: values.date }))
     ).subscribe(({ roomId, date }) => {
+      // CRITICAL FIX: If we are in smart rebooking mode, the form is already pre-filled.
+      // DO NOT run the automatic slot calculation.
+      if (this.isSmartRebooking()) {
+        console.log('[SmartRebooking] In rebooking mode, skipping automatic slot calculation (valueChanges).');
+        return;
+      }
+
       if (roomId && date) {
         this.loadDayBookings(roomId, date);
       }
@@ -294,6 +310,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     // The roomId setter uses { emitEvent: false }, so valueChanges doesn't trigger for the initial value.
     // We must explicitly check and load bookings for the initial state after the current change detection cycle.
     setTimeout(() => {
+      // CRITICAL FIX: If we are in smart rebooking mode, the form is already pre-filled.
+      // DO NOT run the automatic slot calculation.
+      if (this.isSmartRebooking()) {
+        console.log('[SmartRebooking] In rebooking mode, skipping automatic slot calculation (initial load).');
+        this.isLoadingSlots.set(false);
+        return;
+      }
+
       const currentRoomId = this.form.get('roomId')?.value;
       let currentDate = this.form.get('date')?.value;
 
@@ -330,6 +354,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   }
 
   private loadDayBookings(roomId: number, date: Date): void {
+    // DEFENSIVE GUARD: Never run slot calculation during Smart Rebooking
+    // The form is already pre-filled with the correct data
+    if (this.isSmartRebooking()) {
+      console.log('[SmartRebooking] Defensive guard - preventing loadDayBookings during rebooking mode.');
+      this.isLoadingSlots.set(false);
+      return;
+    }
+
     const dateStr = date.toISOString().split('T')[0];
     console.log(`[BookingLoad] Loading bookings for room ${roomId} on ${date.toISOString()}`);
 
@@ -793,12 +825,21 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const endTime24 = this.normalizeTimeFormat(formValue.endTime);
 
     // UX VALIDATION: Prevent booking meetings that are entirely in the past
-    // Parse the end time and check if it's before now
-    const dateStr = formValue.date.toISOString().split('T')[0];
+    // CRITICAL FIX: Construct endDateTime EXCLUSIVELY from form values
+    // DO NOT use new Date(dateStr) as it can cause timezone issues
+    const selectedDate = formValue.date as Date;
     const [endHours, endMinutes] = endTime24.split(':').map(Number);
 
-    const endDateTime = new Date(dateStr);
-    endDateTime.setHours(endHours, endMinutes, 0, 0);
+    // Build the date object explicitly from date components (local timezone)
+    const endDateTime = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+      endHours,
+      endMinutes,
+      0,
+      0
+    );
 
     const now = new Date();
 
