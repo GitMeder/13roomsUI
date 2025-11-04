@@ -1,7 +1,12 @@
 <mat-toolbar class="app-toolbar" color="transparent">
   <a routerLink="/" class="app-toolbar__logo" aria-label="13rooms Startseite">
-    <span class="app-toolbar__mark">13</span>
-    <span>rooms</span>
+    <img
+      src="assets/logo.png"
+      alt="13rooms Logo"
+      class="app-toolbar__logo-image"
+      width="200"
+      height="95"
+    />
   </a>
 
   <nav class="app-toolbar__nav">
@@ -9,7 +14,8 @@
       [checked]="devModeService.isDevMode()"
       (change)="devModeService.toggleDevMode()"
       matTooltip="Entwicklermodus: Zeitbeschränkungen für Buchungen aufheben (24/7 Buchungen)"
-      class="app-toolbar__dev-toggle">
+      class="app-toolbar__dev-toggle"
+    >
       Dev Mode
     </mat-slide-toggle>
   </nav>
