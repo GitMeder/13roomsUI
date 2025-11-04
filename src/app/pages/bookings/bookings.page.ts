@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 import { Room } from '../../models/room.model';
 import { Booking } from '../../models/booking.model';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,6 +20,7 @@ import { RoomSelectionDialogComponent } from '../../components/room-selection-di
   selector: 'app-bookings-page',
   standalone: true,
   imports: [CommonModule, BookingFormComponent, MatCardModule, MatProgressSpinnerModule, MatIconModule, MatButtonModule, RouterModule, MatSnackBarModule],
+  providers: [DatePipe],
   templateUrl: './bookings.page.html',
   styleUrls: ['./bookings.page.css'],
   changeDetection: ChangeDetectionStrategy.OnPush

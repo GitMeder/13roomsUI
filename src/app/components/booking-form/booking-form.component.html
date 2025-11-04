@@ -230,15 +230,14 @@
       mat-flat-button
       color="primary"
       type="submit"
-      [disabled]="isSubmitDisabled()">
+      [disabled]="isSubmitDisabled()"
+      [class.smart-rebooking-active]="isSmartRebooking()">
       @if (isSubmitting()) {
         <mat-spinner diameter="20"></mat-spinner>
       } @else {
         <mat-icon>event_available</mat-icon>
       }
-      <span [class.gradient-text-highlight]="isSmartRebooking()">
-        {{ isSubmitting() ? 'Wird gespeichert...' : 'Buchung speichern' }}
-      </span>
+      {{ isSubmitting() ? 'Wird gespeichert...' : 'Buchung speichern' }}
     </button>
   </div>
 
