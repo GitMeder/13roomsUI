@@ -113,26 +113,26 @@
 }
 
 /* ============================================================================
-   PART 2: RAINBOW HIGHLIGHT - Celebratory effect for newly booked room
+   RAINBOW HIGHLIGHT - Apple-Style Shifting Gradient Outline
+   Celebratory effect for newly booked room
    ============================================================================ */
 
 /**
  * Apple-style shifting gradient outline for room cards after successful booking.
- * Uses a subtle linear gradient with background-position animation.
+ * The card content acts as a mask over the animated gradient border.
  * The effect is temporary (5 seconds) and automatically fades out.
  */
 .rainbow-highlight {
   position: relative;
-  overflow: visible !important;
+  overflow: hidden; /* Clips the gradient to create clean outline effect */
   isolation: isolate;
   transform: scale(1.02);
   z-index: 10; /* Ensure it appears above other cards */
   animation: rainbow-card-fade 5s ease-out forwards;
   transition: all 0.3s ease;
-  background: var(--mdc-elevated-card-container-color, white) !important;
 }
 
-/* Main gradient ring */
+/* The sharp outline (animated gradient border) */
 .rainbow-highlight::before {
   content: '';
   position: absolute;
@@ -140,20 +140,19 @@
   left: -4px;
   width: calc(100% + 8px);
   height: calc(100% + 8px);
-  z-index: -2;
+  z-index: -1;
+  border-radius: inherit;
 
-  /* Apple-style shifting gradient */
+  /* Seamless looping gradient */
   background: linear-gradient(
     60deg,
-    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+    #f79533, #ef4e7b, #a166ab, #1098ad, #f79533
   );
   background-size: 300% 300%;
   animation: shifting-gradient 8s ease infinite;
-
-  border-radius: inherit;
 }
 
-/* Blurred glow effect for extra polish */
+/* The blurred glow effect */
 .rainbow-highlight::after {
   content: '';
   position: absolute;
@@ -161,31 +160,18 @@
   left: -4px;
   width: calc(100% + 8px);
   height: calc(100% + 8px);
-  z-index: -3;
+  z-index: -2;
+  border-radius: inherit;
 
   background: linear-gradient(
     60deg,
-    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+    #f79533, #ef4e7b, #a166ab, #1098ad, #f79533
   );
   background-size: 300% 300%;
   animation: shifting-gradient 8s ease infinite;
 
   filter: blur(20px);
   opacity: 0.5;
-  border-radius: inherit;
-}
-
-/* Shifting gradient animation */
-@keyframes shifting-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
 }
 
 /* Fade out animation - card scales back */
@@ -201,12 +187,13 @@
   }
 }
 
-/* Ensure card content sits on top */
+/* Ensure card content sits on top with proper background (creates the mask) */
 .rainbow-highlight .mat-mdc-card-content,
 .rainbow-highlight .mat-mdc-card-header,
 .rainbow-highlight .mat-mdc-card-title,
 .rainbow-highlight .mat-mdc-card-subtitle,
 .rainbow-highlight .mat-mdc-card-actions {
+  background: var(--mdc-elevated-card-container-color, white);
   position: relative;
   z-index: 1;
 }

@@ -17,3 +17,19 @@ body {
   background: var(--mat-sys-error);
   color: var(--mat-sys-on-error);
 }
+
+/* ============================================================================
+   APPLE-STYLE SHIFTING GRADIENT ANIMATION
+   Used for rainbow highlights on buttons, form fields, and room cards
+   ============================================================================ */
+@keyframes shifting-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

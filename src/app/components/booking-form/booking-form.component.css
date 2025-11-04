@@ -457,89 +457,153 @@
 }
 
 /* ============================================================================
-   PHASE 3+: RAINBOW BUTTON - Delightful "Smart Rebooking" Visual Treatment
+   ACTIVE RAINBOW OUTLINE - Reusable Apple-Style Polished Outline Effect
    ============================================================================ */
 
 /**
- * Apple-style shifting gradient outline for the "Buchung speichern" button.
- * Uses a subtle linear gradient with background-position animation for a professional look.
+ * SINGLE SOURCE OF TRUTH: This class creates a beautiful, subtle rainbow outline.
+ * Can be applied to any element (form fields, buttons, etc.) for Smart Rebooking.
+ *
+ * Visual Design:
+ * - TRUE OUTLINE: Only borders glow, interiors remain solid
+ * - SUBTLE & REFINED: 50% opacity colors, 12s slow animation
+ * - APPLE-LIKE: Premium aesthetic with perfect "punched-out" masking
+ * - PROPERLY CONSTRAINED: Effect stops before mat-hint/mat-error areas
+ *
+ * Technical Implementation:
+ * - ::before: Sharp animated gradient outline (z-index: -1)
+ * - ::after: Soft blurred glow halo (z-index: -2)
+ * - Element content: Solid white background (z-index: 1) creates the mask
  */
-.rainbow-button {
+
+/* Base class setup */
+::ng-deep .active-rainbow-outline {
   position: relative;
-  overflow: visible !important;
-  isolation: isolate;
-  transform: scale(1.02);
-  transition: transform 0.3s ease;
+  isolation: isolate; /* Creates new stacking context for z-index */
 }
 
-/* Main gradient ring */
-.rainbow-button::before {
+/* Layer 1: Sharp Gradient Outline (THE BORDER) */
+::ng-deep .active-rainbow-outline::before {
   content: '';
   position: absolute;
-  top: -3px;
-  left: -3px;
-  width: calc(100% + 6px);
-  height: calc(100% + 6px);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  border-radius: 6px;
+  pointer-events: none; /* Allow clicks to pass through */
+
+  /* Subtle rainbow gradient - 50% opacity for elegance */
+  background: linear-gradient(
+    110deg,
+    rgba(255, 0, 255, 0.5) 0%,      /* Soft Magenta */
+    rgba(255, 102, 0, 0.5) 16%,     /* Soft Orange */
+    rgba(255, 204, 0, 0.5) 33%,     /* Soft Gold */
+    rgba(0, 255, 153, 0.5) 50%,     /* Soft Aqua */
+    rgba(0, 153, 255, 0.5) 66%,     /* Soft Blue */
+    rgba(153, 51, 255, 0.5) 83%,    /* Soft Purple */
+    rgba(255, 0, 255, 0.5) 100%     /* Loop back to Magenta */
+  );
+  background-size: 300% 300%;
+  animation: rainbow-shift 12s ease-in-out infinite;
+}
+
+/* Layer 2: Soft Blurred Glow (THE HALO) */
+::ng-deep .active-rainbow-outline::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
   z-index: -2;
+  border-radius: 8px;
+  pointer-events: none;
 
-  /* Apple-style shifting gradient */
+  /* Same gradient, slightly more transparent */
   background: linear-gradient(
-    60deg,
-    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
+    110deg,
+    rgba(255, 0, 255, 0.4) 0%,
+    rgba(255, 102, 0, 0.4) 16%,
+    rgba(255, 204, 0, 0.4) 33%,
+    rgba(0, 255, 153, 0.4) 50%,
+    rgba(0, 153, 255, 0.4) 66%,
+    rgba(153, 51, 255, 0.4) 83%,
+    rgba(255, 0, 255, 0.4) 100%
   );
   background-size: 300% 300%;
-  animation: shifting-gradient 8s ease infinite;
+  animation: rainbow-shift 12s ease-in-out infinite;
 
-  border-radius: inherit;
+  /* Soft, elegant glow - not harsh neon */
+  filter: blur(18px);
+  opacity: 0.35;
 }
 
-/* Blurred glow effect for extra polish */
-.rainbow-button::after {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  width: calc(100% + 6px);
-  height: calc(100% + 6px);
-  z-index: -3;
+/* ============================================================================
+   MASKING FOR MAT-FORM-FIELD (Creates the "Punched-Out" Effect)
+   ============================================================================ */
 
-  background: linear-gradient(
-    60deg,
-    #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82
-  );
-  background-size: 300% 300%;
-  animation: shifting-gradient 8s ease infinite;
-
-  filter: blur(15px);
-  opacity: 0.6;
-  border-radius: inherit;
+/* The solid white background that creates the hollow center */
+::ng-deep .active-rainbow-outline .mat-mdc-text-field-wrapper {
+  position: relative;
+  z-index: 1; /* Sits above the gradient pseudo-elements */
+  background-color: white !important;
+  border-radius: 4px;
 }
 
-/* Shifting gradient animation */
-@keyframes shifting-gradient {
-  0% {
+/* Inner field must be transparent so the white background shows through */
+::ng-deep .active-rainbow-outline .mdc-text-field {
+  background-color: transparent !important;
+}
+
+/* Hide Material's default outline (we're replacing it with our gradient) */
+::ng-deep .active-rainbow-outline .mdc-notched-outline__leading,
+::ng-deep .active-rainbow-outline .mdc-notched-outline__notch,
+::ng-deep .active-rainbow-outline .mdc-notched-outline__trailing {
+  border-color: transparent !important;
+}
+
+/* CRITICAL: Constrain pseudo-elements to stop before mat-hint/mat-error */
+::ng-deep .active-rainbow-outline.mat-form-field::before {
+  bottom: 28px; /* Stop before mat-hint wrapper (typically 24px + 4px margin) */
+}
+
+::ng-deep .active-rainbow-outline.mat-form-field::after {
+  bottom: 24px; /* Glow stops slightly earlier */
+}
+
+/* ============================================================================
+   MASKING FOR BUTTON (Creates the "Punched-Out" Effect)
+   ============================================================================ */
+
+/* Button-specific setup */
+::ng-deep button.active-rainbow-outline {
+  overflow: visible !important; /* Allow glow to extend beyond bounds */
+}
+
+/* Button content layer (the mask) */
+::ng-deep button.active-rainbow-outline .mdc-button__label {
+  position: relative;
+  z-index: 2;
+}
+
+/* Ensure button has solid background for masking */
+::ng-deep button.active-rainbow-outline {
+  background-color: var(--mat-sys-primary) !important;
+  background-image: none !important;
+}
+
+/* ============================================================================
+   ANIMATION KEYFRAMES
+   ============================================================================ */
+
+@keyframes rainbow-shift {
+  0%, 100% {
     background-position: 0% 50%;
   }
   50% {
     background-position: 100% 50%;
   }
-  100% {
-    background-position: 0% 50%;
-  }
 }
 
-/* Hover effect */
-.rainbow-button:hover {
-  transform: scale(1.05);
-}
-
-/* Ensure button content sits on top with proper background */
-.rainbow-button {
-  background: var(--mdc-filled-button-container-color, var(--mat-sys-primary)) !important;
-}
-
-.rainbow-button .mat-button-wrapper,
-.rainbow-button .mdc-button__label {
-  position: relative;
-  z-index: 1;
-}

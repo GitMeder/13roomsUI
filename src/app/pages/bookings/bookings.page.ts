@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@ang
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, BookingPayload } from '../../services/api.service';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 import { Room } from '../../models/room.model';
 import { Booking } from '../../models/booking.model';
 import { CommonModule } from '@angular/common';
@@ -36,6 +36,12 @@ export class BookingsPageComponent implements OnInit {
 
   // Store original booking payload for smart rebooking
   private originalBookingPayload: BookingPayload | null = null;
+
+  // SNACKBAR SPAM FIX: Flag to prevent duplicate conflict handling
+  private isHandlingConflict = false;
+
+  // SNACKBAR SPAM FIX: Flag to prevent duplicate alternative room searches
+  private isSearchingAlternatives = false;
 
   // Observable for the page data
   pageData$!: Observable<{
@@ -139,6 +145,7 @@ export class BookingsPageComponent implements OnInit {
         }, 500);
       },
       error: (error) => {
+        console.log(`[SnackbarDebug] onBookingSubmit ERROR triggered:`, error);
         console.error('Error creating booking:', error);
         this.isSubmitting.set(false);
 
@@ -164,13 +171,20 @@ export class BookingsPageComponent implements OnInit {
    * Handles booking conflicts by offering to search for alternative rooms.
    */
   private handleBookingConflict(payload: BookingPayload, error: any): void {
+    // SNACKBAR SPAM FIX: Prevent duplicate handler calls
+    if (this.isHandlingConflict) {
+      console.log('[SmartRecovery] Already handling a conflict, ignoring duplicate trigger.');
+      return;
+    }
+    this.isHandlingConflict = true;
     console.log('[SmartRecovery] Handling booking conflict for payload:', payload);
 
     // Store the original payload for rebooking
     this.originalBookingPayload = payload;
 
     // Get room name from the current page data
-    this.pageData$.subscribe(data => {
+    // CRITICAL FIX: Use take(1) to ensure we only process ONE emission, preventing duplicate snackbars
+    this.pageData$.pipe(take(1)).subscribe(data => {
       const roomName = data.room?.name || 'dieser Raum';
 
       // Show snackbar with action button
@@ -189,6 +203,12 @@ export class BookingsPageComponent implements OnInit {
       snackBarRef.onAction().subscribe(() => {
         this.searchForAlternativeRooms(payload);
       });
+
+      // SNACKBAR SPAM FIX: Reset flag when snackbar is dismissed
+      snackBarRef.afterDismissed().subscribe(() => {
+        this.isHandlingConflict = false;
+        console.log('[SmartRecovery] Conflict handling finished. Resetting flag.');
+      });
     });
   }
 
@@ -197,6 +217,13 @@ export class BookingsPageComponent implements OnInit {
    * Searches for alternative rooms that are available for the user's desired time slot.
    */
   private searchForAlternativeRooms(payload: BookingPayload): void {
+    // SNACKBAR SPAM FIX: Prevent duplicate searches
+    if (this.isSearchingAlternatives) {
+      console.log('[SmartRebooking] Already searching for alternatives, ignoring duplicate trigger.');
+      return;
+    }
+    this.isSearchingAlternatives = true;
+
     console.log('[SmartRebooking] Searching for alternative rooms...');
 
     // Show loading state
@@ -228,6 +255,9 @@ export class BookingsPageComponent implements OnInit {
             }
           );
         }
+
+        // SNACKBAR SPAM FIX: Reset flag on success
+        this.isSearchingAlternatives = false;
       },
       error: (error) => {
         console.error('[SmartRebooking] Error searching for alternative rooms:', error);
@@ -241,6 +271,9 @@ export class BookingsPageComponent implements OnInit {
             panelClass: ['error-snackbar']
           }
         );
+
+        // SNACKBAR SPAM FIX: Reset flag on error
+        this.isSearchingAlternatives = false;
       }
     });
   }

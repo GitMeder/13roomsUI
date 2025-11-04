@@ -55,6 +55,15 @@ interface RoomLiveStatus {
   nextBookingStartTime?: Date;
 }
 
+/**
+ * STATE MACHINE: FormMode enum represents the two distinct modes of the booking form.
+ * This is the single source of truth for component behavior.
+ */
+enum FormMode {
+  Suggesting, // Normal mode: calculating and showing suggestions
+  Prefilled   // Smart Rebooking mode: form is pre-filled, no suggestions
+}
+
 @Component({
   selector: 'app-booking-form',
   standalone: true,
@@ -79,6 +88,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private countdownSubscription: Subscription | null = null;
 
   // --- State Management ---
+  // STATE MACHINE: The mode signal is the single source of truth for component behavior
+  public readonly mode = signal<FormMode>(FormMode.Suggesting);
+  public readonly FormMode = FormMode; // Expose enum to template
+
   public readonly bookingConflict = signal<Booking | null>(null);
   public readonly availabilityCountdown = signal<string | null>(null);
 
@@ -172,7 +185,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     effect(() => {
       const prefill = this.prefillData();
       if (prefill) {
-        console.log('[SmartRebooking] Applying prefill data to form:', prefill);
+        console.log('[StateMachine] Prefill data detected. Switching to Prefilled mode.');
+
+        // STATE MACHINE: Set the mode to Prefilled - this is the ENTRY POINT for Smart Rebooking
+        this.mode.set(FormMode.Prefilled);
 
         // Parse the date string (YYYY-MM-DD) into a Date object
         const dateObj = new Date(prefill.date + 'T00:00:00');
@@ -186,17 +202,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
           comment: prefill.comment || null
         }, { emitEvent: false });
 
-        console.log('[SmartRebooking] Form prefilled successfully');
-      }
-    });
+        // Ensure loading state is off in Prefilled mode
+        this.isLoadingSlots.set(false);
 
-    // PART 3: Strategic logging to verify rainbow button activation
-    effect(() => {
-      const isRebooking = this.isSmartRebooking();
-      console.log('[RainbowButton] isSmartRebooking signal value:', isRebooking);
-
-      if (isRebooking) {
-        console.log('[RainbowButton] ✨ RAINBOW BUTTON ACTIVATED! The save button should now have the rainbow ring animation.');
+        console.log('[StateMachine] Form prefilled successfully. Mode is now Prefilled.');
       }
     });
 
@@ -267,15 +276,13 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       ),
       map(values => ({ roomId: values.roomId, date: values.date }))
     ).subscribe(({ roomId, date }) => {
-      // CRITICAL FIX: If we are in smart rebooking mode, the form is already pre-filled.
-      // DO NOT run the automatic slot calculation.
-      if (this.isSmartRebooking()) {
-        console.log('[SmartRebooking] In rebooking mode, skipping automatic slot calculation (valueChanges).');
-        return;
-      }
-
-      if (roomId && date) {
-        this.loadDayBookings(roomId, date);
+      // STATE MACHINE: Only calculate slots in Suggesting mode
+      if (this.mode() === FormMode.Suggesting) {
+        if (roomId && date) {
+          this.loadDayBookings(roomId, date);
+        }
+      } else {
+        console.log('[StateMachine] In Prefilled mode, blocking slot calculation (valueChanges).');
       }
     });
 
@@ -310,54 +317,52 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     // The roomId setter uses { emitEvent: false }, so valueChanges doesn't trigger for the initial value.
     // We must explicitly check and load bookings for the initial state after the current change detection cycle.
     setTimeout(() => {
-      // CRITICAL FIX: If we are in smart rebooking mode, the form is already pre-filled.
-      // DO NOT run the automatic slot calculation.
-      if (this.isSmartRebooking()) {
-        console.log('[SmartRebooking] In rebooking mode, skipping automatic slot calculation (initial load).');
-        this.isLoadingSlots.set(false);
-        return;
-      }
+      // STATE MACHINE: Only calculate slots in Suggesting mode
+      if (this.mode() === FormMode.Suggesting) {
+        const currentRoomId = this.form.get('roomId')?.value;
+        let currentDate = this.form.get('date')?.value;
 
-      const currentRoomId = this.form.get('roomId')?.value;
-      let currentDate = this.form.get('date')?.value;
+        console.log(`[FormInit] Initial values: roomId=${currentRoomId}, date=${currentDate?.toISOString()}`);
 
-      console.log(`[FormInit] Initial values: roomId=${currentRoomId}, date=${currentDate?.toISOString()}`);
+        // UX ENHANCEMENT: Smart date forwarding for after-hours bookings
+        // If user opens the form after business hours, automatically select tomorrow
+        if (currentDate && !this.devModeService.isDevMode()) {
+          const now = new Date();
+          const isToday = currentDate.toDateString() === now.toDateString();
+          const currentHour = now.getHours();
+          const businessEndHour = 20; // Business hours end at 20:00
 
-      // UX ENHANCEMENT: Smart date forwarding for after-hours bookings
-      // If user opens the form after business hours, automatically select tomorrow
-      if (currentDate && !this.devModeService.isDevMode()) {
-        const now = new Date();
-        const isToday = currentDate.toDateString() === now.toDateString();
-        const currentHour = now.getHours();
-        const businessEndHour = 20; // Business hours end at 20:00
+          if (isToday && currentHour >= businessEndHour) {
+            console.log(`[SmartForward] After-hours detected. Forwarding date to tomorrow.`);
 
-        if (isToday && currentHour >= businessEndHour) {
-          console.log(`[SmartForward] After-hours detected. Forwarding date to tomorrow.`);
+            // Create tomorrow's date
+            const tomorrow = new Date(currentDate);
+            tomorrow.setDate(tomorrow.getDate() + 1);
 
-          // Create tomorrow's date
-          const tomorrow = new Date(currentDate);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-
-          // Update the form - this will trigger valueChanges and load bookings for tomorrow
-          this.form.patchValue({ date: tomorrow }, { emitEvent: true });
-          currentDate = tomorrow;
+            // Update the form - this will trigger valueChanges and load bookings for tomorrow
+            this.form.patchValue({ date: tomorrow }, { emitEvent: true });
+            currentDate = tomorrow;
+          }
         }
-      }
 
-      if (currentRoomId && currentDate) {
-        this.loadDayBookings(currentRoomId, currentDate);
+        if (currentRoomId && currentDate) {
+          this.loadDayBookings(currentRoomId, currentDate);
+        } else {
+          // If no initial values, ensure loading state is false
+          this.isLoadingSlots.set(false);
+        }
       } else {
-        // If no initial values, ensure loading state is false
+        console.log('[StateMachine] In Prefilled mode, blocking slot calculation (initial load).');
         this.isLoadingSlots.set(false);
       }
     }, 0);
   }
 
   private loadDayBookings(roomId: number, date: Date): void {
-    // DEFENSIVE GUARD: Never run slot calculation during Smart Rebooking
+    // STATE MACHINE: Never run slot calculation in Prefilled mode
     // The form is already pre-filled with the correct data
-    if (this.isSmartRebooking()) {
-      console.log('[SmartRebooking] Defensive guard - preventing loadDayBookings during rebooking mode.');
+    if (this.mode() === FormMode.Prefilled) {
+      console.log('[StateMachine] Defensive guard - preventing loadDayBookings in Prefilled mode.');
       this.isLoadingSlots.set(false);
       return;
     }
@@ -813,6 +818,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
 
     const formValue = this.form.getRawValue();
+    console.log('[Submit] Form raw value on submit:', formValue);
 
     // Type guard to ensure roomId is not null
     if (!formValue.roomId) {
@@ -824,17 +830,35 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const startTime24 = this.normalizeTimeFormat(formValue.startTime);
     const endTime24 = this.normalizeTimeFormat(formValue.endTime);
 
+    // CRITICAL FIX: Robust date handling - support both Date objects and strings
+    // Case 1: Date is a Date object (from datepicker)
+    // Case 2: Date is a string (from prefillData in Smart Rebooking mode)
+    let dateObj: Date;
+    let dateStr: string;
+
+    if (formValue.date instanceof Date) {
+      // Case 1: Date object from datepicker
+      dateObj = formValue.date;
+      // Format using local timezone components to avoid timezone shifts
+      dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+      console.log('[Submit] Date is Date object. Formatted as:', dateStr);
+    } else {
+      // Case 2: String from prefillData (Smart Rebooking)
+      dateStr = formValue.date;
+      // Parse back to Date object for validation
+      dateObj = new Date(dateStr + 'T00:00:00');
+      console.log('[Submit] Date is string (Smart Rebooking). Using:', dateStr);
+    }
+
     // UX VALIDATION: Prevent booking meetings that are entirely in the past
-    // CRITICAL FIX: Construct endDateTime EXCLUSIVELY from form values
-    // DO NOT use new Date(dateStr) as it can cause timezone issues
-    const selectedDate = formValue.date as Date;
+    // CRITICAL FIX: Construct endDateTime EXCLUSIVELY from date components
     const [endHours, endMinutes] = endTime24.split(':').map(Number);
 
     // Build the date object explicitly from date components (local timezone)
     const endDateTime = new Date(
-      selectedDate.getFullYear(),
-      selectedDate.getMonth(),
-      selectedDate.getDate(),
+      dateObj.getFullYear(),
+      dateObj.getMonth(),
+      dateObj.getDate(),
       endHours,
       endMinutes,
       0,
@@ -865,10 +889,11 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       name: formValue.name,
       startTime: startTime24,
       endTime: endTime24,
-      date: formValue.date.toISOString().split('T')[0],
+      date: dateStr, // Use the correctly determined date string
       comment: formValue.comment || undefined,
     };
 
+    console.log('[Submit] Final payload being sent to parent:', payload);
     this.submitted.emit(payload);
   }
 
