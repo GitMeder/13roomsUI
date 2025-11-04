@@ -422,62 +422,155 @@
   resize: none;
 }
 
-/* Apple Intelligence Gradient - Smart Rebooking Text Highlight */
+/* ========================================================================
+   APPLE INTELLIGENCE GRADIENT - SMART REBOOKING VISUAL EFFECT
+   ======================================================================== */
+
+/*
+  STEP 1: Define a robust and explicit keyframe animation.
+  Explicitly define 0%, 50%, and 100% to ensure smooth, continuous looping
+  that the browser cannot optimize away.
+*/
 @keyframes gradient-shift {
-  0%, 100% { background-position: 0% center; }
-  50% { background-position: 100% center; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
-/* Gradient effect for labels - works well with default settings */
+/*
+  STEP 2: Define the base animated gradient effect class.
+  This is our "single source of truth" for the animated gradient.
+  Official Apple Intelligence color palette:
+  Blue (#007AFF) → Purple (#5856D6) → Pink (#FF2D55) → Red (#FF3B30) → Yellow (#FFCC00) → Blue (seamless loop)
+*/
+.apple-gradient-animated {
+  background: linear-gradient(
+    90deg,
+    #007AFF,  /* Blue */
+    #5856D6,  /* Purple */
+    #FF2D55,  /* Pink */
+    #FF3B30,  /* Red */
+    #FFCC00,  /* Yellow */
+    #007AFF   /* Blue for seamless loop */
+  ) !important;
+  background-size: 200% auto !important;
+  animation: gradient-shift 4s ease infinite !important;
+}
+
+/*
+  STEP 3: Apply the animated gradient effect to text elements.
+  For text, we need to clip the background to the text shape.
+*/
+
+/* Labels and form field labels */
 ::ng-deep .smart-rebooking-active .mat-mdc-floating-label,
 ::ng-deep .smart-rebooking-active .mat-mdc-form-field-label {
-  background: linear-gradient(90deg, #FF006E 0%, #FF5D00 20%, #FFBD00 40%, #00D9FF 60%, #8A2BE2 80%, #FF006E 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: gradient-shift 3s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    #007AFF,  /* Blue */
+    #5856D6,  /* Purple */
+    #FF2D55,  /* Pink */
+    #FF3B30,  /* Red */
+    #FFCC00,  /* Yellow */
+    #007AFF   /* Blue for seamless loop */
+  ) !important;
+  background-size: 200% auto !important;
+  animation: gradient-shift 4s ease infinite !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
   font-weight: 600 !important;
 }
 
-/* Gradient effect for input values - requires additional properties to ensure visibility */
+/* Input values and select text */
 ::ng-deep .smart-rebooking-active .mat-mdc-form-field-input-control,
 ::ng-deep .smart-rebooking-active .mat-mdc-select-value-text {
-  /* Critical: ensure element can render background properly */
   display: inline-block !important;
-  /* Apply gradient with higher specificity */
-  background: linear-gradient(90deg, #FF006E 0%, #FF5D00 20%, #FFBD00 40%, #00D9FF 60%, #8A2BE2 80%, #FF006E 100%) !important;
+  background: linear-gradient(
+    90deg,
+    #007AFF,  /* Blue */
+    #5856D6,  /* Purple */
+    #FF2D55,  /* Pink */
+    #FF3B30,  /* Red */
+    #FFCC00,  /* Yellow */
+    #007AFF   /* Blue for seamless loop */
+  ) !important;
   background-size: 200% auto !important;
-  /* Clip background to text */
+  animation: gradient-shift 4s ease infinite !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
-  /* Make text transparent so gradient shows through */
   -webkit-text-fill-color: transparent !important;
-  /* Prevent Material's color from overriding */
   color: transparent !important;
-  /* Animate gradient */
-  animation: gradient-shift 3s ease-in-out infinite !important;
   font-weight: 600 !important;
-  /* Ensure no conflicting backgrounds from Material */
   background-color: transparent !important;
 }
 
-/* Gradient effect for select trigger (the clickable area) */
-::ng-deep .smart-rebooking-active .mat-mdc-select-trigger {
-  background: linear-gradient(90deg, #FF006E 0%, #FF5D00 20%, #FFBD00 40%, #00D9FF 60%, #8A2BE2 80%, #FF006E 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: gradient-shift 3s ease-in-out infinite;
+/* Select trigger and child elements */
+::ng-deep .smart-rebooking-active .mat-mdc-select-trigger,
+::ng-deep .smart-rebooking-active .mat-mdc-select-value,
+::ng-deep .smart-rebooking-active .mat-mdc-select-min-line {
+  background: linear-gradient(
+    90deg,
+    #007AFF,  /* Blue */
+    #5856D6,  /* Purple */
+    #FF2D55,  /* Pink */
+    #FF3B30,  /* Red */
+    #FFCC00,  /* Yellow */
+    #007AFF   /* Blue for seamless loop */
+  ) !important;
+  background-size: 200% auto !important;
+  animation: gradient-shift 4s ease infinite !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
   font-weight: 600 !important;
 }
 
-/* Gradient effect for button background - animated rainbow gradient */
-::ng-deep button.smart-rebooking-active {
-  background: linear-gradient(90deg, #FF006E 0%, #FF5D00 20%, #FFBD00 40%, #00D9FF 60%, #8A2BE2 80%, #FF006E 100%) !important;
+/* Target ALL spans within smart-rebooking form fields (maximum specificity) */
+::ng-deep .smart-rebooking-active .mat-mdc-select-trigger span,
+::ng-deep .smart-rebooking-active .mat-mdc-select-value span {
+  background: linear-gradient(
+    90deg,
+    #007AFF,  /* Blue */
+    #5856D6,  /* Purple */
+    #FF2D55,  /* Pink */
+    #FF3B30,  /* Red */
+    #FFCC00,  /* Yellow */
+    #007AFF   /* Blue for seamless loop */
+  ) !important;
   background-size: 200% auto !important;
-  animation: gradient-shift 3s ease-in-out infinite !important;
+  animation: gradient-shift 4s ease infinite !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  font-weight: 600 !important;
+}
+
+/*
+  STEP 4: Apply the animated gradient effect to the button background.
+  For buttons, we apply the gradient directly to the background (no text clipping).
+*/
+::ng-deep button.smart-rebooking-active {
+  background: linear-gradient(
+    90deg,
+    #007AFF,  /* Blue */
+    #5856D6,  /* Purple */
+    #FF2D55,  /* Pink */
+    #FF3B30,  /* Red */
+    #FFCC00,  /* Yellow */
+    #007AFF   /* Blue for seamless loop */
+  ) !important;
+  background-size: 200% auto !important;
+  animation: gradient-shift 4s ease infinite !important;
   color: white !important;
   font-weight: 600 !important;
   border: none !important;
@@ -489,13 +582,12 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
-/* Ensure button text stays white */
+/* Ensure button text and icon stay white */
 ::ng-deep button.smart-rebooking-active .mdc-button__label {
   color: white !important;
   font-weight: 600 !important;
 }
 
-/* Ensure button icon stays white */
 ::ng-deep button.smart-rebooking-active mat-icon {
   color: white !important;
 }
