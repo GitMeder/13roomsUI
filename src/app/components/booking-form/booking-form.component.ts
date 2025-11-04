@@ -67,7 +67,7 @@ enum FormMode {
     MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule
   ],
   templateUrl: './booking-form.component.html',
-  styleUrls: ['./booking-form.component.css'],
+  styleUrls: ['./booking-form.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BookingFormComponent implements OnInit, OnDestroy {

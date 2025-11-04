@@ -1,3 +1,7 @@
+/* ========================================================================
+   BOOKING FORM LAYOUT & COMPONENT STYLES
+   ======================================================================== */
+
 .booking-form {
   display: grid;
   gap: 1.5rem;
@@ -302,7 +306,7 @@
   padding: 0.75rem;
   background-color: var(--mat-sys-surface-container-low);
   border-radius: 0.5rem;
-  border: 1px solid var(--mat-sys-outline-variant);
+  border:1px solid var(--mat-sys-outline-variant);
   color: var(--mat-sys-on-surface-variant);
 }
 
@@ -457,7 +461,7 @@
 .info-icon {
   position: absolute;
   top: -9px;
-  right: 5px; /* Final position */
+  right: 5px;
   z-index: 2;
   background-color: white;
   border-radius: 50%;
@@ -469,36 +473,35 @@
 }
 
 .info-icon:hover {
-  color: rgba(0, 0, 0, 0.87); /* Darker on hover for better visibility */
+  color: rgba(0, 0, 0, 0.87);
 }
 
 /* Professional Custom Tooltip Styling */
 ::ng-deep .custom-tooltip {
-  background-color: #323232 !important; /* Dark background for contrast */
+  background-color: #323232 !important;
   color: white !important;
   font-size: 14px !important;
   padding: 8px 12px !important;
   border-radius: 6px !important;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important; /* Subtle shadow for depth */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
   max-width: 300px !important;
   line-height: 1.4 !important;
 }
 
 /* Disable Textarea Resizing for Clean Layout */
-/* Target the textarea inside the comment form field and disable resizing */
 .booking-form__columns .mat-mdc-form-field textarea[formControlName="comment"] {
   resize: none;
 }
 
 /* ========================================================================
-   APPLE INTELLIGENCE GRADIENT - SMART REBOOKING VISUAL EFFECT
+   SMART REBOOKING GRADIENT ANIMATION
    ======================================================================== */
 
-/*
-  STEP 1: Define a robust and explicit keyframe animation.
-  Explicitly define 0%, 50%, and 100% to ensure smooth, continuous looping
-  that the browser cannot optimize away.
-*/
+// ============================================================================
+// DEFINITIVE FIX: Cross-Browser Gradient Animation Solution
+// ============================================================================
+
+// 1. ENHANCED KEYFRAMES - More explicit animation with GPU acceleration hints
 @keyframes gradient-shift {
   0% {
     background-position: 0% 50%;
@@ -511,151 +514,219 @@
   }
 }
 
-/*
-  STEP 2: Define the base animated gradient effect class.
-  This is our "single source of truth" for the animated gradient.
-  Official Apple Intelligence color palette:
-  Blue (#007AFF) → Purple (#5856D6) → Pink (#FF2D55) → Red (#FF3B30) → Yellow (#FFCC00) → Blue (seamless loop)
-*/
-.apple-gradient-animated {
-  background: linear-gradient(
+// Force GPU acceleration mixin
+@mixin force-gpu-acceleration {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: background-position;
+}
+
+// Gradient definition mixin for consistency
+@mixin apple-gradient {
+  background-image: linear-gradient(
     90deg,
-    #007AFF,  /* Blue */
-    #5856D6,  /* Purple */
-    #FF2D55,  /* Pink */
-    #FF3B30,  /* Red */
-    #FFCC00,  /* Yellow */
-    #007AFF   /* Blue for seamless loop */
-  ) !important;
-  background-size: 200% auto !important;
-  animation: gradient-shift 4s ease infinite !important;
+    #007aff 0%,
+    #5856d6 20%,
+    #ff2d55 40%,
+    #ff3b30 60%,
+    #ffcc00 80%,
+    #007aff 100%
+  );
+  background-size: 200% auto;
 }
 
-/*
-  STEP 3: Apply the animated gradient effect to text elements.
-  For text, we need to clip the background to the text shape.
-*/
+// Text gradient mixin with all vendor prefixes
+@mixin gradient-text {
+  @include apple-gradient;
+  @include force-gpu-acceleration;
 
-/* Labels and form field labels */
-::ng-deep .smart-rebooking-active .mat-mdc-floating-label,
-::ng-deep .smart-rebooking-active .mat-mdc-form-field-label {
-  background: linear-gradient(
-    90deg,
-    #007AFF,  /* Blue */
-    #5856D6,  /* Purple */
-    #FF2D55,  /* Pink */
-    #FF3B30,  /* Red */
-    #FFCC00,  /* Yellow */
-    #007AFF   /* Blue for seamless loop */
-  ) !important;
-  background-size: 200% auto !important;
-  animation: gradient-shift 4s ease infinite !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
-  font-weight: 600 !important;
+  // Critical: Set animation with explicit timing function
+  animation: gradient-shift 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  // Text clipping with maximum compatibility
+  -webkit-background-clip: text;
+  -moz-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -moz-text-fill-color: transparent;
+  color: transparent;
+
+  // Ensure text remains selectable and visible
+  font-weight: 600;
+  display: inline-block; // Critical for animation to work
+  position: relative;
+  z-index: 1;
 }
 
-/* Input values and select text */
-::ng-deep .smart-rebooking-active .mat-mdc-form-field-input-control,
-::ng-deep .smart-rebooking-active .mat-mdc-select-value-text {
-  display: inline-block !important;
-  background: linear-gradient(
-    90deg,
-    #007AFF,  /* Blue */
-    #5856D6,  /* Purple */
-    #FF2D55,  /* Pink */
-    #FF3B30,  /* Red */
-    #FFCC00,  /* Yellow */
-    #007AFF   /* Blue for seamless loop */
-  ) !important;
-  background-size: 200% auto !important;
-  animation: gradient-shift 4s ease infinite !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
-  font-weight: 600 !important;
-  background-color: transparent !important;
+// ============================================================================
+// MAIN STYLING - Using data attributes for precise targeting
+// ============================================================================
+
+.booking-form.smart-rebooking-active {
+  // ----------------------------------------------------------------------------
+  // BUTTON STYLING - Gradient Background
+  // ----------------------------------------------------------------------------
+  button[type="submit"] {
+    @include apple-gradient;
+    @include force-gpu-acceleration;
+
+    animation: gradient-shift 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+
+    &:hover {
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    // Ensure text stays white
+    span,
+    ::ng-deep .mdc-button__label {
+      color: white !important;
+      -webkit-text-fill-color: white !important;
+    }
+  }
+
+  // ----------------------------------------------------------------------------
+  // TARGETED FORM FIELD STYLING - Only specific fields
+  // ----------------------------------------------------------------------------
+
+  // Target ONLY the specific time fields container
+  .booking-form__time-fields {
+    ::ng-deep {
+      // Target the actual input element text
+      input.mat-mdc-input-element {
+        @include gradient-text;
+
+        // Override Material's default styles
+        &::placeholder {
+          opacity: 0.5;
+        }
+
+        // Ensure cursor remains visible
+        caret-color: #007aff;
+      }
+
+      // Style the floating label when field has value
+      .mat-mdc-form-field-has-value {
+        .mat-mdc-floating-label {
+          // Keep label normal - not gradient
+          color: rgba(0, 0, 0, 0.6) !important;
+          -webkit-text-fill-color: rgba(0, 0, 0, 0.6) !important;
+        }
+      }
+    }
+  }
+
+  // Target the room selector specifically by form control name
+  ::ng-deep {
+    // Use attribute selector for precision - target room select only
+    mat-form-field:has(mat-select[formcontrolname="room" i]),
+    mat-form-field:has(mat-select[ng-reflect-name="room"]) {
+      // Style the selected value text
+      .mat-mdc-select-value-text {
+        @include gradient-text;
+      }
+
+      // Keep the label normal
+      .mat-mdc-floating-label,
+      .mat-mdc-form-field-label {
+        color: rgba(0, 0, 0, 0.6) !important;
+        -webkit-text-fill-color: rgba(0, 0, 0, 0.6) !important;
+        background: none !important;
+      }
+    }
+
+    // Alternative targeting for start/end time if they have specific attributes
+    mat-form-field:has(input[formcontrolname="startTime" i]),
+    mat-form-field:has(input[formcontrolname="endTime" i]),
+    mat-form-field:has(input[ng-reflect-name="startTime"]),
+    mat-form-field:has(input[ng-reflect-name="endTime"]) {
+      input.mat-mdc-input-element {
+        @include gradient-text;
+        caret-color: #007aff;
+      }
+
+      // Keep labels normal
+      .mat-mdc-floating-label {
+        color: rgba(0, 0, 0, 0.6) !important;
+        -webkit-text-fill-color: rgba(0, 0, 0, 0.6) !important;
+        background: none !important;
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------
+  // FIREFOX-SPECIFIC FIXES
+  // ----------------------------------------------------------------------------
+  @-moz-document url-prefix() {
+    button[type="submit"],
+    ::ng-deep input.mat-mdc-input-element,
+    ::ng-deep .mat-mdc-select-value-text {
+      // Firefox needs explicit animation-fill-mode
+      animation-fill-mode: forwards;
+
+      // Firefox sometimes needs a repaint trigger
+      &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: -1;
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------
+  // WEBKIT-SPECIFIC ENHANCEMENTS (Chrome, Safari)
+  // ----------------------------------------------------------------------------
+  @supports (-webkit-background-clip: text) {
+    ::ng-deep input.mat-mdc-input-element,
+    ::ng-deep .mat-mdc-select-value-text {
+      // Webkit performs better with this combination
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+  }
 }
 
-/* Select trigger and child elements */
-::ng-deep .smart-rebooking-active .mat-mdc-select-trigger,
-::ng-deep .smart-rebooking-active .mat-mdc-select-value,
-::ng-deep .smart-rebooking-active .mat-mdc-select-min-line {
-  background: linear-gradient(
-    90deg,
-    #007AFF,  /* Blue */
-    #5856D6,  /* Purple */
-    #FF2D55,  /* Pink */
-    #FF3B30,  /* Red */
-    #FFCC00,  /* Yellow */
-    #007AFF   /* Blue for seamless loop */
-  ) !important;
-  background-size: 200% auto !important;
-  animation: gradient-shift 4s ease infinite !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
-  font-weight: 600 !important;
+// ============================================================================
+// FALLBACK STYLES - For browsers that don't support background-clip: text
+// ============================================================================
+@supports not (-webkit-background-clip: text) {
+  .booking-form.smart-rebooking-active {
+    ::ng-deep {
+      input.mat-mdc-input-element,
+      .mat-mdc-select-value-text {
+        // Fallback to colored text without gradient
+        color: #007aff !important;
+        -webkit-text-fill-color: #007aff !important;
+        background: none !important;
+        font-weight: 600 !important;
+      }
+    }
+  }
 }
 
-/* Target ALL spans within smart-rebooking form fields (maximum specificity) */
-::ng-deep .smart-rebooking-active .mat-mdc-select-trigger span,
-::ng-deep .smart-rebooking-active .mat-mdc-select-value span {
-  background: linear-gradient(
-    90deg,
-    #007AFF,  /* Blue */
-    #5856D6,  /* Purple */
-    #FF2D55,  /* Pink */
-    #FF3B30,  /* Red */
-    #FFCC00,  /* Yellow */
-    #007AFF   /* Blue for seamless loop */
-  ) !important;
-  background-size: 200% auto !important;
-  animation: gradient-shift 4s ease infinite !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
-  font-weight: 600 !important;
-}
+// ============================================================================
+// PERFORMANCE OPTIMIZATION - Reduce repaints
+// ============================================================================
+.booking-form.smart-rebooking-active {
+  // Create stacking context to isolate repaints
+  position: relative;
+  z-index: 0;
 
-/*
-  STEP 4: Apply the animated gradient effect to the button background.
-  For buttons, we apply the gradient directly to the background (no text clipping).
-*/
-::ng-deep button.smart-rebooking-active {
-  background: linear-gradient(
-    90deg,
-    #007AFF,  /* Blue */
-    #5856D6,  /* Purple */
-    #FF2D55,  /* Pink */
-    #FF3B30,  /* Red */
-    #FFCC00,  /* Yellow */
-    #007AFF   /* Blue for seamless loop */
-  ) !important;
-  background-size: 200% auto !important;
-  animation: gradient-shift 4s ease infinite !important;
-  color: white !important;
-  font-weight: 600 !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-  transition: box-shadow 0.3s ease !important;
-}
-
-::ng-deep button.smart-rebooking-active:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important;
-}
-
-/* Ensure button text and icon stay white */
-::ng-deep button.smart-rebooking-active .mdc-button__label {
-  color: white !important;
-  font-weight: 600 !important;
-}
-
-::ng-deep button.smart-rebooking-active mat-icon {
-  color: white !important;
+  // Optimize form field containers
+  ::ng-deep .mat-mdc-text-field-wrapper {
+    contain: layout style;
+  }
 }

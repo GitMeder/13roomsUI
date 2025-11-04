@@ -1,4 +1,4 @@
-<form class="booking-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+<form class="booking-form" [class.smart-rebooking-active]="isSmartRebooking()" [formGroup]="form" (ngSubmit)="onSubmit()">
   <!-- Conflict Warning (Full Width) -->
   <!-- SMART UI: Suppressed when "Live Status" timeline is visible (higher priority) -->
   @if (bookingConflict(); as conflict) {
@@ -115,7 +115,7 @@
       </mat-form-field>
 
       <div class="booking-form__time-fields">
-        <mat-form-field appearance="outline" [class.smart-rebooking-active]="isSmartRebooking()">
+        <mat-form-field appearance="outline">
           <mat-label>Beginn</mat-label>
           <input
             matInput
@@ -128,7 +128,7 @@
           <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="end-time-field" [class.smart-rebooking-active]="isSmartRebooking()">
+        <mat-form-field appearance="outline" class="end-time-field">
           <mat-label>Ende</mat-label>
 
           <!-- THE ICON - direct child for absolute positioning on border -->
@@ -231,8 +231,7 @@
       mat-flat-button
       color="primary"
       type="submit"
-      [disabled]="isSubmitDisabled()"
-      [class.smart-rebooking-active]="isSmartRebooking()">
+      [disabled]="isSubmitDisabled()">
       @if (isSubmitting()) {
         <mat-spinner diameter="20"></mat-spinner>
       } @else {
