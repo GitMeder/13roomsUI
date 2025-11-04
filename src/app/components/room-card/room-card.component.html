@@ -14,7 +14,6 @@
         <span>{{ room().capacity }} Personen</span>
       </div>
       <div>
-        <mat-icon aria-hidden="true">info</mat-icon>
         <span class="room-card__status">{{ statusInfo().text }}</span>
       </div>
     </div>
@@ -24,9 +23,7 @@
       <mat-chip-set>
         @if (room().amenities?.length) {
           @for (amenity of room().amenities | slice:0:4; track amenity) {
-            <mat-chip color="primary" selected>
-              {{ amenity }}
-            </mat-chip>
+          <mat-chip color="primary" selected>{{ amenity }}</mat-chip>
           }
         } @else {
           <mat-chip color="primary" selected>Keine Angaben</mat-chip>
@@ -36,8 +33,13 @@
   </mat-card-content>
 
   <mat-card-actions>
-    <button mat-icon-button color="warn" (click)="onDelete($event)">
-      <mat-icon>delete</mat-icon>
-    </button>
+    @if (canDelete()) {
+      <button mat-icon-button color="primary" matTooltip="Raum bearbeiten" (click)="onEdit($event)">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <button mat-icon-button color="warn" matTooltip="Raum löschen" (click)="onDelete($event)">
+        <mat-icon>delete</mat-icon>
+      </button>
+    }
   </mat-card-actions>
 </mat-card>

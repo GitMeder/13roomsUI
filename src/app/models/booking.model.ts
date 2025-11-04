@@ -1,15 +1,15 @@
 export interface Booking {
   id: number;
   room_id: number;
-  name: string;
+  title: string;
   start_time: string;
   end_time: string;
-  comment: string;
+  comment: string | null;
 }
 
 export interface BookingPayload {
   roomId: number;
-  name: string;
+  title: string;
   startTime: string;
   endTime: string;
   date: string;

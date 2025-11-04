@@ -5,6 +5,7 @@ export interface Room {
   name: string;
   capacity: number;
   status: 'available' | 'occupied' | 'maintenance' | string;
+  statusRaw?: 'active' | 'inactive' | 'maintenance';
   location?: string | null;
   amenities?: string[] | null;
   icon?: string | null;

@@ -6,12 +6,14 @@
         {{ subtitle() }}
       </p>
     </div>
-    <div class="dashboard-page__actions">
-      <button mat-flat-button color="primary" routerLink="/rooms/new">
-        <mat-icon aria-hidden="true">add</mat-icon>
-        Neues Zimmer
-      </button>
-    </div>
+    @if (canManageRooms()) {
+      <div class="dashboard-page__actions">
+        <button mat-flat-button color="primary" routerLink="/rooms/new">
+          <mat-icon aria-hidden="true">add</mat-icon>
+          Neues Zimmer
+        </button>
+      </div>
+    }
   </header>
 
   @if (!loading() && !error()) {
@@ -21,6 +23,7 @@
           <app-room-card
             [room]="room"
             [statusInfo]="getRoomStatus(room)"
+            [canDelete]="canManageRooms()"
             [class.rainbow-highlight]="room.id === highlightedRoomId()"
             (deleteRoomEvent)="onDeleteRoom($event)"
             (cardClick)="onRoomCardClick($event)"

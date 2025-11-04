@@ -54,7 +54,8 @@ export class BookingsPageComponent implements OnInit {
       date: string;
       startTime: string;
       endTime: string;
-      name: string;
+      title: string;
+      name?: string;
       comment?: string;
     };
   }>;
@@ -80,6 +81,34 @@ export class BookingsPageComponent implements OnInit {
         return pageData;
       })
     );
+  }
+
+  /**
+   * Returns true iff the given room allows new bookings.
+   * The backend persists statuses as 'active' | 'inactive' | 'maintenance', while the UI historically
+   * exposed labels such as 'available' or 'occupied'. We normalise to the canonical values here.
+   */
+  isRoomBookable(room: Room | null | undefined): boolean {
+    if (!room) {
+      return false;
+    }
+    const normalizedStatus = this.normalizeRoomStatus(room.statusRaw ?? room.status);
+    return normalizedStatus === 'active';
+  }
+
+  /**
+   * Helper exposed to the template to describe why a room is unavailable.
+   */
+  getRoomAvailabilityMessage(room: Room | null | undefined): string {
+    const normalizedStatus = this.normalizeRoomStatus(room?.statusRaw ?? room?.status);
+    switch (normalizedStatus) {
+      case 'maintenance':
+        return 'befindet sich aktuell in Wartung und kann nicht gebucht werden.';
+      case 'inactive':
+        return 'ist derzeit deaktiviert und steht für Buchungen nicht zur Verfügung.';
+      default:
+        return 'ist aktiv.';
+    }
   }
 
   private calculateSuggestedTimes(): { suggestedStartTime: string; suggestedEndTime: string } {
@@ -347,7 +376,8 @@ export class BookingsPageComponent implements OnInit {
         date: this.originalBookingPayload.date,
         startTime: this.originalBookingPayload.startTime,
         endTime: this.originalBookingPayload.endTime,
-        name: this.originalBookingPayload.name,
+        title: this.originalBookingPayload.title,
+        name: this.originalBookingPayload.title,
         comment: this.originalBookingPayload.comment
       }
     };
@@ -361,5 +391,20 @@ export class BookingsPageComponent implements OnInit {
     this.router.navigate(['/bookings', newRoomId], {
       state: navigationState
     });
+  }
+
+  private normalizeRoomStatus(status: string | undefined | null): 'active' | 'inactive' | 'maintenance' {
+    const normalized = status?.toString().toLowerCase();
+    switch (normalized) {
+      case 'maintenance':
+        return 'maintenance';
+      case 'inactive':
+      case 'occupied':
+        return 'inactive';
+      case 'available':
+      case 'active':
+      default:
+        return 'active';
+    }
   }
 }

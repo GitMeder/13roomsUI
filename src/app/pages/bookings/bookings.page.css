@@ -39,14 +39,25 @@ h1 {
 
 .bookings-page__warning-message {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.75rem;
   margin-top: 1rem;
   padding: 0.75rem 1rem;
   background-color: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
   border-radius: 0.5rem;
   font-weight: 500;
+}
+
+.bookings-page__warning-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--mat-sys-primary);
 }
 
 mat-card {
@@ -67,6 +78,35 @@ mat-card {
 
 .bookings-page__error mat-icon {
   font-size: 3rem;
+}
+
+.bookings-page__unavailable-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: clamp(1.5rem, 2vw + 1rem, 2.5rem);
+}
+
+.bookings-page__warning-icon mat-icon {
+  font-size: 24px;
+}
+
+.bookings-page__warning-text h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.bookings-page__warning-text p {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  line-height: 1.55;
+}
+
+.bookings-page__actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .bookings-page__inflight {

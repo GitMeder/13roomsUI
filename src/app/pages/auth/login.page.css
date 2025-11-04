@@ -1,0 +1,45 @@
+.auth-wrapper {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, rgba(67, 97, 238, 0.1), transparent 55%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-card h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.switch {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.switch a {
+  color: #3f51b5;
+  font-weight: 600;
+}

@@ -1,0 +1,131 @@
+<section class="edit-page" *ngIf="!isLoading(); else loadingTpl">
+  <header class="edit-page__header">
+    <div class="header-top">
+      <button mat-icon-button type="button" (click)="cancel()" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1>Raum bearbeiten</h1>
+    </div>
+    <p class="edit-page__subtitle">
+      Aktualisieren Sie Angaben, Status und Ausstattung dieses Raumes.
+    </p>
+  </header>
+
+  <form [formGroup]="form" class="edit-page__form" (ngSubmit)="save()">
+    <div class="edit-page__columns">
+      <section class="edit-page__column">
+        <h2>Basisdaten</h2>
+        <mat-form-field appearance="outline">
+          <mat-label>Raumname</mat-label>
+          <input matInput formControlName="name" required>
+          @if (form.get('name')?.hasError('required')) {
+            <mat-error>Name ist erforderlich.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Kapazität</mat-label>
+          <input matInput type="number" min="1" formControlName="capacity" required>
+          @if (form.get('capacity')?.hasError('min')) {
+            <mat-error>Mindestens eine Person.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Standort (optional)</mat-label>
+          <input matInput formControlName="location" placeholder="z.B. 1. Etage · Familienbereich">
+        </mat-form-field>
+      </section>
+
+      <section class="edit-page__column">
+        <h2>Status &amp; Icon</h2>
+        <div class="status-toggle">
+          <span>Status</span>
+          <mat-button-toggle-group formControlName="status" color="primary">
+            <mat-button-toggle value="active">Verfügbar</mat-button-toggle>
+            <mat-button-toggle value="inactive">Inaktiv</mat-button-toggle>
+            <mat-button-toggle value="maintenance">Wartung</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+
+        <div class="icon-grid">
+          @for (option of iconOptions; track option.value) {
+            <button
+              type="button"
+              mat-stroked-button
+              class="icon-option"
+              [class.icon-option--selected]="isIconSelected(option.value)"
+              (click)="selectIcon(option.value)"
+              matTooltip="{{ option.label }}">
+              <mat-icon>{{ option.value }}</mat-icon>
+              <span>{{ option.label }}</span>
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+
+    <section class="edit-page__section">
+      <h2>Ausstattung</h2>
+      <div class="amenity-options">
+        @for (option of amenityOptions; track option) {
+          <button
+            type="button"
+            mat-stroked-button
+            class="amenity-option"
+            [class.amenity-option--selected]="isAmenitySelected(option)"
+            (click)="toggleAmenity(option)">
+            {{ option }}
+          </button>
+        }
+      </div>
+
+      @if (amenities.length) {
+        <mat-chip-set class="amenity-chip-set">
+          @for (amenity of amenities; track amenity) {
+            <mat-chip selected removable (removed)="removeAmenity(amenity)">
+              {{ amenity }}
+              <button matChipRemove type="button" aria-label="{{ amenity }} entfernen">
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip>
+          }
+        </mat-chip-set>
+      }
+
+      <mat-form-field class="amenity-input" appearance="outline">
+        <mat-label>Eigenes Feature hinzufügen</mat-label>
+        <input matInput formControlName="customAmenity" placeholder="z.B. Elterncafé" (keyup.enter)="addCustomAmenity()">
+        <button type="button" mat-icon-button matSuffix (click)="addCustomAmenity()" [disabled]="!form.get('customAmenity')?.value?.trim()">
+          <mat-icon>add</mat-icon>
+        </button>
+      </mat-form-field>
+    </section>
+
+    <footer class="edit-page__actions">
+      <button mat-button type="button" (click)="cancel()">Abbrechen</button>
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSaving()">
+        @if (isSaving()) {
+          Speichern…
+        } @else {
+          Änderungen sichern
+        }
+      </button>
+    </footer>
+  </form>
+</section>
+
+<ng-template #loadingTpl>
+  <div class="edit-page__loading" *ngIf="isLoading(); else errorTpl">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Raum wird geladen …</p>
+  </div>
+</ng-template>
+
+<ng-template #errorTpl>
+  <div class="edit-page__error" *ngIf="loadError() as message">
+    <mat-icon>error_outline</mat-icon>
+    <p>{{ message }}</p>
+    <button mat-stroked-button type="button" (click)="cancel()">Zurück</button>
+  </div>
+</ng-template>

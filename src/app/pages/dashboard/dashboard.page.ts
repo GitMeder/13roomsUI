@@ -11,6 +11,7 @@ import { RoomCardComponent } from '../../components/room-card/room-card.componen
 import { Router, RouterLink, NavigationEnd } from '@angular/router';
 import { timer, Observable } from 'rxjs'; // Import timer and Observable
 import { map, filter } from 'rxjs/operators'; // Import map operator
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -32,6 +33,7 @@ export class DashboardPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly datePipe = inject(DatePipe);
+  private readonly authService = inject(AuthService);
 
   readonly loading = signal<boolean>(true);
   readonly error = signal<string | null>(null);
@@ -39,6 +41,7 @@ export class DashboardPageComponent implements OnInit {
 
   readonly countdown = signal<number>(0); // Real-time countdown signal
   readonly highlightedRoomId = signal<number | null>(null); // PART 2: Room to highlight with rainbow
+  readonly canManageRooms = signal<boolean>(this.authService.currentUserSnapshot?.role === 'admin');
 
   // Keep the dashboard subtitle contextual to current state (loading vs. stats).
   readonly subtitle = computed(() => {
@@ -64,6 +67,12 @@ export class DashboardPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(tick => {
         this.countdown.set(tick);
+      });
+
+    this.authService.currentUser$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(user => {
+        this.canManageRooms.set((user?.role ?? 'user') === 'admin');
       });
 
     // Reload rooms when navigating back to dashboard
@@ -212,6 +221,15 @@ export class DashboardPageComponent implements OnInit {
   }
 
   getRoomStatus(room: Room): { text: string; cssClass: string } {
+    const rawStatus = room.statusRaw ?? room.status?.toString().toLowerCase();
+    if (rawStatus === 'maintenance') {
+      return { text: 'IN WARTUNG', cssClass: 'maintenance-state' };
+    }
+
+    if (rawStatus === 'inactive') {
+      return { text: 'NICHT VERFÜGBAR', cssClass: 'inactive-state' };
+    }
+
     // CRITICAL FIX: Don't call countdown() here - it causes infinite loop
     // The timer already updates countdown every second, triggering change detection
     // We just need to read the current time directly

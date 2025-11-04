@@ -10,14 +10,20 @@
   </a>
 
   <nav class="app-toolbar__nav">
-    <mat-slide-toggle
-      [checked]="devModeService.isDevMode()"
-      (change)="devModeService.toggleDevMode()"
-      matTooltip="Entwicklermodus: Zeitbeschränkungen für Buchungen aufheben (24/7 Buchungen)"
-      class="app-toolbar__dev-toggle"
-    >
-      Dev Mode
-    </mat-slide-toggle>
+    <ng-container *ngIf="currentUser$ | async as user; else authLinks">
+      <div class="user-chip">
+        <mat-icon aria-hidden="true">person</mat-icon>
+        <span>{{ user.firstname }} {{ user.surname }} · {{ user.role }}</span>
+        <button mat-button (click)="logout()">
+          Abmelden
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-template #authLinks>
+      <a mat-button routerLink="/login">Anmelden</a>
+      <a mat-stroked-button color="primary" routerLink="/register">Registrieren</a>
+    </ng-template>
   </nav>
 </mat-toolbar>
 

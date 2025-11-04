@@ -18,6 +18,85 @@
   font-weight: 500;
 }
 
+.booking-form__room-summary {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: var(--mat-sys-surface-container-low);
+  margin-bottom: 1rem;
+}
+
+.booking-form__room-summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.booking-form__room-summary-icon mat-icon {
+  font-size: 24px;
+}
+
+.booking-form__room-summary-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.booking-form__room-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+}
+
+.booking-form__room-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 0.9rem;
+}
+
+.booking-form__room-summary-meta .meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.booking-form__room-summary-meta mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: rgba(37, 99, 235, 0.85);
+}
+
+.booking-form__room-summary-amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.booking-form__room-summary-amenities .amenity-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 /* Booking Timeline - Visual representation of current and upcoming bookings */
 .booking-timeline {
   display: flex;
@@ -391,17 +470,6 @@
 
 .info-icon:hover {
   color: rgba(0, 0, 0, 0.87); /* Darker on hover for better visibility */
-}
-
-/* Position the CLOCK icon inside the field on the far right */
-.clock-icon {
-  position: absolute;
-  top: 50%;
-  right: 16px; /* Position from the right edge */
-  transform: translateY(-50%); /* Vertically center it */
-  z-index: 1; /* Sits below the info icon's z-index */
-  cursor: pointer;
-  color: rgba(0, 0, 0, 0.54);
 }
 
 /* Professional Custom Tooltip Styling */

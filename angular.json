@@ -30,20 +30,20 @@
             ],
             "scripts": []
           },
-          "configurations": {
-            "production": {
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "1.3mb",
-                  "maximumError": "2mb"
-                },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "8kb",
-                  "maximumError": "8.5kb"
-                }
-              ],
+        "configurations": {
+          "production": {
+            "budgets": [
+              {
+                "type": "initial",
+                "maximumWarning": "1.3mb",
+                "maximumError": "2mb"
+              },
+              {
+                "type": "anyComponentStyle",
+                "maximumWarning": "15kb",
+                "maximumError": "15.5kb"
+              }
+            ],
               "outputHashing": "all"
             },
             "development": {

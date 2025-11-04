@@ -7,6 +7,7 @@ export interface Room {
   name: string;
   capacity: number;
   status: 'available' | 'occupied' | 'maintenance' | string;
+  statusRaw?: 'active' | 'inactive' | 'maintenance';
   location?: string | null;
   amenities?: string[] | null;
   icon?: string | null;
@@ -24,7 +25,7 @@ export interface BookingPayload {
   date: string;
   startTime: string;
   endTime: string;
-  name: string;
+  title: string;
   comment?: string;
 }
 
@@ -47,7 +48,7 @@ interface ApiRoom {
 
 interface CreateBookingRequest {
   room_id: number;
-  name: string;
+  title: string;
   start_time: string;
   end_time: string;
   comment?: string | null;
@@ -67,13 +68,22 @@ export interface CreateRoomPayload {
   icon?: string;
 }
 
+export interface UpdateRoomPayload {
+  name?: string;
+  capacity?: number;
+  status?: 'active' | 'inactive' | 'maintenance';
+  location?: string | null;
+  amenities?: string[];
+  icon?: string | null;
+}
+
 export interface Booking {
   id: number;
   room_id: number;
-  name: string;
+  title: string;
   start_time: string;
   end_time: string;
-  comment: string;
+  comment: string | null;
 }
 
 @Injectable({
@@ -83,41 +93,7 @@ export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = 'http://localhost:3000/api';
 
-  /**
-   * Mocked room list until the MySQL-backed API is ready.
-   * Replace this with real API data once the backend endpoints are available.
-   */
-  private readonly mockRooms: Room[] = [
-    {
-      id: 1,
-      name: 'Aurora',
-      capacity: 6,
-      location: '1. Etage · Westflügel',
-      amenities: ['Bildschirm', 'Konferenztelefon', 'Whiteboard'],
-      status: 'available',
-      icon: 'meeting_room'
-    },
-    {
-      id: 2,
-      name: 'Atlas',
-      capacity: 12,
-      location: '2. Etage · Ostflügel',
-      amenities: ['Videokonferenz', 'Projektor', 'Höhenverstellbare Tische'],
-      status: 'occupied',
-      icon: 'business'
-    },
-    {
-      id: 3,
-      name: 'Nova',
-      capacity: 4,
-      location: 'EG · Nord',
-      amenities: ['Whiteboard', 'Ruhezonen-Licht', 'USB-C Charging'],
-      status: 'maintenance',
-      icon: 'lightbulb'
-    }
-  ];
-
-  private readonly knownStatuses = new Set(['available', 'occupied', 'maintenance']);
+  private readonly knownStatuses = new Set(['available', 'occupied', 'maintenance', 'active', 'inactive']);
 
   get<T>(endpoint: string, options?: {
     headers?: HttpHeaders | {
@@ -193,8 +169,8 @@ export class ApiService {
     return this.get<ApiRoom[]>('rooms').pipe(
       map((rooms) => rooms.map((room) => this.normalizeRoom(room))),
       catchError((error) => {
-        console.error('Error fetching rooms, falling back to mock data:', error);
-        return of(this.mockRooms).pipe(delay(300));
+        console.error('Error fetching rooms:', error);
+        return throwError(() => error);
       })
     );
   }
@@ -202,6 +178,13 @@ export class ApiService {
   createRoom(roomData: CreateRoomPayload): Observable<Room> {
     console.log('Creating room:', roomData);
     return this.post<Room>('rooms', roomData);
+  }
+
+  updateRoom(id: number, payload: UpdateRoomPayload): Observable<Room> {
+    console.log(`Updating room ${id}:`, payload);
+    return this.put<{ message: string; room: ApiRoom }>(`rooms/${id}`, payload).pipe(
+      map(response => this.normalizeRoom(response.room))
+    );
   }
 
   deleteRoom(id: number): Observable<void> {
@@ -220,10 +203,22 @@ export class ApiService {
 
     if (date) {
       const params = new HttpParams().set('date', date);
-      return this.get<Booking[]>(`bookings/room/${roomId}`, { params });
+      return this.get<any[]>(`bookings/room/${roomId}`, { params }).pipe(
+        map((rows) =>
+          rows
+            .map((raw) => this.mapBooking(raw))
+            .filter((booking): booking is Booking => booking !== null)
+        )
+      );
     }
 
-    return this.get<Booking[]>(`bookings/room/${roomId}`);
+    return this.get<any[]>(`bookings/room/${roomId}`).pipe(
+      map((rows) =>
+        rows
+          .map((raw) => this.mapBooking(raw))
+          .filter((booking): booking is Booking => booking !== null)
+      )
+    );
   }
 
   /**
@@ -243,18 +238,21 @@ export class ApiService {
       .set('startTime', startTime)
       .set('endTime', endTime);
 
-    return this.http.get<Booking | null>(`${this.baseUrl}/bookings/check-conflict/${roomId}`, { params }).pipe(
-      catchError(error => {
-        console.error('Error checking booking conflict:', error);
-        // Return null on error to allow form submission (fail open)
-        return of(null);
-      })
-    );
+    return this.http
+      .get<any>(`${this.baseUrl}/bookings/check-conflict/${roomId}`, { params })
+      .pipe(
+        map((raw) => this.mapBooking(raw)),
+        catchError(error => {
+          console.error('Error checking booking conflict:', error);
+          // Return null on error instead of throwing
+          return of(null);
+        })
+      );
   }
 
   getRoom(roomId: number): Observable<Room> {
-    // Make a real API call to the backend
-    return this.http.get<Room>(`${this.baseUrl}/rooms/${roomId}`).pipe(
+    return this.http.get<ApiRoom>(`${this.baseUrl}/rooms/${roomId}`).pipe(
+      map((room) => this.normalizeRoom(room)),
       catchError(err => {
         console.error('Error fetching room:', err);
         // throwError is important to let the component know the call failed
@@ -275,13 +273,13 @@ export class ApiService {
 
   /**
    * Creates a new booking for a room.
-   * @param payload - Booking details including roomId, date, time range, name, and optional comment
+   * @param payload - Booking details including roomId, date, time range, title, and optional comment
    * @returns Observable emitting a BookingResponse with success message and booking ID
    */
   createBooking(payload: BookingPayload): Observable<BookingResponse> {
     const requestBody: CreateBookingRequest = {
       room_id: payload.roomId,
-      name: payload.name,
+      title: payload.title,
       start_time: this.combineDateAndTime(payload.date, payload.startTime),
       end_time: this.combineDateAndTime(payload.date, payload.endTime),
       comment: payload.comment?.trim() || null
@@ -319,9 +317,8 @@ export class ApiService {
 
   private normalizeRoom(room: ApiRoom): Room {
     const rawStatus = room.status?.toString().toLowerCase();
-    const status = rawStatus && this.knownStatuses.has(rawStatus)
-      ? rawStatus
-      : room.status;
+    const status = this.normalizeStatus(rawStatus);
+    const statusRaw = this.toInternalStatus(rawStatus);
 
     const amenitiesArray = Array.isArray(room.amenities)
       ? room.amenities
@@ -329,21 +326,45 @@ export class ApiService {
         ? room.amenities.split(',').map((item) => item.trim()).filter(Boolean)
         : [];
 
+    const currentBooking = this.mapBooking(room.currentBooking);
+    const nextBooking = this.mapBooking(room.nextBooking);
+    const allBookingsToday = Array.isArray(room.allBookingsToday)
+      ? room.allBookingsToday
+          .map((raw) => this.mapBooking(raw))
+          .filter((booking): booking is Booking => booking !== null)
+      : [];
+
     return {
       id: room.id,
       name: room.name,
       capacity: room.capacity,
       status: status ?? 'available',
+      statusRaw,
       location: room.location ?? null,
       amenities: amenitiesArray.length ? amenitiesArray : null,
       icon: room.icon ?? null,
       nextAvailableTime: room.nextAvailableTime ? new Date(room.nextAvailableTime) : null,
       remainingTimeMinutes: room.remainingTimeMinutes ?? null,
-      currentBooking: room.currentBooking ?? undefined,
-      nextBooking: room.nextBooking ?? undefined,
+      currentBooking: currentBooking ?? undefined,
+      nextBooking: nextBooking ?? undefined,
       totalBookingsToday: room.totalBookingsToday ?? 0,
       totalBookedMinutesToday: room.totalBookedMinutesToday ?? 0,
-      allBookingsToday: room.allBookingsToday ?? []
+      allBookingsToday
+    };
+  }
+
+  private mapBooking(raw: any | null | undefined): Booking | null {
+    if (!raw) {
+      return null;
+    }
+
+    return {
+      id: raw.id,
+      room_id: raw.room_id,
+      title: raw.title ?? raw.name ?? 'Ohne Titel',
+      start_time: raw.start_time,
+      end_time: raw.end_time,
+      comment: raw.comment ?? null
     };
   }
 
@@ -353,5 +374,38 @@ export class ApiService {
     const normalizedHours = hours?.padStart(2, '0') ?? '00';
     const normalizedMinutes = minutes?.padStart(2, '0') ?? '00';
     return `${datePart ?? ''} ${normalizedHours}:${normalizedMinutes}:00`;
+  }
+
+  private normalizeStatus(status?: string | null): string | null {
+    if (!status) {
+      return null;
+    }
+
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'available';
+      case 'inactive':
+        return 'occupied';
+      case 'maintenance':
+        return 'maintenance';
+      case 'available':
+      case 'occupied':
+        return status.toLowerCase();
+      default:
+        return status;
+    }
+  }
+
+  private toInternalStatus(status?: string | null): 'active' | 'inactive' | 'maintenance' {
+    const normalized = status?.toLowerCase();
+    switch (normalized) {
+      case 'maintenance':
+        return 'maintenance';
+      case 'inactive':
+      case 'occupied':
+        return 'inactive';
+      default:
+        return 'active';
+    }
   }
 }

@@ -6,7 +6,7 @@
       <div class="booking-form__conflict-warning">
         <mat-icon>warning</mat-icon>
         <span>
-          Dieser Zeitraum ist bereits gebucht von {{ conflict.name }} ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr).
+          Dieser Zeitraum ist bereits belegt durch „{{ conflict.title }}“ ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr).
           @if (availabilityCountdown(); as countdown) {
             {{ countdown }}
           }
@@ -28,14 +28,14 @@
 
       <!-- Segmented Timeline Bar -->
       <div class="booking-timeline__bar">
-        @for (segment of liveStatus().timelineSegments; track segment.booker + segment.startTime; let i = $index) {
+        @for (segment of liveStatus().timelineSegments; track segment.title + segment.startTime; let i = $index) {
           <div
             class="booking-timeline__segment"
             [class.booking-timeline__segment--active]="i === liveStatus().currentSegmentIndex"
             [style.flex-grow]="segment.widthPercent">
 
             <!-- Segment Label -->
-            <span class="booking-timeline__segment-label">{{ segment.booker }}</span>
+            <span class="booking-timeline__segment-label">{{ segment.title }}</span>
 
             <!-- Progress Fill (only for active segment) -->
             @if (i === liveStatus().currentSegmentIndex) {
@@ -53,16 +53,16 @@
         <div class="booking-timeline__countdown">
           <mat-icon class="countdown-icon">timer</mat-icon>
           <span class="countdown-text">
-            {{ getCurrentSegmentBooker() }}'s Meeting endet in: {{ countdownText() }}
+            Meeting „{{ getCurrentSegmentTitle() }}“ endet in: {{ countdownText() }}
           </span>
         </div>
       }
 
       <!-- Next Booking Info -->
-      @if (liveStatus().nextBooker) {
+      @if (liveStatus().nextTitle) {
         <div class="booking-timeline__next">
           <mat-icon class="next-icon">arrow_forward</mat-icon>
-          <span>Nächste Buchung: {{ liveStatus().nextBooker }} um {{ liveStatus().nextBookingStartTime | date:'HH:mm' }} Uhr</span>
+          <span>Nächste Buchung: „{{ liveStatus().nextTitle }}“ um {{ liveStatus().nextBookingStartTime | date:'HH:mm' }} Uhr</span>
         </div>
       }
     </div>
@@ -78,17 +78,33 @@
         Was & Wann?
       </h3>
 
-      <mat-form-field appearance="outline" [class.smart-rebooking-active]="isSmartRebooking()">
-        <mat-label>Raum</mat-label>
-        <mat-select formControlName="roomId" required>
-          @for (room of rooms(); track room.id) {
-            <mat-option [value]="room.id">
-              {{ room.name }} · {{ room.capacity }} Personen
-            </mat-option>
+      <div class="booking-form__room-summary">
+        <div class="booking-form__room-summary-icon">
+          <mat-icon>{{ room().icon || 'meeting_room' }}</mat-icon>
+        </div>
+        <div class="booking-form__room-summary-details">
+          <h4 class="booking-form__room-title">{{ room().name }}</h4>
+          <div class="booking-form__room-summary-meta">
+            <span class="meta-item">
+              <mat-icon>group</mat-icon>
+              {{ room().capacity }} Personen
+            </span>
+            @if (room().location) {
+              <span class="meta-item">
+                <mat-icon>location_on</mat-icon>
+                {{ room().location }}
+              </span>
+            }
+          </div>
+          @if (room().amenities?.length) {
+            <div class="booking-form__room-summary-amenities">
+              @for (amenity of room().amenities ?? []; track amenity) {
+                <span class="amenity-chip">{{ amenity }}</span>
+              }
+            </div>
           }
-        </mat-select>
-        <mat-error>Bitte wählen Sie einen Raum.</mat-error>
-      </mat-form-field>
+        </div>
+      </div>
 
       <mat-form-field appearance="outline">
         <mat-label>Datum</mat-label>
@@ -103,18 +119,12 @@
           <mat-label>Beginn</mat-label>
           <input
             matInput
+            type="time"
             formControlName="startTime"
-            [ngxTimepicker]="startTimePicker"
-            [format]="24"
-            readonly
-            required />
-          <mat-icon matSuffix (click)="startTimePicker.open()">access_time</mat-icon>
-          <ngx-material-timepicker
-            #startTimePicker
-            [confirmBtnTmpl]="confirmTmpl"
-            [cancelBtnTmpl]="cancelTmpl">
-          </ngx-material-timepicker>
-          <mat-hint>Automatisch vorausgewählt</mat-hint>
+            required
+            step="300"
+            (change)="onTimeInputChange('startTime', $event.target.value)" />
+          <mat-hint>24-Stunden-Format (HH:MM)</mat-hint>
           <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
         </mat-form-field>
 
@@ -133,20 +143,11 @@
 
           <input
             matInput
+            type="time"
             formControlName="endTime"
-            [ngxTimepicker]="endTimePicker"
-            [format]="24"
-            readonly
-            required />
-
-          <!-- The clock icon in the suffix -->
-          <mat-icon matSuffix class="clock-icon" (click)="endTimePicker.open()">access_time</mat-icon>
-
-          <ngx-material-timepicker
-            #endTimePicker
-            [confirmBtnTmpl]="confirmTmpl"
-            [cancelBtnTmpl]="cancelTmpl">
-          </ngx-material-timepicker>
+            required
+            step="300"
+            (change)="onTimeInputChange('endTime', $event.target.value)" />
 
           <mat-hint>Automatisch vorgeschlagen</mat-hint>
           @if (form.get('endTime')?.hasError('required')) {
@@ -198,17 +199,17 @@
       }
     </section>
 
-    <!-- RIGHT COLUMN: Wer & Warum? -->
+    <!-- RIGHT COLUMN: Buchungsdetails -->
     <section class="booking-form__column booking-form__column--right">
       <h3 class="booking-form__section-title">
-        <mat-icon>person</mat-icon>
-        Wer & Warum?
+        <mat-icon>description</mat-icon>
+        Buchungsdetails
       </h3>
 
       <mat-form-field appearance="outline">
-        <mat-label>Ihr Name</mat-label>
-        <input matInput formControlName="name" required #nameInput />
-        <mat-error>Bitte geben Sie Ihren Namen ein.</mat-error>
+        <mat-label>Titel der Buchung</mat-label>
+        <input matInput formControlName="title" required #titleInput placeholder="z.B. Sprint Review, Kundentermin" />
+        <mat-error>Bitte geben Sie einen Titel für die Buchung ein.</mat-error>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="booking-form__comment-field">
@@ -241,11 +242,4 @@
     </button>
   </div>
 
-  <!-- German Button Templates for ngx-material-timepicker -->
-  <ng-template #cancelTmpl>
-    <button mat-button style="color: grey;">Abbrechen</button>
-  </ng-template>
-  <ng-template #confirmTmpl>
-    <button mat-flat-button color="primary">OK</button>
-  </ng-template>
 </form>

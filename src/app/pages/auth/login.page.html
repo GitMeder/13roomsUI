@@ -1,0 +1,39 @@
+<div class="auth-wrapper">
+  <mat-card class="auth-card">
+    <h1>Willkommen zurück</h1>
+    <p class="hint">Melde dich an, um Räume zu buchen oder zu verwalten.</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+      <mat-form-field appearance="outline">
+        <mat-label>E-Mail</mat-label>
+        <input matInput formControlName="email" type="email" placeholder="you@example.com" />
+        <mat-error *ngIf="form.controls.email.hasError('required')">
+          Bitte E-Mail-Adresse eingeben.
+        </mat-error>
+        <mat-error *ngIf="form.controls.email.hasError('email')">
+          Bitte eine gültige E-Mail-Adresse eingeben.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Passwort</mat-label>
+        <input matInput formControlName="password" type="password" />
+        <mat-error *ngIf="form.controls.password.hasError('required')">
+          Bitte Passwort eingeben.
+        </mat-error>
+        <mat-error *ngIf="form.controls.password.hasError('minlength')">
+          Mindestens 8 Zeichen.
+        </mat-error>
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || submitting()">
+        {{ submitting() ? 'Anmelden…' : 'Anmelden' }}
+      </button>
+    </form>
+
+    <p class="switch">
+      Noch kein Konto?
+      <a routerLink="/register">Jetzt registrieren</a>
+    </p>
+  </mat-card>
+</div>

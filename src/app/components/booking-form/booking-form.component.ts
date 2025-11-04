@@ -11,7 +11,6 @@ import { DevModeService } from '../../core/services/dev-mode.service';
 // Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,20 +21,17 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
 
-// ngx-material-timepicker for 24-hour German time format
-import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
-
 interface BookingFormControls {
   roomId: FormControl<number | null>;
   date: FormControl<Date>;
   startTime: FormControl<string>;
   endTime: FormControl<string>;
-  name: FormControl<string>;
+  title: FormControl<string>;
   comment: FormControl<string | null>;
 }
 
 interface TimelineSegment {
-  booker: string;
+  title: string;
   startTime: Date;
   endTime: Date;
   durationMinutes: number;
@@ -49,7 +45,7 @@ interface RoomLiveStatus {
   currentSegmentIndex?: number;
   currentSegmentProgress?: number; // 0-100%
   blockEndTime?: Date;
-  nextBooker?: string;
+  nextTitle?: string;
   nextBookingStartTime?: Date;
 }
 
@@ -66,10 +62,9 @@ enum FormMode {
   selector: 'app-booking-form',
   standalone: true,
   imports: [
-    DatePipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule,
+    DatePipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule,
     MatDatepickerModule, MatNativeDateModule, MatButtonModule, MatIconModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule,
-    NgxMaterialTimepickerModule
+    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule
   ],
   templateUrl: './booking-form.component.html',
   styleUrls: ['./booking-form.component.css'],
@@ -93,7 +88,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   public readonly availabilityCountdown = signal<string | null>(null);
 
   // --- Input Signals ---
-  readonly rooms = input.required<Room[]>();
+  readonly room = input.required<Room>();
   readonly isSubmitting = input<boolean>(false);
   readonly isSmartRebooking = input<boolean>(false); // PHASE 3+: Rainbow highlight for smart rebooking
   readonly roomIdInput = input<number | null>(null, { alias: 'roomId' });
@@ -104,7 +99,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     date: string;
     startTime: string;
     endTime: string;
-    name: string;
+    title: string;
+    name?: string;
     comment?: string;
   } | null>(null); // PHASE 3+: Pre-fill data for smart rebooking
 
@@ -126,7 +122,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private liveStatusTimer: any = null;
 
   // ViewChild for focus management
-  @ViewChild('nameInput') nameInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
 
   readonly submitted = output<BookingPayload>();
   readonly resetForm = output<void>();
@@ -139,7 +135,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       date: new FormControl(new Date(), { nonNullable: true, validators: Validators.required }),
       startTime: new FormControl('', { nonNullable: true, validators: Validators.required }),
       endTime: new FormControl('', { nonNullable: true, validators: Validators.required }),
-      name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+      title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
       comment: new FormControl<string | null>(null),
     }, { validators: [this.timeRangeValidator()] });
 
@@ -148,6 +144,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       const roomId = this.roomIdInput();
       if (this.form.get('roomId')?.value !== roomId) {
         this.form.patchValue({ roomId }, { emitEvent: false });
+      }
+    });
+
+    // Effect to ensure the selected room is always reflected in the form
+    effect(() => {
+      const currentRoom = this.room();
+      if (currentRoom && this.form.get('roomId')?.value !== currentRoom.id) {
+        this.form.patchValue({ roomId: currentRoom.id }, { emitEvent: false });
       }
     });
 
@@ -178,12 +182,13 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         this.mode.set(FormMode.Prefilled);
 
         const dateObj = new Date(prefill.date + 'T00:00:00');
+        const bookingTitle = prefill.title ?? prefill.name ?? '';
 
         this.form.patchValue({
           startTime: prefill.startTime,
           endTime: prefill.endTime,
           date: dateObj,
-          name: prefill.name,
+          title: bookingTitle,
           comment: prefill.comment || null
         }, { emitEvent: false });
 
@@ -620,7 +625,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
   public isSubmitDisabled(): boolean {
     const formValue = this.form.getRawValue();
-    return !formValue.roomId || !formValue.startTime || !formValue.endTime || !formValue.name;
+    return !formValue.roomId || !formValue.startTime || !formValue.endTime || !formValue.title;
   }
 
   /**
@@ -651,6 +656,18 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     // Already in 24-hour format, return as is
     return time;
+  }
+
+  onTimeInputChange(controlName: 'startTime' | 'endTime', rawValue: string): void {
+    const control = this.form.get(controlName);
+    if (!control) {
+      return;
+    }
+
+    const normalized = rawValue ? this.normalizeTimeFormat(rawValue) : rawValue;
+    if (control.value !== normalized) {
+      control.setValue(normalized);
+    }
   }
 
   onSubmit(): void {
@@ -709,7 +726,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     const payload: BookingPayload = {
       roomId: formValue.roomId,
-      name: formValue.name,
+      title: formValue.title,
       startTime: startTime24,
       endTime: endTime24,
       date: dateStr,
@@ -806,7 +823,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         const widthPercent = (durationMinutes / totalBlockMinutes) * 100;
 
         return {
-          booker: booking.name,
+          title: booking.title,
           startTime: start,
           endTime: end,
           durationMinutes,
@@ -841,7 +858,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         currentSegmentIndex,
         currentSegmentProgress,
         blockEndTime,
-        nextBooker: nextBooking?.name,
+        nextTitle: nextBooking?.title,
         nextBookingStartTime: nextBooking ? new Date(nextBooking.start_time) : undefined
       };
 
@@ -946,17 +963,17 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * TIMELINE: Gets the current segment's booker name safely.
+   * TIMELINE: Gets the current segment's booking title safely.
    * Only call this after shouldShowCountdown() returns true.
    */
-  public getCurrentSegmentBooker(): string {
+  public getCurrentSegmentTitle(): string {
     const status = this.liveStatus();
     if (status.currentSegmentIndex !== undefined &&
         status.currentSegmentIndex !== null &&
         status.currentSegmentIndex >= 0 &&
         status.timelineSegments &&
         status.timelineSegments.length > status.currentSegmentIndex) {
-      return status.timelineSegments[status.currentSegmentIndex].booker;
+      return status.timelineSegments[status.currentSegmentIndex].title;
     }
     return '';
   }

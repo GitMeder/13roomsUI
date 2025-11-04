@@ -1,0 +1,69 @@
+<div class="auth-wrapper">
+  <mat-card class="auth-card">
+    <h1>Neues Konto anlegen</h1>
+    <p class="hint">Erstelle ein Benutzer- oder Admin-Konto für 13rooms.</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Vorname</mat-label>
+        <input matInput formControlName="firstname" />
+        <mat-error *ngIf="form.controls.firstname.hasError('required')">
+          Bitte Vornamen eingeben.
+        </mat-error>
+        <mat-error *ngIf="form.controls.firstname.hasError('minlength')">
+          Mindestens 2 Zeichen.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Nachname</mat-label>
+        <input matInput formControlName="surname" />
+        <mat-error *ngIf="form.controls.surname.hasError('required')">
+          Bitte Nachnamen eingeben.
+        </mat-error>
+        <mat-error *ngIf="form.controls.surname.hasError('minlength')">
+          Mindestens 2 Zeichen.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>E-Mail</mat-label>
+        <input matInput formControlName="email" type="email" placeholder="you@example.com" />
+        <mat-error *ngIf="form.controls.email.hasError('required')">
+          Bitte E-Mail-Adresse eingeben.
+        </mat-error>
+        <mat-error *ngIf="form.controls.email.hasError('email')">
+          Bitte eine gültige E-Mail-Adresse eingeben.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Passwort</mat-label>
+        <input matInput formControlName="password" type="password" />
+        <mat-error *ngIf="form.controls.password.hasError('required')">
+          Bitte Passwort eingeben.
+        </mat-error>
+        <mat-error *ngIf="form.controls.password.hasError('minlength')">
+          Mindestens 8 Zeichen.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Rolle</mat-label>
+        <mat-select formControlName="role">
+          <mat-option value="user">Benutzer</mat-option>
+          <mat-option value="admin">Administrator</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || submitting()">
+        {{ submitting() ? 'Registriere…' : 'Registrieren' }}
+      </button>
+    </form>
+
+    <p class="switch">
+      Bereits ein Konto?
+      <a routerLink="/login">Zum Login</a>
+    </p>
+  </mat-card>
+</div>

@@ -1,87 +1,115 @@
-<div class="room-form-container">
-  <h2>Neues Zimmer erstellen</h2>
-  <form [formGroup]="roomForm" (ngSubmit)="onSubmit()">
-    <mat-form-field appearance="fill">
-      <mat-label>Name</mat-label>
-      <input matInput formControlName="name" required>
-      @if (roomForm.get('name')?.hasError('required')) {
-        <mat-error>
-          Name ist erforderlich
-        </mat-error>
-      }
-    </mat-form-field>
+<div class="room-form">
+  <header class="room-form__header">
+    <div class="header-top">
+      <button mat-icon-button type="button" routerLink="/" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1>Neuen Raum anlegen</h1>
+      <span class="room-form__header-icon">
+        <mat-icon>domain_add</mat-icon>
+      </span>
+    </div>
+    <p class="room-form__subtitle">
+      Vergeben Sie einen Namen, bestimmen Sie die Kapazität und statten Sie den Raum mit passenden Features aus.
+    </p>
+  </header>
 
-    <mat-form-field appearance="fill">
-      <mat-label>Kapazität</mat-label>
-      <input matInput type="number" formControlName="capacity" required min="1">
-      @if (roomForm.get('capacity')?.hasError('required')) {
-        <mat-error>
-          Kapazität ist erforderlich
-        </mat-error>
-      }
-      @if (roomForm.get('capacity')?.hasError('min')) {
-        <mat-error>
-          Kapazität muss mindestens 1 sein
-        </mat-error>
-      }
-    </mat-form-field>
-
-    <mat-form-field appearance="fill">
-      <mat-label>Status</mat-label>
-      <mat-select formControlName="status" required>
-        <mat-option value="Available">Verfügbar</mat-option>
-        <mat-option value="Occupied">Belegt</mat-option>
-        <mat-option value="Maintenance">Wartung</mat-option>
-      </mat-select>
-      @if (roomForm.get('status')?.hasError('required')) {
-        <mat-error>
-          Status ist erforderlich
-        </mat-error>
-      }
-    </mat-form-field>
-
-    <mat-form-field appearance="fill">
-      <mat-label>Standort</mat-label>
-      <input matInput formControlName="location">
-    </mat-form-field>
-
-    <mat-form-field appearance="fill">
-      <mat-label>Icon Name</mat-label>
-      <input matInput formControlName="icon">
-      <mat-hint>z.B. 'meeting_room', 'business', 'lightbulb'</mat-hint>
-    </mat-form-field>
-
-    <mat-form-field class="amenities-chip-list" appearance="fill">
-      <mat-label>Ausstattung</mat-label>
-      <mat-chip-grid #chipGrid aria-label="Ausstattung auswählen">
-        @for (amenity of amenities; track amenity) {
-          <mat-chip-row (removed)="remove(amenity)">
-            {{ amenity }}
-            <button matChipRemove [attr.aria-label]="'remove ' + amenity">
-              <mat-icon>cancel</mat-icon>
-            </button>
-          </mat-chip-row>
+  <form [formGroup]="roomForm" (ngSubmit)="onSubmit()" class="room-form__body">
+    <div class="room-form__grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Raumname</mat-label>
+        <input matInput formControlName="name" required>
+        @if (roomForm.get('name')?.hasError('required')) {
+          <mat-error>Name ist erforderlich</mat-error>
         }
-      </mat-chip-grid>
-      <input placeholder="Neue Ausstattung..."
-             #amenityInput
-             [formControl]="amenitiesCtrl"
-             [matChipInputFor]="chipGrid"
-             [matAutocomplete]="auto"
-             [matChipInputSeparatorKeyCodes]="[13]"
-             (matChipInputTokenEnd)="add($event)">
-      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="selected($event)">
-        @for (amenity of filteredAmenities | async; track amenity) {
-          <mat-option [value]="amenity">
-            {{ amenity }}
-          </mat-option>
-        }
-      </mat-autocomplete>
-    </mat-form-field>
+      </mat-form-field>
 
-    <div class="form-actions">
-      <button mat-raised-button color="primary" type="submit" [disabled]="roomForm.invalid">Erstellen</button>
-      <button mat-button routerLink="/dashboard">Abbrechen</button>
+      <mat-form-field appearance="outline">
+        <mat-label>Kapazität</mat-label>
+        <input matInput type="number" min="1" formControlName="capacity" required>
+        @if (roomForm.get('capacity')?.hasError('required')) {
+          <mat-error>Kapazität ist erforderlich</mat-error>
+        }
+        @if (roomForm.get('capacity')?.hasError('min')) {
+          <mat-error>Kapazität muss mindestens 1 sein</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Standort (optional)</mat-label>
+        <input matInput formControlName="location" placeholder="z.B. 2. Etage · Westflügel">
+      </mat-form-field>
+    </div>
+
+    <section class="room-form__section">
+      <h3>Icon auswählen</h3>
+      <p class="room-form__hint">Wählen Sie ein Icon, das im Dashboard neben dem Raumnamen angezeigt wird.</p>
+      <div class="icon-grid">
+        @for (option of iconOptions; track option.value) {
+          <button
+            type="button"
+            mat-stroked-button
+            class="icon-option"
+            [class.icon-option--selected]="isIconSelected(option.value)"
+            (click)="selectIcon(option.value)"
+            matTooltip="{{ option.label }}">
+            <mat-icon>{{ option.value }}</mat-icon>
+            <span>{{ option.label }}</span>
+          </button>
+        }
+      </div>
+      <div class="icon-preview">
+        <span>Ausgewähltes Icon:</span>
+        <mat-icon>{{ roomForm.get('icon')?.value }}</mat-icon>
+      </div>
+    </section>
+
+    <section class="room-form__section">
+      <h3>Ausstattung</h3>
+      <p class="room-form__hint">Aktivieren Sie alle Merkmale, die der Raum bietet. Eigene Features lassen sich ebenfalls ergänzen.</p>
+
+      <div class="amenity-options">
+        @for (option of amenityOptions; track option) {
+          <button
+            type="button"
+            mat-stroked-button
+            class="amenity-option"
+            [class.amenity-option--selected]="isAmenitySelected(option)"
+            (click)="toggleAmenity(option)">
+            {{ option }}
+          </button>
+        }
+      </div>
+
+      @if (amenities.length) {
+        <mat-chip-set class="amenity-chip-set" aria-label="Ausgewählte Ausstattung">
+          @for (amenity of amenities; track amenity) {
+            <mat-chip
+              selected
+              removable
+              (removed)="removeAmenity(amenity)">
+              {{ amenity }}
+              <button matChipRemove type="button" aria-label="{{ amenity }} entfernen">
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip>
+          }
+        </mat-chip-set>
+      }
+
+      <div class="amenity-custom">
+        <mat-form-field appearance="outline">
+          <mat-label>Eigenes Feature hinzufügen</mat-label>
+          <input matInput [formControl]="amenitiesCtrl" placeholder="z.B. Streaming-Setup" (keyup.enter)="addCustomAmenity()">
+          <button type="button" mat-icon-button matSuffix (click)="addCustomAmenity()" [disabled]="!amenitiesCtrl.value?.trim()">
+            <mat-icon>add</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <div class="room-form__actions">
+      <button mat-flat-button color="primary" type="submit" [disabled]="roomForm.invalid">Raum speichern</button>
     </div>
   </form>
 </div>

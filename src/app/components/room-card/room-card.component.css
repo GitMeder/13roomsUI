@@ -58,6 +58,27 @@
   letter-spacing: 0.04em;
 }
 
+.room-card.maintenance-state {
+  border-left: 4px solid #f97316;
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.06), transparent);
+}
+
+.room-card.maintenance-state .room-card__status {
+  color: #9a3412;
+  background: rgba(249, 115, 22, 0.18);
+}
+
+.room-card.inactive-state {
+  border-left: 4px solid #94a3b8;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), transparent);
+  opacity: 0.9;
+}
+
+.room-card.inactive-state .room-card__status {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.25);
+}
+
 .room-card__status--available {
   color: var(--mat-sys-on-secondary-container);
   background: var(--mat-sys-secondary-container);
@@ -81,6 +102,12 @@
 .room-card__status--red {
   color: #fff;
   background: red;
+}
+
+mat-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
 }
 
 /* Status-based card styling */
