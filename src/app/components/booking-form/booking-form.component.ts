@@ -24,8 +24,6 @@ import { CommonModule } from '@angular/common';
 
 // ngx-material-timepicker for 24-hour German time format
 import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
-import * as moment from 'moment';
-import 'moment/locale/de';
 
 interface BookingFormControls {
   roomId: FormControl<number | null>;
@@ -141,9 +139,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   readonly form: FormGroup<BookingFormControls>;
 
   constructor() {
-    // Set moment locale to German for 24-hour time format
-    moment.locale('de');
-
     this.form = this.fb.group({
       roomId: new FormControl<number | null>(null, { validators: [Validators.required, this.validRoomIdValidator()] }),
       date: new FormControl(new Date(), { nonNullable: true, validators: Validators.required }),

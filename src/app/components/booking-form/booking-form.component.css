@@ -506,7 +506,7 @@
     rgba(255, 0, 255, 0.5) 100%     /* Loop back to Magenta */
   );
   background-size: 300% 300%;
-  animation: rainbow-shift 12s ease-in-out infinite;
+  animation: shifting-gradient 12s ease-in-out infinite;
 }
 
 /* Layer 2: Soft Blurred Glow (THE HALO) */
@@ -533,7 +533,7 @@
     rgba(255, 0, 255, 0.4) 100%
   );
   background-size: 300% 300%;
-  animation: rainbow-shift 12s ease-in-out infinite;
+  animation: shifting-gradient 12s ease-in-out infinite;
 
   /* Soft, elegant glow - not harsh neon */
   filter: blur(18px);
@@ -594,16 +594,5 @@
   background-image: none !important;
 }
 
-/* ============================================================================
-   ANIMATION KEYFRAMES
-   ============================================================================ */
-
-@keyframes rainbow-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
+/* Note: Animation keyframes are defined globally in src/styles.css */
 
