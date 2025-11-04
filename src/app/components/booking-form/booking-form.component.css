@@ -457,142 +457,27 @@
 }
 
 /* ============================================================================
-   ACTIVE RAINBOW OUTLINE - Reusable Apple-Style Polished Outline Effect
+   APPLE INTELLIGENCE GRADIENT - Smart Rebooking Text Highlight
    ============================================================================ */
 
-/**
- * SINGLE SOURCE OF TRUTH: This class creates a beautiful, subtle rainbow outline.
- * Can be applied to any element (form fields, buttons, etc.) for Smart Rebooking.
- *
- * Visual Design:
- * - TRUE OUTLINE: Only borders glow, interiors remain solid
- * - SUBTLE & REFINED: 50% opacity colors, 12s slow animation
- * - APPLE-LIKE: Premium aesthetic with perfect "punched-out" masking
- * - PROPERLY CONSTRAINED: Effect stops before mat-hint/mat-error areas
- *
- * Technical Implementation:
- * - ::before: Sharp animated gradient outline (z-index: -1)
- * - ::after: Soft blurred glow halo (z-index: -2)
- * - Element content: Solid white background (z-index: 1) creates the mask
- */
-
-/* Base class setup */
-::ng-deep .active-rainbow-outline {
-  position: relative;
-  isolation: isolate; /* Creates new stacking context for z-index */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
 }
 
-/* Layer 1: Sharp Gradient Outline (THE BORDER) */
-::ng-deep .active-rainbow-outline::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-  border-radius: 6px;
-  pointer-events: none; /* Allow clicks to pass through */
-
-  /* Subtle rainbow gradient - 50% opacity for elegance */
-  background: linear-gradient(
-    110deg,
-    rgba(255, 0, 255, 0.5) 0%,      /* Soft Magenta */
-    rgba(255, 102, 0, 0.5) 16%,     /* Soft Orange */
-    rgba(255, 204, 0, 0.5) 33%,     /* Soft Gold */
-    rgba(0, 255, 153, 0.5) 50%,     /* Soft Aqua */
-    rgba(0, 153, 255, 0.5) 66%,     /* Soft Blue */
-    rgba(153, 51, 255, 0.5) 83%,    /* Soft Purple */
-    rgba(255, 0, 255, 0.5) 100%     /* Loop back to Magenta */
-  );
-  background-size: 300% 300%;
-  animation: shifting-gradient 12s ease-in-out infinite;
+/* Form field text elements */
+::ng-deep .smart-rebooking-active .mat-mdc-floating-label,
+::ng-deep .smart-rebooking-active .mat-mdc-form-field-label,
+::ng-deep .smart-rebooking-active .mat-mdc-form-field-input-control,
+::ng-deep .smart-rebooking-active .mat-mdc-select-value-text,
+::ng-deep .smart-rebooking-active .mat-mdc-select-trigger,
+.gradient-text-highlight {
+  background: linear-gradient(90deg, #FF006E 0%, #FF5D00 20%, #FFBD00 40%, #00D9FF 60%, #8A2BE2 80%, #FF006E 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 3s ease-in-out infinite;
+  font-weight: 600 !important;
 }
-
-/* Layer 2: Soft Blurred Glow (THE HALO) */
-::ng-deep .active-rainbow-outline::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
-  z-index: -2;
-  border-radius: 8px;
-  pointer-events: none;
-
-  /* Same gradient, slightly more transparent */
-  background: linear-gradient(
-    110deg,
-    rgba(255, 0, 255, 0.4) 0%,
-    rgba(255, 102, 0, 0.4) 16%,
-    rgba(255, 204, 0, 0.4) 33%,
-    rgba(0, 255, 153, 0.4) 50%,
-    rgba(0, 153, 255, 0.4) 66%,
-    rgba(153, 51, 255, 0.4) 83%,
-    rgba(255, 0, 255, 0.4) 100%
-  );
-  background-size: 300% 300%;
-  animation: shifting-gradient 12s ease-in-out infinite;
-
-  /* Soft, elegant glow - not harsh neon */
-  filter: blur(18px);
-  opacity: 0.35;
-}
-
-/* ============================================================================
-   MASKING FOR MAT-FORM-FIELD (Creates the "Punched-Out" Effect)
-   ============================================================================ */
-
-/* The solid white background that creates the hollow center */
-::ng-deep .active-rainbow-outline .mat-mdc-text-field-wrapper {
-  position: relative;
-  z-index: 1; /* Sits above the gradient pseudo-elements */
-  background-color: white !important;
-  border-radius: 4px;
-}
-
-/* Inner field must be transparent so the white background shows through */
-::ng-deep .active-rainbow-outline .mdc-text-field {
-  background-color: transparent !important;
-}
-
-/* Hide Material's default outline (we're replacing it with our gradient) */
-::ng-deep .active-rainbow-outline .mdc-notched-outline__leading,
-::ng-deep .active-rainbow-outline .mdc-notched-outline__notch,
-::ng-deep .active-rainbow-outline .mdc-notched-outline__trailing {
-  border-color: transparent !important;
-}
-
-/* CRITICAL: Constrain pseudo-elements to stop before mat-hint/mat-error */
-::ng-deep .active-rainbow-outline.mat-form-field::before {
-  bottom: 28px; /* Stop before mat-hint wrapper (typically 24px + 4px margin) */
-}
-
-::ng-deep .active-rainbow-outline.mat-form-field::after {
-  bottom: 24px; /* Glow stops slightly earlier */
-}
-
-/* ============================================================================
-   MASKING FOR BUTTON (Creates the "Punched-Out" Effect)
-   ============================================================================ */
-
-/* Button-specific setup */
-::ng-deep button.active-rainbow-outline {
-  overflow: visible !important; /* Allow glow to extend beyond bounds */
-}
-
-/* Button content layer (the mask) */
-::ng-deep button.active-rainbow-outline .mdc-button__label {
-  position: relative;
-  z-index: 2;
-}
-
-/* Ensure button has solid background for masking */
-::ng-deep button.active-rainbow-outline {
-  background-color: var(--mat-sys-primary) !important;
-  background-image: none !important;
-}
-
-/* Note: Animation keyframes are defined globally in src/styles.css */
 

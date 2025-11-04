@@ -78,7 +78,7 @@
         Was & Wann?
       </h3>
 
-      <mat-form-field appearance="outline" [class.active-rainbow-outline]="isSmartRebooking()">
+      <mat-form-field appearance="outline" [class.smart-rebooking-active]="isSmartRebooking()">
         <mat-label>Raum</mat-label>
         <mat-select formControlName="roomId" required>
           @for (room of rooms(); track room.id) {
@@ -99,7 +99,7 @@
       </mat-form-field>
 
       <div class="booking-form__time-fields">
-        <mat-form-field appearance="outline" [class.active-rainbow-outline]="isSmartRebooking()">
+        <mat-form-field appearance="outline" [class.smart-rebooking-active]="isSmartRebooking()">
           <mat-label>Beginn</mat-label>
           <input
             matInput
@@ -118,7 +118,7 @@
           <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="end-time-field" [class.active-rainbow-outline]="isSmartRebooking()">
+        <mat-form-field appearance="outline" class="end-time-field" [class.smart-rebooking-active]="isSmartRebooking()">
           <mat-label>Ende</mat-label>
 
           <!-- THE ICON - direct child for absolute positioning on border -->
@@ -230,14 +230,15 @@
       mat-flat-button
       color="primary"
       type="submit"
-      [disabled]="isSubmitDisabled()"
-      [class.active-rainbow-outline]="isSmartRebooking()">
+      [disabled]="isSubmitDisabled()">
       @if (isSubmitting()) {
         <mat-spinner diameter="20"></mat-spinner>
       } @else {
         <mat-icon>event_available</mat-icon>
       }
-      {{ isSubmitting() ? 'Wird gespeichert...' : 'Buchung speichern' }}
+      <span [class.gradient-text-highlight]="isSmartRebooking()">
+        {{ isSubmitting() ? 'Wird gespeichert...' : 'Buchung speichern' }}
+      </span>
     </button>
   </div>
 
