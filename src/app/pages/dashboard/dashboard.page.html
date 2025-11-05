@@ -84,7 +84,7 @@
                             <div class="bookings-panel__time">
                               {{ formatTime(booking.start_time) }} – {{ formatTime(booking.end_time) }}
                             </div>
-                            @if (canManageRooms()) {
+                            @if (canManageRooms() || isOwnBooking(booking)) {
                               <button
                                 mat-icon-button
                                 color="warn"
@@ -99,6 +99,15 @@
                             }
                           </div>
                           <div class="bookings-panel__title">{{ booking.title || 'Unbenanntes Meeting' }}</div>
+                          @if (booking.createdByName || booking.createdByEmail) {
+                            <div class="bookings-panel__creator">
+                              <mat-icon aria-hidden="true">person</mat-icon>
+                              <span>
+                                Erstellt von
+                                {{ booking.createdByName || (booking.createdByEmail ? booking.createdByEmail.split('@')[0] : 'Unbekannt') }}
+                              </span>
+                            </div>
+                          }
                           @if (booking.comment) {
                             <div class="bookings-panel__comment">{{ booking.comment }}</div>
                           }

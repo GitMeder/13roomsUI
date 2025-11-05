@@ -48,6 +48,7 @@ export class DashboardPageComponent implements OnInit {
   readonly countdown = signal<number>(0); // Real-time countdown signal
   readonly highlightedRoomId = signal<number | null>(null); // PART 2: Room to highlight with rainbow
   readonly canManageRooms = signal<boolean>(this.authService.currentUserSnapshot?.role === 'admin');
+  readonly currentUserId = signal<number | null>(this.authService.currentUserSnapshot?.id ?? null);
   readonly selectedRoom = signal<Room | null>(null);
   readonly roomBookings = signal<Booking[] | null>(null);
   readonly bookingsLoading = signal<boolean>(false);
@@ -167,6 +168,7 @@ export class DashboardPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(user => {
         this.canManageRooms.set((user?.role ?? 'user') === 'admin');
+        this.currentUserId.set(user?.id ?? null);
       });
 
     // Reload rooms when navigating back to dashboard
@@ -281,10 +283,15 @@ export class DashboardPageComponent implements OnInit {
     return this.datePipe.transform(value, 'HH:mm', undefined, 'de-DE') ?? '';
   }
 
+  isOwnBooking(booking: Booking): boolean {
+    const userId = this.currentUserId();
+    return userId !== null && booking.createdBy === userId;
+  }
+
   onDeleteBooking(booking: Booking, event: Event): void {
     event.stopPropagation();
 
-    if (!this.canManageRooms()) {
+    if (!this.canManageRooms() && !this.isOwnBooking(booking)) {
       return;
     }
 

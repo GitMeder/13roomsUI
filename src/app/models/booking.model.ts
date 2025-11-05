@@ -5,6 +5,9 @@ export interface Booking {
   start_time: string;
   end_time: string;
   comment: string | null;
+  createdBy: number | null;
+  createdByName: string | null;
+  createdByEmail: string | null;
 }
 
 export interface BookingPayload {

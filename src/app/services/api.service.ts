@@ -1,24 +1,8 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, delay, map, of, throwError, switchMap } from 'rxjs';
-
-export interface Room {
-  id: number;
-  name: string;
-  capacity: number;
-  status: 'available' | 'occupied' | 'maintenance' | string;
-  statusRaw?: 'active' | 'inactive' | 'maintenance';
-  location?: string | null;
-  amenities?: string[] | null;
-  icon?: string | null;
-  nextAvailableTime?: Date | null;
-  remainingTimeMinutes?: number | null;
-  currentBooking?: Booking;
-  nextBooking?: Booking;
-  totalBookingsToday?: number;
-  totalBookedMinutesToday?: number;
-  allBookingsToday?: Booking[];
-}
+import { Room } from '../models/room.model';
+import { Booking } from '../models/booking.model';
 
 export interface BookingPayload {
   roomId: number;
@@ -75,15 +59,6 @@ export interface UpdateRoomPayload {
   location?: string | null;
   amenities?: string[];
   icon?: string | null;
-}
-
-export interface Booking {
-  id: number;
-  room_id: number;
-  title: string;
-  start_time: string;
-  end_time: string;
-  comment: string | null;
 }
 
 @Injectable({
@@ -363,13 +338,48 @@ export class ApiService {
       return null;
     }
 
+    const createdBy =
+      typeof raw.created_by === 'number'
+        ? raw.created_by
+        : typeof raw.createdBy === 'number'
+          ? raw.createdBy
+          : null;
+
+    const creatorFirstname: string | null =
+      typeof raw.creator_firstname === 'string'
+        ? raw.creator_firstname
+        : typeof raw.creatorFirstname === 'string'
+          ? raw.creatorFirstname
+          : null;
+
+    const creatorSurname: string | null =
+      typeof raw.creator_surname === 'string'
+        ? raw.creator_surname
+        : typeof raw.creatorSurname === 'string'
+          ? raw.creatorSurname
+          : null;
+
+    const creatorEmail: string | null =
+      typeof raw.creator_email === 'string'
+        ? raw.creator_email
+        : typeof raw.creatorEmail === 'string'
+          ? raw.creatorEmail
+          : null;
+
+    const createdByName = creatorFirstname || creatorSurname
+      ? [creatorFirstname, creatorSurname].filter(Boolean).join(' ').trim() || null
+      : null;
+
     return {
       id: raw.id,
       room_id: raw.room_id,
       title: raw.title ?? raw.name ?? 'Ohne Titel',
       start_time: raw.start_time,
       end_time: raw.end_time,
-      comment: raw.comment ?? null
+      comment: raw.comment ?? null,
+      createdBy,
+      createdByName,
+      createdByEmail: creatorEmail
     };
   }
 

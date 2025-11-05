@@ -185,6 +185,23 @@ h1 {
   opacity: 0.5;
 }
 
+.bookings-panel__creator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.bookings-panel__creator mat-icon {
+  font-size: 1rem;
+  line-height: 1;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+}
+
 .bookings-panel__time {
   font-weight: 600;
   font-size: 0.95rem;

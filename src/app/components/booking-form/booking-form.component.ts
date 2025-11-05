@@ -588,30 +588,21 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     if (conflict) {
       const conflictEndTime = new Date(conflict.end_time);
+      const availableLabel = this.datePipe.transform(conflictEndTime, 'HH:mm');
+      this.availabilityCountdown.set(
+        availableLabel ? `Wieder verfügbar ab ${availableLabel} Uhr` : null
+      );
+
       this.countdownSubscription = timer(0, 1000).pipe(
         takeUntil(this.destroy$),
-        map(() => {
-          const now = new Date();
-          const diffMs = conflictEndTime.getTime() - now.getTime();
-          if (diffMs <= 0) {
-            return null; // Time is up
-          }
-          const totalSeconds = Math.floor(diffMs / 1000);
-          const hours = Math.floor(totalSeconds / 3600);
-          const minutes = Math.floor((totalSeconds % 3600) / 60);
-          const seconds = totalSeconds % 60;
-
-          if (hours > 0) {
-            return `Wieder verfügbar in: ${hours} Std. ${minutes} Min.`;
-          }
-          if (minutes > 0) {
-            return `Wieder verfügbar in: ${minutes} Min. ${seconds} Sek.`;
-          }
-          return `Wieder verfügbar in: ${seconds} Sek.`;
-        }),
-        takeWhile(value => value !== null, true)
-      ).subscribe(countdownText => {
-        this.availabilityCountdown.set(countdownText);
+        map(() => conflictEndTime.getTime() - Date.now()),
+        takeWhile(diffMs => diffMs > 0, true)
+      ).subscribe(diffMs => {
+        if (diffMs <= 0) {
+          this.availabilityCountdown.set(null);
+          this.countdownSubscription?.unsubscribe();
+          this.countdownSubscription = null;
+        }
       });
     } else {
       this.availabilityCountdown.set(null);
