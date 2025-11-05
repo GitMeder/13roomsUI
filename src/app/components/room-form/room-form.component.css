@@ -110,22 +110,29 @@ mat-form-field {
 }
 
 .icon-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+  gap: 0.45rem;
   padding: 1rem 1.1rem;
   border-radius: 20px;
   transition: all 0.22s ease;
   border-color: rgba(148, 163, 184, 0.45) !important;
   color: #1f2937;
   min-height: 120px;
+  width: 100%;
 }
 
 .icon-option mat-icon {
   font-size: 28px;
   width: 28px;
   height: 28px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  right: -0.5vw;
 }
 
 .icon-option:hover {
@@ -139,6 +146,12 @@ mat-form-field {
   border-color: rgba(37, 99, 235, 0.85) !important;
   color: #1d4ed8;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
+}
+
+.icon-option span {
+  display: block;
+  text-align: center;
+  max-width: 100%;
 }
 
 .icon-preview {

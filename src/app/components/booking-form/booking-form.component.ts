@@ -616,7 +616,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
   public isSubmitDisabled(): boolean {
     const formValue = this.form.getRawValue();
-    return !formValue.roomId || !formValue.startTime || !formValue.endTime || !formValue.title;
+    const title = formValue.title?.trim() ?? '';
+    return !formValue.roomId || !formValue.startTime || !formValue.endTime || title.length < 2;
   }
 
   /**

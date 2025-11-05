@@ -209,7 +209,11 @@
       <mat-form-field appearance="outline">
         <mat-label>Titel der Buchung</mat-label>
         <input matInput formControlName="title" required #titleInput placeholder="z.B. Sprint Review, Kundentermin" />
-        <mat-error>Bitte geben Sie einen Titel für die Buchung ein.</mat-error>
+        @if (form.get('title')?.hasError('required')) {
+          <mat-error>Bitte geben Sie einen Titel für die Buchung ein.</mat-error>
+        } @else if (form.get('title')?.hasError('minlength')) {
+          <mat-error>Der Titel muss mindestens 2 Zeichen lang sein.</mat-error>
+        }
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="booking-form__comment-field">
