@@ -1,0 +1,568 @@
+/**
+ * Room Card Component Styles
+ * Design System: Modern, clean, with emphasis on status visualization
+ * Color Palette: Material 3 inspired with custom accents
+ */
+
+@use "sass:color";
+@use "@angular/material" as mat;
+
+// Design tokens
+$card-radius: 20px;
+$card-padding: 1.5rem;
+$transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+$shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
+$shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+$shadow-lifted: 0 12px 32px rgba(0, 0, 0, 0.15);
+
+// Status color system
+$color-available: #2563eb; // Vibrant blue
+$color-available-light: #dbeafe;
+$color-soon: #7c3aed; // Purple
+$color-soon-light: #ede9fe;
+$color-booked: #dc2626; // Red
+$color-booked-light: #fee2e2;
+$color-disabled: #6b7280; // Gray
+$color-disabled-light: #f3f4f6;
+
+.room-card {
+  position: relative;
+  border-radius: $card-radius;
+  padding: 0;
+  overflow: hidden;
+  transition: all $transition-smooth;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--mat-sys-surface);
+  box-shadow: $shadow-soft;
+
+  // Remove default mat-card padding
+  ::ng-deep .mat-mdc-card-content:first-child {
+    padding-top: 0;
+  }
+
+  // Clickable state
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: $shadow-hover;
+
+      .room-card__hover-overlay {
+        opacity: 1;
+      }
+
+      .room-card__action-primary {
+        transform: scale(1.05);
+      }
+    }
+
+    &:active {
+      transform: translateY(-2px);
+    }
+  }
+
+  // Status-based styling
+  &--available {
+    border-top: 4px solid $color-available;
+    background: linear-gradient(
+      180deg,
+      $color-available-light 0%,
+      var(--mat-sys-surface) 100px
+    );
+
+    .room-card__status-indicator {
+      background: $color-available;
+    }
+
+    .room-card__status-text {
+      color: $color-available;
+    }
+  }
+
+  &--available-soon {
+    border-top: 4px solid $color-soon;
+    background: linear-gradient(
+      180deg,
+      $color-soon-light 0%,
+      var(--mat-sys-surface) 100px
+    );
+
+    .room-card__status-indicator {
+      background: $color-soon;
+    }
+
+    .room-card__status-text {
+      color: $color-soon;
+    }
+  }
+
+  &--booked {
+    border-top: 4px solid $color-booked;
+    background: linear-gradient(
+      180deg,
+      $color-booked-light 0%,
+      var(--mat-sys-surface) 100px
+    );
+
+    .room-card__status-indicator {
+      background: $color-booked;
+    }
+
+    .room-card__status-text {
+      color: $color-booked;
+    }
+  }
+
+  &--disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: $color-disabled-light;
+
+    &:hover {
+      transform: none;
+      box-shadow: $shadow-soft;
+    }
+
+    .room-card__status-indicator {
+      background: $color-disabled;
+    }
+  }
+
+  &--night-rest {
+    border-top: 4px solid #1e293b;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #f1f5f9;
+
+    .room-card__header,
+    .room-card__amenities,
+    .room-card__status-text {
+      color: #f1f5f9;
+    }
+
+    .room-card__location,
+    .room-card__capacity,
+    .room-card__amenities-header {
+      color: #cbd5e1;
+    }
+
+    .room-card__status-indicator {
+      background: #334155;
+    }
+  }
+
+  &--maintenance {
+    border-top: 4px solid #f97316;
+
+    .room-card__status-indicator {
+      background: #f97316;
+    }
+  }
+
+  // Highlighted state (post-booking celebration)
+  &--highlighted {
+    animation: celebrate 5s ease-out;
+    box-shadow: $shadow-lifted;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(
+        90deg,
+        #f79533,
+        #ef4e7b,
+        #a166ab,
+        #1098ad,
+        #f79533
+      );
+      background-size: 300% 100%;
+      animation: gradient-shift 3s linear infinite;
+    }
+  }
+}
+
+// Status bar section
+.room-card__status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem $card-padding;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  min-height: 60px;
+}
+
+.room-card__status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: white;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+
+    &.pulse {
+      animation: pulse 2s infinite;
+    }
+  }
+}
+
+.room-card__status-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  margin-left: auto;
+}
+
+// Progress container for booked rooms
+.room-card__progress-container {
+  flex: 1;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.room-card__progress-bar {
+  height: 8px !important;
+  border-radius: 4px;
+
+  ::ng-deep .mdc-linear-progress__buffer {
+    background: rgba(220, 38, 38, 0.1) !important;
+  }
+
+  ::ng-deep .mdc-linear-progress__bar-inner {
+    background: linear-gradient(90deg, #dc2626, #ef4444) !important;
+  }
+}
+
+.room-card__progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.room-card__progress-text {
+  font-weight: 600;
+  color: $color-booked;
+}
+
+// Header section
+.room-card__header {
+  display: flex;
+  gap: 1.25rem;
+  padding: $card-padding;
+  padding-top: 1.25rem;
+}
+
+.room-card__avatar-section {
+  position: relative;
+}
+
+.room-card__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    var(--mat-sys-primary-container),
+    var(--mat-sys-secondary-container)
+  );
+  color: var(--mat-sys-on-primary-container);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.room-card__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--mat-sys-error);
+  color: white;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+
+  mat-icon {
+    font-size: 0.8rem;
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+}
+
+.room-card__info {
+  flex: 1;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.room-card__name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--mat-sys-on-surface);
+}
+
+.room-card__location,
+.room-card__capacity {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    opacity: 0.7;
+  }
+}
+
+// Amenities section
+.room-card__amenities {
+  padding: 0 $card-padding 1rem;
+}
+
+.room-card__amenities-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    opacity: 0.7;
+  }
+}
+
+.room-card__amenities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.room-card__amenity-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+
+  &--more {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    font-weight: 600;
+  }
+
+  &--empty {
+    opacity: 0.6;
+    font-style: italic;
+  }
+}
+
+// Actions section
+.room-card__actions {
+  padding: $card-padding;
+  padding-top: 0;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.room-card__action-primary {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: all $transition-smooth;
+
+  mat-icon {
+    margin-right: 0.35rem;
+  }
+
+  &--soon {
+    background: linear-gradient(135deg, $color-soon, color.adjust($color-soon, $lightness: 10%));
+  }
+
+  &--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.room-card__actions-secondary {
+  display: flex;
+  gap: 0.25rem;
+
+  .room-card__action-icon {
+    transition: all $transition-smooth;
+
+    &:hover {
+      transform: scale(1.1);
+      background: var(--mat-sys-surface-container-high);
+    }
+  }
+}
+
+// Hover overlay
+.room-card__hover-overlay {
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity $transition-smooth;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+
+  mat-icon {
+    color: var(--mat-sys-primary);
+    font-size: 24px;
+  }
+}
+
+// Animations
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
+@keyframes celebrate {
+  0% {
+    transform: scale(1) rotate(0);
+  }
+  10% {
+    transform: scale(1.05) rotate(1deg);
+  }
+  20% {
+    transform: scale(1.03) rotate(-1deg);
+  }
+  30% {
+    transform: scale(1.01) rotate(0);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .room-card {
+    $card-padding: 1rem;
+
+    &__header {
+      padding: $card-padding;
+    }
+
+    &__name {
+      font-size: 1.1rem;
+    }
+
+    &__actions {
+      flex-direction: column;
+
+      &-secondary {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    &__action-primary {
+      width: 100%;
+    }
+  }
+}
+
+// Dark mode adjustments
+@media (prefers-color-scheme: dark) {
+  .room-card {
+    &--available {
+      background: linear-gradient(
+        180deg,
+        rgba(37, 99, 235, 0.1) 0%,
+        var(--mat-sys-surface) 100px
+      );
+    }
+
+    &--available-soon {
+      background: linear-gradient(
+        180deg,
+        rgba(124, 58, 237, 0.1) 0%,
+        var(--mat-sys-surface) 100px
+      );
+    }
+
+    &--booked {
+      background: linear-gradient(
+        180deg,
+        rgba(220, 38, 38, 0.1) 0%,
+        var(--mat-sys-surface) 100px
+      );
+    }
+
+    &__status-bar {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    &__amenity-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+}

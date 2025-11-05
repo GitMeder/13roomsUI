@@ -14,6 +14,7 @@ export interface AuthUser {
   firstname: string;
   surname: string;
   role: 'user' | 'admin';
+  name?: string;
 }
 
 @Injectable({

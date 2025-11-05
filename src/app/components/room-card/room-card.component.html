@@ -1,59 +1,209 @@
-<mat-card class="room-card room-card--clickable" appearance="outlined" [ngClass]="statusInfo().cssClass" (click)="onCardClick()">
-  <mat-card-header>
-    <div mat-card-avatar class="room-card__avatar">
-      <mat-icon>{{ room().icon || 'meeting_room' }}</mat-icon>
+<!-- Room Card Component - Premium Design with Real-time Status -->
+<mat-card
+  class="room-card"
+  [ngClass]="{
+    'room-card--available': statusInfo().cssClass === 'available',
+    'room-card--available-soon': statusInfo().cssClass === 'available-soon',
+    'room-card--booked': statusInfo().cssClass === 'booked',
+    'room-card--disabled': !isInteractive(),
+    'room-card--highlighted': isHighlighted(),
+    'room-card--night-rest': statusInfo().cssClass === 'night-rest-state',
+    'room-card--maintenance': statusInfo().cssClass === 'maintenance-state',
+    'room-card--inactive': statusInfo().cssClass === 'inactive-state'
+  }"
+  [class.room-card--clickable]="isInteractive()"
+  (click)="onCardClick()"
+  matRipple
+  [matRippleDisabled]="!isInteractive()"
+>
+  <!-- Status Bar - Visual Priority #1 -->
+  <div class="room-card__status-bar">
+    <div class="room-card__status-indicator">
+      <mat-icon [class.pulse]="statusInfo().cssClass === 'available'">
+        {{ statusIcon() }}
+      </mat-icon>
     </div>
-    <mat-card-title>{{ room().name }}</mat-card-title>
-    @if (room().location?.trim()) {
-      <mat-card-subtitle>{{ room().location }}</mat-card-subtitle>
+
+    <!-- Progress Bar for Occupied Rooms -->
+    @if (statusInfo().cssClass === 'booked' && bookingProgress() > 0) {
+    <div class="room-card__progress-container">
+      <mat-progress-bar
+        mode="determinate"
+        [value]="bookingProgress()"
+        class="room-card__progress-bar"
+      >
+      </mat-progress-bar>
+      <div class="room-card__progress-label">
+        <span class="room-card__progress-text"
+          >{{ bookingProgress() | number : "1.0-0" }}%</span
+        >
+        <span class="room-card__time-remaining">
+          {{ formatRemainingTime(remainingMinutes()) }} verbleibend
+        </span>
+      </div>
+    </div>
     }
-  </mat-card-header>
 
-  <mat-card-content>
-    <div class="room-card__meta">
-      <div>
-        <mat-icon aria-hidden="true">group</mat-icon>
-        <span>{{ room().capacity }} Personen</span>
+    <!-- Status Text -->
+    <div class="room-card__status-text">
+      {{ statusInfo().text }}
+    </div>
+  </div>
+
+  <!-- Card Header with Room Info -->
+  <div class="room-card__header">
+    <div class="room-card__avatar-section">
+      <div class="room-card__avatar">
+        <mat-icon>{{ room().icon || "meeting_room" }}</mat-icon>
       </div>
-      <div>
-        <span class="room-card__status">{{ statusInfo().text }}</span>
+
+      <!-- Booking Count Badge -->
+      @if (bookingCount() > 0 && isInteractive()) {
+      <div class="room-card__badge">
+        <span>{{ bookingCount() }}</span>
+        <mat-icon>event</mat-icon>
       </div>
+      }
     </div>
 
-    <div class="room-card__amenities">
-      <span class="room-card__label">Ausstattung</span>
-      <mat-chip-set>
-        @if (room().amenities?.length) {
-          @for (amenity of room().amenities | slice:0:4; track amenity) {
-          <mat-chip color="primary" selected>{{ amenity }}</mat-chip>
+    <div class="room-card__info">
+      <h3 class="room-card__name">{{ room().name }}</h3>
+
+      @if (room().location?.trim()) {
+      <div class="room-card__location">
+        <mat-icon>place</mat-icon>
+        <span>{{ room().location }}</span>
+      </div>
+      }
+
+      <div class="room-card__capacity">
+        <mat-icon>group</mat-icon>
+        <span>Bis zu {{ room().capacity }} Personen</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Amenities Section -->
+  <div class="room-card__amenities">
+    <div class="room-card__amenities-header">
+      <mat-icon>dashboard</mat-icon>
+      <span>Ausstattung</span>
+    </div>
+
+    <div class="room-card__amenities-list">
+      @if (room().amenities; as amenities) {
+        @if (amenities.length > 0) {
+          @for (amenity of amenities | slice:0:4; track amenity) {
+            <div class="room-card__amenity-chip">{{ amenity }}</div>
+          }
+          @if (amenities.length > 4) {
+            <div class="room-card__amenity-chip room-card__amenity-chip--more">
+              +{{ amenities.length - 4 }}
+            </div>
           }
         } @else {
-          <mat-chip color="primary" selected>Keine Angaben</mat-chip>
+          <div class="room-card__amenity-chip room-card__amenity-chip--empty">
+            Keine Angaben
+          </div>
         }
-      </mat-chip-set>
+      } @else {
+        <div class="room-card__amenity-chip room-card__amenity-chip--empty">
+          Keine Angaben
+        </div>
+      }
     </div>
+  </div>
 
-    <div class="room-card__bookings-action">
+  <!-- Action Section -->
+  <div class="room-card__actions">
+    <!-- Primary Action based on Status -->
+    @if (statusInfo().cssClass === 'available') {
+    <button
+      mat-flat-button
+      color="primary"
+      class="room-card__action-primary"
+      (click)="onBookRoom($event)"
+    >
+      <mat-icon>add_circle</mat-icon>
+      Jetzt buchen
+    </button>
+    } @else if (statusInfo().cssClass === 'available-soon') {
+    <button
+      mat-flat-button
+      color="accent"
+      class="room-card__action-primary room-card__action-primary--soon"
+      (click)="onBookRoom($event)"
+    >
+      <mat-icon>schedule</mat-icon>
+      Buchen ({{ formatRemainingTime(minutesUntilNextBooking()) }} frei)
+    </button>
+    } @else if (statusInfo().cssClass === 'booked') {
+    <button
+      mat-stroked-button
+      disabled
+      class="room-card__action-primary room-card__action-primary--disabled"
+    >
+      <mat-icon>event_busy</mat-icon>
+      Besetzt
+    </button>
+    } @else {
+    <button
+      mat-stroked-button
+      disabled
+      class="room-card__action-primary room-card__action-primary--disabled"
+    >
+      <mat-icon>{{ statusIcon() }}</mat-icon>
+      {{
+        statusInfo().cssClass === "night-rest-state"
+          ? "Geschlossen"
+          : "Nicht verfügbar"
+      }}
+    </button>
+    }
+
+    <!-- Secondary Actions -->
+    <div class="room-card__actions-secondary">
       <button
-        mat-stroked-button
+        mat-icon-button
         color="primary"
-        matTooltip="Alle Buchungen dieses Raums ansehen"
+        matTooltip="Alle Buchungen ansehen"
+        matTooltipPosition="above"
         (click)="onShowBookings($event)"
+        class="room-card__action-icon"
       >
-        <mat-icon aria-hidden="true">event_note</mat-icon>
-        Buchungen
+        <mat-icon>calendar_view_day</mat-icon>
       </button>
-    </div>
-  </mat-card-content>
 
-  <mat-card-actions>
-    @if (canDelete()) {
-      <button mat-icon-button color="primary" matTooltip="Raum bearbeiten" (click)="onEdit($event)">
+      @if (canDelete()) {
+      <button
+        mat-icon-button
+        matTooltip="Bearbeiten"
+        matTooltipPosition="above"
+        (click)="onEdit($event)"
+        class="room-card__action-icon"
+      >
         <mat-icon>edit</mat-icon>
       </button>
-      <button mat-icon-button color="warn" matTooltip="Raum löschen" (click)="onDelete($event)">
+
+      <button
+        mat-icon-button
+        color="warn"
+        matTooltip="Löschen"
+        matTooltipPosition="above"
+        (click)="onDelete($event)"
+        class="room-card__action-icon"
+      >
         <mat-icon>delete</mat-icon>
       </button>
-    }
-  </mat-card-actions>
+      }
+    </div>
+  </div>
+
+  <!-- Hover Overlay for Available Rooms -->
+  @if (isInteractive() && (statusInfo().cssClass === 'available' ||
+  statusInfo().cssClass === 'available-soon')) {
+  <div class="room-card__hover-overlay">
+    <mat-icon>arrow_forward</mat-icon>
+  </div>
+  }
 </mat-card>

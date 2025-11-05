@@ -1,145 +1,349 @@
-<section class="dashboard-page">
-  <header class="dashboard-page__header">
-    <div>
-      <h1>Dashboard</h1>
-      <p class="dashboard-page__subtitle">
-        {{ subtitle() }}
-      </p>
-    </div>
-    @if (canManageRooms()) {
-      <div class="dashboard-page__actions">
-        <button mat-flat-button color="primary" routerLink="/rooms/new">
-          <mat-icon aria-hidden="true">add</mat-icon>
-          Neues Zimmer
-        </button>
+<!-- Dashboard Page - Premium Design with Enhanced UX -->
+<section class="dashboard">
+  <!-- Hero Header Section -->
+  <header class="dashboard__hero">
+    <div class="dashboard__hero-content">
+      <div class="dashboard__hero-text">
+        <h1 class="dashboard__title" @fadeIn>{{ welcomeMessage() }}</h1>
+        <p class="dashboard__subtitle">{{ subtitle() }}</p>
+
+        <!-- Quick Stats Pills (only when loaded) -->
+        @if (!loading() && roomStats()) {
+        <div class="dashboard__stats-pills" @fadeIn>
+          <div class="stat-pill stat-pill--primary">
+            <mat-icon>check_circle</mat-icon>
+            <span>{{ roomStats()!.available }}</span>
+            <label>Verfügbar</label>
+          </div>
+
+          <div class="stat-pill stat-pill--accent">
+            <mat-icon>schedule</mat-icon>
+            <span>{{ roomStats()!.availableSoon }}</span>
+            <label>Bald frei</label>
+          </div>
+
+          <div class="stat-pill stat-pill--warn">
+            <mat-icon>event_busy</mat-icon>
+            <span>{{ roomStats()!.booked }}</span>
+            <label>Besetzt</label>
+          </div>
+
+          @if (roomStats()?.mostBookedRoom) {
+          <div class="stat-pill stat-pill--special">
+            <mat-icon>trending_up</mat-icon>
+            <span>{{ roomStats()?.mostBookedRoom?.name }}</span>
+            <label>Beliebtester Raum</label>
+          </div>
+          }
+        </div>
+        }
       </div>
-    }
+
+      <!-- Hero Actions -->
+      <div class="dashboard__hero-actions">
+        @if (isAdmin()) {
+        <button
+          mat-fab
+          extended
+          color="primary"
+          routerLink="/rooms/new"
+          class="dashboard__action-fab"
+        >
+          <mat-icon>add</mat-icon>
+          Neuen Raum hinzufügen
+        </button>
+        }
+      </div>
+    </div>
   </header>
 
-  @if (!loading() && !error()) {
-    <div class="dashboard-page__content">
-      <div class="dashboard-page__grid">
+  <!-- Night Rest Banner (when applicable) -->
+  @if (!loading() && isNightRest()) {
+  <div class="dashboard__night-banner" @fadeIn>
+    <div class="dashboard__night-banner-bg"></div>
+    <div class="dashboard__night-banner-content">
+      <mat-icon class="dashboard__night-icon">nights_stay</mat-icon>
+      <div class="dashboard__night-text">
+        <h2>Gute Nacht! Wir haben geschlossen.</h2>
+        <p>Unsere Geschäftszeiten sind täglich von 08:00 bis 20:00 Uhr.</p>
+        <p class="dashboard__night-hint">
+          <mat-icon>lightbulb</mat-icon>
+          Sie können bereits jetzt Buchungen für morgen vornehmen.
+        </p>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Main Content Area -->
+  <div class="dashboard__content">
+    <!-- Rooms Grid -->
+    <main class="dashboard__rooms">
+      @if (!loading() && !error()) {
+      <div class="dashboard__grid">
         @for (room of rooms(); track room.id) {
-          <app-room-card
-            [room]="room"
-            [statusInfo]="getRoomStatus(room)"
-            [canDelete]="canManageRooms()"
-            [class.rainbow-highlight]="room.id === highlightedRoomId()"
-            (deleteRoomEvent)="onDeleteRoom($event)"
-            (cardClick)="onRoomCardClick($event)"
-            (showBookings)="onShowRoomBookings($event)"
-          ></app-room-card>
+        <app-room-card
+          [room]="room"
+          [statusInfo]="getRoomStatus(room)"
+          [canDelete]="isAdmin()"
+          [isHighlighted]="room.id === highlightedRoomId()"
+          (deleteRoomEvent)="onDeleteRoom($event)"
+          (cardClick)="onRoomCardClick($event)"
+          (showBookings)="onShowRoomBookings($event)"
+        >
+        </app-room-card>
         }
       </div>
+      }
 
-      <aside
-        class="dashboard-page__bookings-panel"
-        [class.dashboard-page__bookings-panel--active]="!!selectedRoom()"
-      >
-        @if (selectedRoom()) {
-          <div class="bookings-panel">
-            <header class="bookings-panel__header">
-              <div>
-                <h2>Buchungen · {{ selectedRoom()!.name }}</h2>
-                <span class="bookings-panel__subtitle">{{ bookingsSubtitle() }}</span>
-              </div>
-              <button mat-icon-button color="primary" aria-label="Buchungsliste schließen" (click)="closeBookingsPanel()">
-                <mat-icon aria-hidden="true">close</mat-icon>
-              </button>
-            </header>
+      <!-- Loading State -->
+      @if (loading()) {
+      <div class="dashboard__state dashboard__state--loading">
+        <div class="dashboard__state-icon">
+          <mat-progress-spinner
+            mode="indeterminate"
+            diameter="56"
+            strokeWidth="4"
+          >
+          </mat-progress-spinner>
+        </div>
+        <h3>Räume werden geladen</h3>
+        <p>Einen Moment bitte …</p>
+      </div>
+      }
 
-            @if (bookingsLoading()) {
-              <div class="bookings-panel__state bookings-panel__state--loading">
-                <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
-                <span>Buchungen werden geladen …</span>
-              </div>
-            } @else if (bookingsError()) {
-              <div class="bookings-panel__state bookings-panel__state--error">
-                <mat-icon aria-hidden="true">error_outline</mat-icon>
-                <span>{{ bookingsError() }}</span>
-              </div>
-            } @else if (!bookingGroups().length) {
-              <div class="bookings-panel__state bookings-panel__state--empty">
-                <mat-icon aria-hidden="true">event_busy</mat-icon>
-                <span>Für diesen Raum liegen aktuell keine Buchungen vor.</span>
-              </div>
-            } @else {
-              <div class="bookings-panel__groups">
-                @for (group of bookingGroups(); track group.dateKey) {
-                  <section class="bookings-panel__group" [class.bookings-panel__group--past]="group.isPast">
-                    <div class="bookings-panel__group-header">
-                      <mat-icon aria-hidden="true">
-                        {{ group.isPast ? 'history' : group.isToday ? 'today' : 'event' }}
-                      </mat-icon>
-                      <span>{{ group.dateLabel }}</span>
-                      @if (group.isPast) {
-                        <span class="bookings-panel__badge">Vergangen</span>
-                      }
-                    </div>
+      <!-- Error State -->
+      @if (!loading() && error()) {
+      <div class="dashboard__state dashboard__state--error">
+        <div class="dashboard__state-icon dashboard__state-icon--error">
+          <mat-icon>error_outline</mat-icon>
+        </div>
+        <h3>Ups, da ist etwas schiefgelaufen</h3>
+        <p>{{ error() }}</p>
+        <button mat-flat-button color="primary" (click)="loadRooms()">
+          <mat-icon>refresh</mat-icon>
+          Erneut versuchen
+        </button>
+      </div>
+      }
 
-                    <ul class="bookings-panel__list">
-                      @for (booking of group.bookings; track booking.id) {
-                        <li class="bookings-panel__item">
-                          <div class="bookings-panel__item-header">
-                            <div class="bookings-panel__time">
-                              {{ formatTime(booking.start_time) }} – {{ formatTime(booking.end_time) }}
-                            </div>
-                            @if (canManageRooms() || isOwnBooking(booking)) {
-                              <button
-                                mat-icon-button
-                                color="warn"
-                                matTooltip="Buchung löschen"
-                                [disabled]="deletingBookingId() === booking.id"
-                                (click)="onDeleteBooking(booking, $event)"
-                              >
-                                <mat-icon aria-hidden="true">
-                                  {{ deletingBookingId() === booking.id ? 'hourglass_top' : 'delete' }}
-                                </mat-icon>
-                              </button>
-                            }
-                          </div>
-                          <div class="bookings-panel__title">{{ booking.title || 'Unbenanntes Meeting' }}</div>
-                          @if (booking.createdByName || booking.createdByEmail) {
-                            <div class="bookings-panel__creator">
-                              <mat-icon aria-hidden="true">person</mat-icon>
-                              <span>
-                                Erstellt von
-                                {{ booking.createdByName || (booking.createdByEmail ? booking.createdByEmail.split('@')[0] : 'Unbekannt') }}
-                              </span>
-                            </div>
-                          }
-                          @if (booking.comment) {
-                            <div class="bookings-panel__comment">{{ booking.comment }}</div>
-                          }
-                        </li>
-                      }
-                    </ul>
-                  </section>
+      <!-- Empty State -->
+      @if (!loading() && !error() && rooms().length === 0) {
+      <div class="dashboard__state dashboard__state--empty">
+        <div class="dashboard__state-icon dashboard__state-icon--empty">
+          <mat-icon>meeting_room</mat-icon>
+        </div>
+        <h3>Noch keine Räume vorhanden</h3>
+        <p>Fügen Sie den ersten Raum hinzu, um loszulegen.</p>
+        @if (isAdmin()) {
+        <button mat-flat-button color="primary" routerLink="/rooms/new">
+          <mat-icon>add</mat-icon>
+          Ersten Raum hinzufügen
+        </button>
+        }
+      </div>
+      }
+    </main>
+
+    <!-- Bookings Side Panel -->
+    <aside
+      class="dashboard__sidebar"
+      [class.dashboard__sidebar--active]="!!selectedRoom()"
+      [@slideIn]="!!selectedRoom() ? 'in' : 'out'"
+    >
+      @if (selectedRoom()) {
+      <div class="bookings-panel">
+        <!-- Panel Header -->
+        <header class="bookings-panel__header">
+          <div class="bookings-panel__room-info">
+            <div class="bookings-panel__room-avatar">
+              <mat-icon>{{ selectedRoom()!.icon || 'meeting_room' }}</mat-icon>
+            </div>
+            <div>
+              <h2 class="bookings-panel__title">{{ selectedRoom()!.name }}</h2>
+              <p class="bookings-panel__subtitle">{{ bookingsSubtitle() }}</p>
+            </div>
+          </div>
+
+          <button
+            mat-icon-button
+            matTooltip="Schließen"
+            (click)="closeBookingsPanel()"
+            class="bookings-panel__close"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </header>
+
+        <mat-divider></mat-divider>
+
+        <!-- Panel Content -->
+        <div class="bookings-panel__content">
+          <!-- Loading State -->
+          @if (bookingsLoading()) {
+          <div class="bookings-panel__state bookings-panel__state--loading">
+            <mat-progress-spinner
+              mode="indeterminate"
+              diameter="40"
+              strokeWidth="3"
+            >
+            </mat-progress-spinner>
+            <span>Buchungen werden geladen …</span>
+          </div>
+          }
+
+          <!-- Error State -->
+          @else if (bookingsError()) {
+          <div class="bookings-panel__state bookings-panel__state--error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ bookingsError() }}</span>
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="fetchRoomBookings(selectedRoom()!.id, true)"
+            >
+              Erneut versuchen
+            </button>
+          </div>
+          }
+
+          <!-- Empty State -->
+          @else if (!bookingGroups().length) {
+          <div class="bookings-panel__state bookings-panel__state--empty">
+            <mat-icon>event_available</mat-icon>
+            <span>Keine Buchungen vorhanden</span>
+            <p>Dieser Raum hat noch keine Buchungen.</p>
+            <button
+              mat-flat-button
+              color="primary"
+              [routerLink]="['/bookings', selectedRoom()!.id]"
+            >
+              <mat-icon>add</mat-icon>
+              Erste Buchung erstellen
+            </button>
+          </div>
+          }
+
+          <!-- Bookings List -->
+          @else {
+          <div class="bookings-panel__groups">
+            @for (group of bookingGroups(); track group.dateKey) {
+            <section
+              class="booking-group"
+              [class.booking-group--past]="group.isPast"
+              [class.booking-group--today]="group.isToday"
+            >
+              <!-- Group Header -->
+              <div class="booking-group__header">
+                <mat-icon>
+                  {{ group.isPast ? 'history' : group.isToday ? 'today' :
+                  'event' }}
+                </mat-icon>
+                <h3>{{ group.dateLabel }}</h3>
+                @if (group.isPast) {
+                <span class="booking-group__badge">Vergangen</span>
+                } @if (group.isToday) {
+                <span class="booking-group__badge booking-group__badge--today"
+                  >Heute</span
+                >
                 }
               </div>
+
+              <!-- Group Items -->
+              <div class="booking-group__items">
+                @for (booking of group.bookings; track booking.id) {
+                <div
+                  class="booking-item"
+                  [class.booking-item--own]="isOwnBooking(booking)"
+                  [class.booking-item--deleting]="deletingBookingId() === booking.id"
+                >
+                  <!-- Time Badge -->
+                  <div class="booking-item__time">
+                    <span class="booking-item__time-start">
+                      {{ formatTime(booking.start_time) }}
+                    </span>
+                    <span class="booking-item__time-separator">–</span>
+                    <span class="booking-item__time-end">
+                      {{ formatTime(booking.end_time) }}
+                    </span>
+                  </div>
+
+                  <!-- Booking Details -->
+                  <div class="booking-item__details">
+                    <h4 class="booking-item__title">
+                      {{ booking.title || 'Unbenannte Buchung' }}
+                    </h4>
+
+                    @if (booking.createdByName || booking.createdByEmail) {
+                    <div class="booking-item__creator">
+                      <mat-icon>person</mat-icon>
+                      <span>
+                        {{ getCreatorName(booking) }}
+                      </span>
+                      @if (isOwnBooking(booking)) {
+                      <span class="booking-item__badge">Ihre Buchung</span>
+                      }
+                    </div>
+                    } @if (booking.comment) {
+                    <p class="booking-item__comment">{{ booking.comment }}</p>
+                    }
+                  </div>
+
+                  <!-- Actions -->
+                  @if (isAdmin() || isOwnBooking(booking)) {
+                  <div class="booking-item__actions">
+                    <button
+                      mat-icon-button
+                      color="warn"
+                      matTooltip="Buchung löschen"
+                      [disabled]="deletingBookingId() === booking.id"
+                      (click)="onDeleteBooking(booking, $event)"
+                    >
+                      @if (deletingBookingId() === booking.id) {
+                      <mat-progress-spinner
+                        mode="indeterminate"
+                        diameter="20"
+                        strokeWidth="2"
+                      >
+                      </mat-progress-spinner>
+                      } @else {
+                      <mat-icon>delete</mat-icon>
+                      }
+                    </button>
+                  </div>
+                  }
+                </div>
+                }
+              </div>
+            </section>
             }
           </div>
-        } @else {
-          <div class="bookings-panel__placeholder">
-            <mat-icon aria-hidden="true" class="bookings-panel__placeholder-icon">meeting_room</mat-icon>
-            <p>Wählen Sie einen Raum, um die Buchungen des Tages zu sehen.</p>
-          </div>
-        }
-      </aside>
-    </div>
-  }
+          }
+        </div>
 
-  @if (!loading() && error()) {
-    <div class="dashboard-page__empty">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
-      <p>{{ error() }}</p>
-    </div>
-  }
+        <!-- Panel Footer -->
+        <div class="bookings-panel__footer">
+          <button
+            mat-stroked-button
+            color="primary"
+            [routerLink]="['/bookings', selectedRoom()!.id]"
+            class="bookings-panel__action"
+          >
+            <mat-icon>add_circle</mat-icon>
+            Neue Buchung hinzufügen
+          </button>
+        </div>
+      </div>
+      }
 
-  @if (loading()) {
-    <div class="dashboard-page__loading">
-      <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
-      <span>Daten werden geladen …</span>
-    </div>
-  }
+      <!-- Placeholder when no room selected -->
+      @else {
+      <div class="bookings-panel__placeholder">
+        <mat-icon>calendar_view_day</mat-icon>
+        <h3>Buchungsübersicht</h3>
+        <p>Wählen Sie einen Raum aus, um dessen Buchungen anzuzeigen.</p>
+      </div>
+      }
+    </aside>
+  </div>
 </section>
