@@ -180,6 +180,11 @@ export class ApiService {
     return this.post<Room>('rooms', roomData);
   }
 
+  deleteBooking(id: number): Observable<void> {
+    console.log(`Deleting booking with ID: ${id}`);
+    return this.delete<void>(`bookings/${id}`);
+  }
+
   updateRoom(id: number, payload: UpdateRoomPayload): Observable<Room> {
     console.log(`Updating room ${id}:`, payload);
     return this.put<{ message: string; room: ApiRoom }>(`rooms/${id}`, payload).pipe(

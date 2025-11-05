@@ -43,6 +43,16 @@
   gap: 0.5rem;
 }
 
+.room-card__bookings-action {
+  margin-top: 1.25rem;
+}
+
+.room-card__bookings-action button {
+  width: 100%;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
 .room-card__label {
   font-size: 0.85rem;
   letter-spacing: 0.02em;

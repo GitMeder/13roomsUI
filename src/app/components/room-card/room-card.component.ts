@@ -24,6 +24,7 @@ export class RoomCardComponent {
   readonly canDelete = input(false);
   @Output() deleteRoomEvent = new EventEmitter<number>();
   @Output() cardClick = new EventEmitter<number>();
+  @Output() showBookings = new EventEmitter<number>();
 
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
@@ -56,6 +57,14 @@ export class RoomCardComponent {
     const room = this.room();
     if (room && room.id) {
       this.cardClick.emit(room.id);
+    }
+  }
+
+  onShowBookings(event: Event): void {
+    event.stopPropagation();
+    const room = this.room();
+    if (room?.id) {
+      this.showBookings.emit(room.id);
     }
   }
 }

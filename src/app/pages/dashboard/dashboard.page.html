@@ -27,9 +27,96 @@
             [class.rainbow-highlight]="room.id === highlightedRoomId()"
             (deleteRoomEvent)="onDeleteRoom($event)"
             (cardClick)="onRoomCardClick($event)"
+            (showBookings)="onShowRoomBookings($event)"
           ></app-room-card>
         }
       </div>
+
+      <aside
+        class="dashboard-page__bookings-panel"
+        [class.dashboard-page__bookings-panel--active]="!!selectedRoom()"
+      >
+        @if (selectedRoom()) {
+          <div class="bookings-panel">
+            <header class="bookings-panel__header">
+              <div>
+                <h2>Buchungen · {{ selectedRoom()!.name }}</h2>
+                <span class="bookings-panel__subtitle">{{ bookingsSubtitle() }}</span>
+              </div>
+              <button mat-icon-button color="primary" aria-label="Buchungsliste schließen" (click)="closeBookingsPanel()">
+                <mat-icon aria-hidden="true">close</mat-icon>
+              </button>
+            </header>
+
+            @if (bookingsLoading()) {
+              <div class="bookings-panel__state bookings-panel__state--loading">
+                <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+                <span>Buchungen werden geladen …</span>
+              </div>
+            } @else if (bookingsError()) {
+              <div class="bookings-panel__state bookings-panel__state--error">
+                <mat-icon aria-hidden="true">error_outline</mat-icon>
+                <span>{{ bookingsError() }}</span>
+              </div>
+            } @else if (!bookingGroups().length) {
+              <div class="bookings-panel__state bookings-panel__state--empty">
+                <mat-icon aria-hidden="true">event_busy</mat-icon>
+                <span>Für diesen Raum liegen aktuell keine Buchungen vor.</span>
+              </div>
+            } @else {
+              <div class="bookings-panel__groups">
+                @for (group of bookingGroups(); track group.dateKey) {
+                  <section class="bookings-panel__group" [class.bookings-panel__group--past]="group.isPast">
+                    <div class="bookings-panel__group-header">
+                      <mat-icon aria-hidden="true">
+                        {{ group.isPast ? 'history' : group.isToday ? 'today' : 'event' }}
+                      </mat-icon>
+                      <span>{{ group.dateLabel }}</span>
+                      @if (group.isPast) {
+                        <span class="bookings-panel__badge">Vergangen</span>
+                      }
+                    </div>
+
+                    <ul class="bookings-panel__list">
+                      @for (booking of group.bookings; track booking.id) {
+                        <li class="bookings-panel__item">
+                          <div class="bookings-panel__item-header">
+                            <div class="bookings-panel__time">
+                              {{ formatTime(booking.start_time) }} – {{ formatTime(booking.end_time) }}
+                            </div>
+                            @if (canManageRooms()) {
+                              <button
+                                mat-icon-button
+                                color="warn"
+                                matTooltip="Buchung löschen"
+                                [disabled]="deletingBookingId() === booking.id"
+                                (click)="onDeleteBooking(booking, $event)"
+                              >
+                                <mat-icon aria-hidden="true">
+                                  {{ deletingBookingId() === booking.id ? 'hourglass_top' : 'delete' }}
+                                </mat-icon>
+                              </button>
+                            }
+                          </div>
+                          <div class="bookings-panel__title">{{ booking.title || 'Unbenanntes Meeting' }}</div>
+                          @if (booking.comment) {
+                            <div class="bookings-panel__comment">{{ booking.comment }}</div>
+                          }
+                        </li>
+                      }
+                    </ul>
+                  </section>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="bookings-panel__placeholder">
+            <mat-icon aria-hidden="true" class="bookings-panel__placeholder-icon">meeting_room</mat-icon>
+            <p>Wählen Sie einen Raum, um die Buchungen des Tages zu sehen.</p>
+          </div>
+        }
+      </aside>
     </div>
   }
 

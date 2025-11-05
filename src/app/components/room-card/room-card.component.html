@@ -30,6 +30,18 @@
         }
       </mat-chip-set>
     </div>
+
+    <div class="room-card__bookings-action">
+      <button
+        mat-stroked-button
+        color="primary"
+        matTooltip="Alle Buchungen dieses Raums ansehen"
+        (click)="onShowBookings($event)"
+      >
+        <mat-icon aria-hidden="true">event_note</mat-icon>
+        Buchungen
+      </button>
+    </div>
   </mat-card-content>
 
   <mat-card-actions>

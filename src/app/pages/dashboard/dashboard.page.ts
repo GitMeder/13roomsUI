@@ -3,15 +3,18 @@ import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '../../services/api.service'; // Keep ApiService for API calls
 import { Room } from '../../models/room.model'; // Import Room from the updated model
 import { Booking } from '../../models/booking.model'; // Import Booking model
 import { RoomCardComponent } from '../../components/room-card/room-card.component';
 import { Router, RouterLink, NavigationEnd } from '@angular/router';
-import { timer, Observable } from 'rxjs'; // Import timer and Observable
-import { map, filter } from 'rxjs/operators'; // Import map operator
+import { timer } from 'rxjs'; // Import timer
+import { filter } from 'rxjs/operators'; // Import filter operator
 import { AuthService } from '../../services/auth.service';
+import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -20,6 +23,8 @@ import { AuthService } from '../../services/auth.service';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
+    MatDialogModule,
     RoomCardComponent,
     RouterLink
   ],
@@ -34,6 +39,7 @@ export class DashboardPageComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly datePipe = inject(DatePipe);
   private readonly authService = inject(AuthService);
+  private readonly dialog = inject(MatDialog);
 
   readonly loading = signal<boolean>(true);
   readonly error = signal<string | null>(null);
@@ -42,6 +48,75 @@ export class DashboardPageComponent implements OnInit {
   readonly countdown = signal<number>(0); // Real-time countdown signal
   readonly highlightedRoomId = signal<number | null>(null); // PART 2: Room to highlight with rainbow
   readonly canManageRooms = signal<boolean>(this.authService.currentUserSnapshot?.role === 'admin');
+  readonly selectedRoom = signal<Room | null>(null);
+  readonly roomBookings = signal<Booking[] | null>(null);
+  readonly bookingsLoading = signal<boolean>(false);
+  readonly bookingsError = signal<string | null>(null);
+  readonly deletingBookingId = signal<number | null>(null);
+  readonly todayKey = this.datePipe.transform(new Date(), 'yyyy-MM-dd', undefined, 'de-DE') ?? '';
+  readonly todayLabel = this.datePipe.transform(new Date(), 'EEEE, d. MMM', undefined, 'de-DE') ?? 'Heute';
+  readonly bookingGroups = computed(() => {
+    const bookings = this.roomBookings();
+    if (!bookings?.length) {
+      return [];
+    }
+
+    const sorted = [...bookings].sort((a, b) => {
+      const startA = this.coerceDate(a.start_time).getTime();
+      const startB = this.coerceDate(b.start_time).getTime();
+      return startA - startB;
+    });
+
+    const groupsMap = new Map<string, Booking[]>();
+
+    for (const booking of sorted) {
+      const key = this.getDateKey(booking.start_time);
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, []);
+      }
+      groupsMap.get(key)!.push(booking);
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const groups = Array.from(groupsMap.entries()).map(([dateKey, items]) => {
+      const firstDate = this.coerceDate(items[0].start_time);
+      const isToday = dateKey === this.todayKey;
+      const isPast = firstDate.getTime() < startOfToday.getTime();
+      const label =
+        isToday
+          ? 'Heute'
+          : this.datePipe.transform(firstDate, 'EEEE, d. MMM', undefined, 'de-DE') ?? dateKey;
+
+      return {
+        dateKey,
+        dateValue: firstDate.getTime(),
+        dateLabel: label,
+        isToday,
+        isPast,
+        bookings: items
+      };
+    });
+
+    groups.sort((a, b) => {
+      if (a.isToday && !b.isToday) {
+        return -1;
+      }
+      if (!a.isToday && b.isToday) {
+        return 1;
+      }
+      if (a.isPast !== b.isPast) {
+        return a.isPast ? 1 : -1; // Future groups before past groups
+      }
+      if (a.isPast && b.isPast) {
+        return b.dateValue - a.dateValue; // Show most recent past first
+      }
+      return a.dateValue - b.dateValue;
+    });
+
+    return groups;
+  });
 
   // Keep the dashboard subtitle contextual to current state (loading vs. stats).
   readonly subtitle = computed(() => {
@@ -57,6 +132,25 @@ export class DashboardPageComponent implements OnInit {
       return status.cssClass === 'available';
     }).length;
     return `${list.length} Räume · ${available} sofort verfügbar`;
+  });
+  readonly bookingsSubtitle = computed(() => {
+    const groups = this.bookingGroups();
+    if (!groups.length) {
+      return `Termine ab ${this.todayLabel}`;
+    }
+
+    const firstGroup = groups[0];
+
+    if (firstGroup.isToday) {
+      const hasFuture = groups.some(group => !group.isPast && !group.isToday);
+      return hasFuture ? 'Heutige und kommende Termine' : 'Heutige Termine';
+    }
+
+    if (!firstGroup.isPast) {
+      return `Termine ab ${firstGroup.dateLabel}`;
+    }
+
+    return 'Buchungsverlauf';
   });
 
   constructor() {
@@ -123,6 +217,7 @@ export class DashboardPageComponent implements OnInit {
     // Fetch data once now and on demand; destroyRef handling lives in takeUntilDestroyed.
     this.loading.set(true);
     this.error.set(null);
+    const selectedRoomId = this.selectedRoom()?.id ?? null;
 
     this.api.getRooms()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -130,6 +225,16 @@ export class DashboardPageComponent implements OnInit {
         next: (rooms) => {
           console.log('Rooms loaded successfully:', rooms);
           this.rooms.set(rooms);
+
+           if (selectedRoomId) {
+             const updatedRoom = rooms.find(room => room.id === selectedRoomId) ?? null;
+             if (updatedRoom) {
+               this.selectedRoom.set(updatedRoom);
+             } else {
+               this.closeBookingsPanel();
+             }
+           }
+
           this.loading.set(false);
         },
         error: (err) => {
@@ -160,6 +265,111 @@ export class DashboardPageComponent implements OnInit {
     this.router.navigate(['/bookings', roomId]);
   }
 
+  onShowRoomBookings(roomId: number): void {
+    this.fetchRoomBookings(roomId);
+  }
+
+  closeBookingsPanel(): void {
+    this.selectedRoom.set(null);
+    this.roomBookings.set(null);
+    this.bookingsError.set(null);
+    this.bookingsLoading.set(false);
+    this.deletingBookingId.set(null);
+  }
+
+  formatTime(value: string): string {
+    return this.datePipe.transform(value, 'HH:mm', undefined, 'de-DE') ?? '';
+  }
+
+  onDeleteBooking(booking: Booking, event: Event): void {
+    event.stopPropagation();
+
+    if (!this.canManageRooms()) {
+      return;
+    }
+
+    const selectedRoomId = this.selectedRoom()?.id;
+    if (!selectedRoomId) {
+      console.warn('No room is currently selected; cannot delete booking.');
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        message: `Möchten Sie die Buchung „${booking.title ?? 'Ohne Titel'}” wirklich löschen?`
+      }
+    });
+
+    dialogRef.afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(confirmed => {
+        if (!confirmed) {
+          return;
+        }
+
+        this.deletingBookingId.set(booking.id);
+        this.bookingsError.set(null);
+
+        this.api.deleteBooking(booking.id)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: () => {
+              console.log(`Booking with ID ${booking.id} deleted successfully.`);
+              this.deletingBookingId.set(null);
+              this.refreshRoomBookings(selectedRoomId);
+              this.loadRooms();
+            },
+            error: err => {
+              console.error(`Error deleting booking with ID ${booking.id}:`, err);
+              this.deletingBookingId.set(null);
+              this.bookingsError.set('Die Buchung konnte nicht gelöscht werden.');
+            }
+          });
+      });
+  }
+
+  private refreshRoomBookings(roomId: number): void {
+    this.fetchRoomBookings(roomId, true);
+  }
+
+  private fetchRoomBookings(roomId: number, skipToggle = false): void {
+    const currentSelection = this.selectedRoom();
+    const isSameRoom = currentSelection?.id === roomId;
+
+    if (!skipToggle && isSameRoom && !this.bookingsLoading()) {
+      this.closeBookingsPanel();
+      return;
+    }
+
+    const room = this.rooms().find(r => r.id === roomId);
+
+    if (!room) {
+      console.warn(`Room with ID ${roomId} not found when trying to show bookings.`);
+      return;
+    }
+
+    this.selectedRoom.set(room);
+    this.bookingsError.set(null);
+    if (!skipToggle) {
+      this.roomBookings.set(null);
+    }
+
+    this.bookingsLoading.set(true);
+
+    this.api.getRoomBookings(roomId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: bookings => {
+          this.roomBookings.set(bookings);
+          this.bookingsLoading.set(false);
+        },
+        error: err => {
+          console.error(`Error loading bookings for room ${roomId}:`, err);
+          this.bookingsError.set('Die Buchungen konnten nicht geladen werden.');
+          this.bookingsLoading.set(false);
+        }
+      });
+  }
 
   /**
    * Finds the effective end time of a booking block by following consecutive bookings.
@@ -218,6 +428,18 @@ export class DashboardPageComponent implements OnInit {
     console.log(`=== END FINDING BOOKING BLOCK ===\n`);
 
     return blockEndTime;
+  }
+
+  private coerceDate(value: string | Date): Date {
+    return value instanceof Date ? value : new Date(value);
+  }
+
+  private getDateKey(value: string | Date): string {
+    const date = this.coerceDate(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return this.datePipe.transform(date, 'yyyy-MM-dd', undefined, 'de-DE') ?? '';
   }
 
   getRoomStatus(room: Room): { text: string; cssClass: string } {
