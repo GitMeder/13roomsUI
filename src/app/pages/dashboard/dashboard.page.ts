@@ -119,8 +119,8 @@ export class DashboardPageComponent implements OnInit {
       greeting = 'Guten Abend';
     }
 
-    return `${greeting}, ${
-      user.name || user.email?.split('@')[0] || 'Nutzer'
+    return `${greeting} ${
+      user.firstname || 'Nutzer'
     }!`;
   });
 
