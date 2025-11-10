@@ -119,11 +119,13 @@
           <mat-label>Beginn</mat-label>
           <input
             matInput
-            type="time"
+            [ngxTimepicker]="startTimePicker"
+            [format]="24"
             formControlName="startTime"
             required
-            step="300"
+            readonly
             (change)="onTimeInputChange('startTime', $event.target.value)" />
+          <ngx-material-timepicker #startTimePicker></ngx-material-timepicker>
           <mat-hint>24-Stunden-Format (HH:MM)</mat-hint>
           <mat-error>Bitte wählen Sie eine Startzeit.</mat-error>
         </mat-form-field>
@@ -143,11 +145,13 @@
 
           <input
             matInput
-            type="time"
+            [ngxTimepicker]="endTimePicker"
+            [format]="24"
             formControlName="endTime"
             required
-            step="300"
+            readonly
             (change)="onTimeInputChange('endTime', $event.target.value)" />
+          <ngx-material-timepicker #endTimePicker></ngx-material-timepicker>
 
           <mat-hint>Automatisch vorgeschlagen</mat-hint>
           @if (form.get('endTime')?.hasError('required')) {

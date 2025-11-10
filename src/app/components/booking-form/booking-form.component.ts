@@ -20,6 +20,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
+import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
 
 interface BookingFormControls {
   roomId: FormControl<number | null>;
@@ -64,7 +65,8 @@ enum FormMode {
   imports: [
     DatePipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule,
     MatDatepickerModule, MatNativeDateModule, MatButtonModule, MatIconModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule
+    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule,
+    NgxMaterialTimepickerModule
   ],
   templateUrl: './booking-form.component.html',
   styleUrls: ['./booking-form.component.scss'],
@@ -465,11 +467,24 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     let startSearchFrom: string;
     if (isToday) {
-      const searchTime = new Date(now.getTime() - 30 * 60000);
-      const minutes = searchTime.getMinutes();
-      const roundedMinutes = Math.floor(minutes / 15) * 15;
-      searchTime.setMinutes(roundedMinutes, 0, 0);
-      startSearchFrom = `${searchTime.getHours().toString().padStart(2, '0')}:${roundedMinutes.toString().padStart(2, '0')}`;
+      // SMART SUGGESTION: Always start from the NEXT available 15-minute interval
+      const minutes = now.getMinutes();
+      const interval = 15;
+
+      // Calculate how many minutes past the last interval we are
+      const remainder = minutes % interval;
+
+      // If we are not exactly on an interval, calculate minutes to add
+      const minutesToAdd = remainder === 0 ? 0 : interval - remainder;
+
+      // Create the next valid slot time
+      const nextSlotTime = new Date(now.getTime() + minutesToAdd * 60000);
+
+      // Round down seconds and milliseconds for a clean start time
+      nextSlotTime.setSeconds(0, 0);
+
+      // Format this as HH:mm for startSearchFrom
+      startSearchFrom = `${nextSlotTime.getHours().toString().padStart(2, '0')}:${nextSlotTime.getMinutes().toString().padStart(2, '0')}`;
     } else {
       startSearchFrom = '00:00';
     }
