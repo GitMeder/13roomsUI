@@ -1,6 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, computed } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { NgIf, AsyncPipe } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,7 +8,7 @@ import { AuthService } from './services/auth.service';
 @Component({
     selector: 'app-root',
     standalone: true,
-    imports: [RouterOutlet, RouterLink, NgIf, AsyncPipe, MatToolbarModule, MatButtonModule, MatIconModule],
+    imports: [RouterOutlet, RouterLink, MatToolbarModule, MatButtonModule, MatIconModule],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -19,7 +18,8 @@ export class AppComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  readonly currentUser$ = this.authService.currentUser$;
+  readonly currentUser = computed(() => this.authService.currentUser());
+  readonly isGuest = computed(() => this.authService.isGuest());
 
   logout(): void {
     this.authService.logout();

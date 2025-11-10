@@ -1,6 +1,6 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, map, tap } from 'rxjs';
+import { Observable, map, tap } from 'rxjs';
 
 interface AuthApiResponse {
   message: string;
@@ -9,11 +9,11 @@ interface AuthApiResponse {
 }
 
 export interface AuthUser {
-  id: number;
-  email: string;
-  firstname: string;
-  surname: string;
-  role: 'user' | 'admin';
+  id?: number;
+  email?: string;
+  firstname?: string;
+  surname?: string;
+  role: 'user' | 'admin' | 'guest';
   name?: string;
 }
 
@@ -26,19 +26,14 @@ export class AuthService {
   private readonly tokenKey = 'auth_token';
   private readonly userKey = 'auth_user';
 
-  private readonly currentUserSubject = new BehaviorSubject<AuthUser | null>(this.readStoredUser());
-  readonly currentUser$ = this.currentUserSubject.asObservable();
+  private readonly guestUser: AuthUser = { role: 'guest' };
 
-  get currentUserSnapshot(): AuthUser | null {
-    return this.currentUserSubject.value;
-  }
+  readonly currentUser = signal<AuthUser>(this.readStoredUser());
+  readonly isGuest = computed(() => this.currentUser().role === 'guest');
+  readonly isAuthenticated = computed(() => this.currentUser().role !== 'guest');
 
   get token(): string | null {
     return localStorage.getItem(this.tokenKey);
-  }
-
-  isAuthenticated(): boolean {
-    return !!this.token;
   }
 
   login(email: string, password: string): Observable<AuthUser> {
@@ -64,24 +59,24 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
-    this.currentUserSubject.next(null);
+    this.currentUser.set(this.guestUser);
   }
 
   private persistSession(response: AuthApiResponse): void {
     localStorage.setItem(this.tokenKey, response.token);
     localStorage.setItem(this.userKey, JSON.stringify(response.user));
-    this.currentUserSubject.next(response.user);
+    this.currentUser.set(response.user);
   }
 
-  private readStoredUser(): AuthUser | null {
+  private readStoredUser(): AuthUser {
     const raw = localStorage.getItem(this.userKey);
     if (!raw) {
-      return null;
+      return this.guestUser;
     }
     try {
       return JSON.parse(raw) as AuthUser;
     } catch {
-      return null;
+      return this.guestUser;
     }
   }
 }

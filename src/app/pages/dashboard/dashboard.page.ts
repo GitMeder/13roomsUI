@@ -99,14 +99,15 @@ export class DashboardPageComponent implements OnInit {
   readonly deletingBookingId = signal<number | null>(null);
 
   // User state
-  readonly currentUser = computed(() => this.authService.currentUserSnapshot);
+  readonly currentUser = computed(() => this.authService.currentUser());
+  readonly isGuest = computed(() => this.authService.isGuest());
   readonly isAdmin = computed(() => this.currentUser()?.role === 'admin');
   readonly currentUserId = computed(() => this.currentUser()?.id ?? null);
 
   // Welcome message with time-based greeting
   readonly welcomeMessage = computed(() => {
     const user = this.currentUser();
-    if (!user) return 'Willkommen im 13Rooms Dashboard';
+    if (!user || user.role === 'guest') return 'Willkommen im 13Rooms Dashboard';
 
     const hour = new Date().getHours();
     let greeting = 'Guten Tag';
@@ -287,13 +288,6 @@ export class DashboardPageComponent implements OnInit {
     timer(0, 1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.countdown.set(Date.now()));
-
-    // Listen for auth changes
-    this.authService.currentUser$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        // Trigger recomputation of computed signals
-      });
 
     // Reload on navigation to dashboard
     this.router.events

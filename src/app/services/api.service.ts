@@ -2,16 +2,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, delay, map, of, throwError, switchMap } from 'rxjs';
 import { Room } from '../models/room.model';
-import { Booking } from '../models/booking.model';
-
-export interface BookingPayload {
-  roomId: number;
-  date: string;
-  startTime: string;
-  endTime: string;
-  title: string;
-  comment?: string;
-}
+import { Booking, BookingPayload } from '../models/booking.model';
 
 interface ApiRoom {
   id: number;

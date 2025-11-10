@@ -7,7 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -33,6 +33,7 @@ export class RegisterPageComponent {
   private readonly authService = inject(AuthService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly submitting = signal<boolean>(false);
 
@@ -56,7 +57,15 @@ export class RegisterPageComponent {
     this.authService.register(payload).subscribe({
       next: () => {
         this.submitting.set(false);
-        void this.router.navigateByUrl('/');
+
+        // Check for redirect parameter (e.g., from guest booking flow)
+        const redirectUrl = this.route.snapshot.queryParams['redirect'];
+        if (redirectUrl) {
+          console.log('[RegisterPage] Redirecting to:', redirectUrl);
+          void this.router.navigateByUrl(redirectUrl);
+        } else {
+          void this.router.navigateByUrl('/');
+        }
       },
       error: (error) => {
         console.error('Registration failed', error);

@@ -1,0 +1,78 @@
+<div class="auth-prompt-dialog">
+  <!-- Dialog Header -->
+  <div class="auth-prompt-dialog__header">
+    <mat-icon class="auth-prompt-dialog__icon">lock_open</mat-icon>
+    <h2 mat-dialog-title class="auth-prompt-dialog__title">
+      Fast geschafft! Ein letzter Schritt.
+    </h2>
+  </div>
+
+  <!-- Dialog Content -->
+  <mat-dialog-content class="auth-prompt-dialog__content">
+    @if (!showNameInput()) {
+      <p class="auth-prompt-dialog__message">
+        Als Gast können Sie Ihre Buchung später nicht bearbeiten oder stornieren.
+        Erstellen Sie ein kostenloses Konto, um Ihre Buchungen zu verwalten, oder
+        fahren Sie als Gast fort.
+      </p>
+
+      <div class="auth-prompt-dialog__benefits">
+        <div class="auth-prompt-dialog__benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Buchungen jederzeit bearbeiten und stornieren</span>
+        </div>
+        <div class="auth-prompt-dialog__benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Übersicht aller Ihrer Buchungen</span>
+        </div>
+        <div class="auth-prompt-dialog__benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Schnelleres Buchen in Zukunft</span>
+        </div>
+      </div>
+    } @else {
+      <p class="auth-prompt-dialog__message">
+        Bitte geben Sie Ihren Namen ein, um die Buchung als Gast abzuschließen.
+      </p>
+
+      <form [formGroup]="guestForm" class="auth-prompt-dialog__form">
+        <mat-form-field appearance="outline" class="auth-prompt-dialog__name-field">
+          <mat-label>Ihr Name</mat-label>
+          <input matInput formControlName="name" placeholder="z.B. Max Mustermann" required autofocus />
+          @if (guestForm.get('name')?.hasError('required') && guestForm.get('name')?.touched) {
+            <mat-error>Bitte geben Sie Ihren Namen ein.</mat-error>
+          } @else if (guestForm.get('name')?.hasError('minlength')) {
+            <mat-error>Der Name muss mindestens 2 Zeichen lang sein.</mat-error>
+          }
+        </mat-form-field>
+      </form>
+    }
+  </mat-dialog-content>
+
+  <!-- Dialog Actions -->
+  <mat-dialog-actions class="auth-prompt-dialog__actions">
+    <button
+      mat-stroked-button
+      (click)="onCancel()"
+      class="auth-prompt-dialog__action auth-prompt-dialog__action--cancel">
+      Abbrechen
+    </button>
+    <button
+      mat-stroked-button
+      (click)="onContinueAsGuest()"
+      class="auth-prompt-dialog__action auth-prompt-dialog__action--guest">
+      <mat-icon>{{ showNameInput() ? 'check' : 'person_outline' }}</mat-icon>
+      {{ showNameInput() ? 'Buchung bestätigen' : 'Als Gast fortfahren' }}
+    </button>
+    @if (!showNameInput()) {
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onRegister()"
+        class="auth-prompt-dialog__action auth-prompt-dialog__action--primary">
+        <mat-icon>person_add</mat-icon>
+        Konto erstellen & Buchen
+      </button>
+    }
+  </mat-dialog-actions>
+</div>

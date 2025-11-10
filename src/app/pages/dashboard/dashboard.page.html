@@ -52,7 +52,23 @@
 
       <!-- Hero Actions -->
       <div class="dashboard__hero-actions">
-        @if (isAdmin()) {
+        @if (isGuest()) {
+          <button
+            mat-flat-button
+            color="primary"
+            routerLink="/register"
+            class="dashboard__action-button">
+            <mat-icon>person_add</mat-icon>
+            Registrieren
+          </button>
+          <button
+            mat-stroked-button
+            routerLink="/login"
+            class="dashboard__action-button">
+            <mat-icon>login</mat-icon>
+            Anmelden
+          </button>
+        } @else if (isAdmin()) {
           <button
             mat-fab
             extended

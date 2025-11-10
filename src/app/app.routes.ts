@@ -13,30 +13,27 @@ export const routes: Routes = [
   {
     path: 'login',
     component: LoginPageComponent,
-    title: '13rooms · Anmelden'
+    title: '13Rooms · Anmelden'
   },
   {
     path: 'register',
     component: RegisterPageComponent,
-    title: '13rooms · Registrieren'
+    title: '13Rooms · Registrieren'
   },
   {
     path: '',
-    canActivate: [authGuard],
     component: DashboardPageComponent,
-    title: '13rooms · Dashboard'
+    title: '13Rooms · Dashboard'
   },
   {
     path: 'bookings',
-    canActivate: [authGuard],
     component: BookingsPageComponent,
-    title: '13rooms · Neue Buchung'
+    title: '13Rooms · Neue Buchung'
   },
   {
     path: 'bookings/:roomId',
-    canActivate: [authGuard],
     component: BookingsPageComponent,
-    title: '13rooms · Neue Buchung',
+    title: '13Rooms · Neue Buchung',
     resolve: {
       pageData: bookingPageDataResolver
     }
@@ -45,16 +42,12 @@ export const routes: Routes = [
     path: 'rooms/new',
     canActivate: [authGuard, adminGuard],
     component: RoomFormComponent,
-    title: '13rooms · Neues Zimmer'
+    title: '13Rooms · Neues Zimmer'
   },
   {
     path: 'rooms/:id/edit',
     canActivate: [authGuard, adminGuard],
     component: RoomEditPageComponent,
-    title: '13rooms · Raum bearbeiten'
-  },
-  {
-    path: '**',
-    redirectTo: ''
+    title: '13Rooms · Raum bearbeiten'
   }
 ];

@@ -10,20 +10,18 @@
   </a>
 
   <nav class="app-toolbar__nav">
-    <ng-container *ngIf="currentUser$ | async as user; else authLinks">
+    @if (!isGuest()) {
       <div class="user-chip">
         <mat-icon aria-hidden="true">person</mat-icon>
-        <span>{{ user.firstname }} {{ user.surname }} · {{ user.role }}</span>
+        <span>{{ currentUser().firstname }} {{ currentUser().surname }} · {{ currentUser().role }}</span>
         <button mat-button (click)="logout()">
           Abmelden
         </button>
       </div>
-    </ng-container>
-
-    <ng-template #authLinks>
+    } @else {
       <a mat-button routerLink="/login">Anmelden</a>
       <a mat-stroked-button color="primary" routerLink="/register">Registrieren</a>
-    </ng-template>
+    }
   </nav>
 </mat-toolbar>
 

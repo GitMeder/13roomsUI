@@ -17,4 +17,5 @@ export interface BookingPayload {
   endTime: string;
   date: string;
   comment?: string;
+  guestName?: string;
 }

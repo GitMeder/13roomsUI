@@ -1,10 +1,10 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, BookingPayload } from '../../services/api.service';
+import { ApiService } from '../../services/api.service';
 import { Observable } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 import { Room } from '../../models/room.model';
-import { Booking } from '../../models/booking.model';
+import { Booking, BookingPayload } from '../../models/booking.model';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -15,6 +15,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { BookingFormComponent } from '../../components/booking-form/booking-form.component';
 import { RoomSelectionDialogComponent } from '../../components/room-selection-dialog/room-selection-dialog.component';
+import { AuthService } from '../../services/auth.service';
+import { BookingDataService } from '../../services/booking-data.service';
+import { AuthPromptDialogComponent, AuthPromptResult } from '../../components/auth-prompt-dialog/auth-prompt-dialog.component';
 
 @Component({
   selector: 'app-bookings-page',
@@ -31,6 +34,8 @@ export class BookingsPageComponent implements OnInit {
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+  private readonly authService = inject(AuthService);
+  private readonly bookingDataService = inject(BookingDataService);
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isSmartRebooking = signal<boolean>(false);
@@ -70,6 +75,24 @@ export class BookingsPageComponent implements OnInit {
         // Set smart rebooking flag if present
         if (pageData.isSmartRebooking) {
           this.isSmartRebooking.set(true);
+        }
+
+        // Check for temporary booking data (from registration flow)
+        const tempBooking = this.bookingDataService.getTempBooking();
+        if (tempBooking) {
+          console.log('[BookingsPage] Restoring temporary booking data:', tempBooking);
+
+          // Merge temp booking data into prefillData
+          return {
+            ...pageData,
+            prefillData: {
+              date: tempBooking.startDate,
+              startTime: tempBooking.startTime,
+              endTime: tempBooking.endTime,
+              title: tempBooking.title,
+              comment: tempBooking.comment
+            }
+          };
         }
 
         // Add suggested times for normal booking mode
@@ -151,6 +174,75 @@ export class BookingsPageComponent implements OnInit {
       return;
     }
 
+    // SOFT WALL: Check if user is a guest
+    if (this.authService.isGuest()) {
+      console.log('[BookingsPage] Guest user detected, showing auth prompt dialog');
+      this.showAuthPromptDialog(payload);
+      return;
+    }
+
+    // Proceed with normal booking submission
+    this.submitBooking(payload);
+  }
+
+  /**
+   * Show auth prompt dialog for guest users
+   */
+  private showAuthPromptDialog(payload: BookingPayload): void {
+    const dialogRef = this.dialog.open(AuthPromptDialogComponent, {
+      width: '560px',
+      maxWidth: '90vw',
+      disableClose: false,
+      panelClass: 'auth-prompt-dialog-panel'
+    });
+
+    dialogRef.afterClosed().subscribe((result: AuthPromptResult) => {
+      console.log('[BookingsPage] Auth prompt dialog closed with result:', result);
+
+      if (result === 'register') {
+        // Save booking data and redirect to register page
+        this.handleRegisterFlow(payload);
+      } else if (typeof result === 'object' && result.action === 'continue') {
+        // Continue as guest with provided name - add guest name to payload
+        const payloadWithGuestName: BookingPayload = {
+          ...payload,
+          guestName: result.guestName
+        };
+        this.submitBooking(payloadWithGuestName);
+      }
+      // If 'cancel' or undefined, do nothing
+    });
+  }
+
+  /**
+   * Handle the "Create Account & Book" flow
+   */
+  private handleRegisterFlow(payload: BookingPayload): void {
+    // Save the booking payload data temporarily
+    const tempData = {
+      roomId: payload.roomId,
+      title: payload.title,
+      startDate: payload.date,
+      startTime: payload.startTime,
+      endDate: payload.date, // Assuming same-day bookings, adjust if needed
+      endTime: payload.endTime,
+      comment: payload.comment || ''
+    };
+
+    console.log('[BookingsPage] Saving temp booking data:', tempData);
+    this.bookingDataService.saveTempBooking(tempData);
+
+    // Navigate to register page with redirect back to this booking page
+    const currentUrl = this.router.url.split('?')[0]; // Remove any existing query params
+    this.router.navigate(['/register'], {
+      queryParams: { redirect: currentUrl }
+    });
+  }
+
+  /**
+   * Submit the booking to the API
+   */
+  private submitBooking(payload: BookingPayload): void {
     this.isSubmitting.set(true);
     console.log('Submitting booking to API:', payload);
 
