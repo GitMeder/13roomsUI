@@ -134,14 +134,12 @@
           <mat-label>Ende</mat-label>
 
           <!-- THE ICON - direct child for absolute positioning on border -->
-          @if (!devModeService.isDevMode()) {
-            <mat-icon
-              class="info-icon"
-              matTooltip="Buchungen sind nur zwischen 08:00 und 20:00 Uhr möglich."
-              [matTooltipClass]="'custom-tooltip'">
-              info_outline
-            </mat-icon>
-          }
+          <mat-icon
+            class="info-icon"
+            matTooltip="Buchungen sind nur zwischen 08:00 und 20:00 Uhr möglich."
+            [matTooltipClass]="'custom-tooltip'">
+            info_outline
+          </mat-icon>
 
           <input
             matInput

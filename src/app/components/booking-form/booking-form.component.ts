@@ -6,7 +6,6 @@ import { takeUntil, debounceTime, distinctUntilChanged, map, takeWhile } from 'r
 import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
-import { DevModeService } from '../../core/services/dev-mode.service';
 
 // Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -77,7 +76,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly datePipe = inject(DatePipe);
-  public readonly devModeService = inject(DevModeService);
   private destroy$ = new Subject<void>();
   private countdownSubscription: Subscription | null = null;
 
@@ -199,10 +197,20 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     });
 
     // Clear conflict state when navigating to a different room
+    // CRITICAL STATE RESET: When the room context changes, it signifies a new user interaction.
+    // We must aggressively reset ALL state related to previous conflicts and booking modes.
     effect(() => {
       const roomId = this.roomIdInput();
+
+      console.log(`[State Reset] Room context changed to ${roomId}. Clearing all conflict state.`);
+
+      // Clear conflict-related state
       this.bookingConflict.set(null);
       this.availabilityCountdown.set(null);
+
+      // Reset the form mode to ensure we don't get stuck in a "Prefilled" state
+      // This prevents stale conflict data from being displayed on new bookings
+      this.mode.set(FormMode.Suggesting);
     });
   }
 
@@ -303,7 +311,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         let currentDate = this.form.get('date')?.value;
 
         // Smart date forwarding for after-hours bookings
-        if (currentDate && !this.devModeService.isDevMode()) {
+        if (currentDate) {
           const now = new Date();
           const isToday = currentDate.toDateString() === now.toDateString();
           const currentHour = now.getHours();
@@ -402,10 +410,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   }
 
   private isTimeSlotAvailable(slotStart: Date): boolean {
-    if (this.devModeService.isDevMode()) {
-      return true;
-    }
-
     const slotHour = slotStart.getHours();
     const businessStartHour = 8;
     const businessEndHour = 20;
