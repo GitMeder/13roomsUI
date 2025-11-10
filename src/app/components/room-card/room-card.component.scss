@@ -1,11 +1,10 @@
 /**
  * Room Card Component Styles
  * Design System: Modern, clean, with emphasis on status visualization
- * Color Palette: Material 3 inspired with custom accents
+ * Color Palette: Material 3 system colors exclusively
  */
 
-@use "sass:color";
-@use "@angular/material" as mat;
+@use '@angular/material' as mat;
 
 // Design tokens
 $card-radius: 20px;
@@ -14,16 +13,6 @@ $transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 $shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
 $shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
 $shadow-lifted: 0 12px 32px rgba(0, 0, 0, 0.15);
-
-// Status color system
-$color-available: #2563eb; // Vibrant blue
-$color-available-light: #dbeafe;
-$color-soon: #7c3aed; // Purple
-$color-soon-light: #ede9fe;
-$color-booked: #dc2626; // Red
-$color-booked-light: #fee2e2;
-$color-disabled: #6b7280; // Gray
-$color-disabled-light: #f3f4f6;
 
 .room-card {
   position: relative;
@@ -62,62 +51,74 @@ $color-disabled-light: #f3f4f6;
     }
   }
 
-  // Status-based styling
+  // Status-based styling with consistent palette
   &--available {
-    border-top: 4px solid $color-available;
-    background: linear-gradient(
-      180deg,
-      $color-available-light 0%,
-      var(--mat-sys-surface) 100px
-    );
+    border-top: 4px solid var(--mat-sys-primary);
+
+    .room-card__status-bar {
+      background: linear-gradient(
+        to bottom,
+        rgba(33, 150, 243, 0.08),
+        var(--mat-sys-surface-container)
+      );
+    }
 
     .room-card__status-indicator {
-      background: $color-available;
+      background: var(--mat-sys-primary);
     }
 
     .room-card__status-text {
-      color: $color-available;
+      color: var(--mat-sys-primary);
     }
   }
 
   &--available-soon {
-    border-top: 4px solid $color-soon;
-    background: linear-gradient(
-      180deg,
-      $color-soon-light 0%,
-      var(--mat-sys-surface) 100px
-    );
+    border-top: 4px solid var(--mat-sys-secondary);
+
+    .room-card__status-bar {
+      background: linear-gradient(
+        to bottom,
+        rgba(156, 39, 176, 0.08),
+        var(--mat-sys-surface-container)
+      );
+    }
 
     .room-card__status-indicator {
-      background: $color-soon;
+      background: var(--mat-sys-secondary);
     }
 
     .room-card__status-text {
-      color: $color-soon;
+      color: var(--mat-sys-secondary);
     }
   }
 
   &--booked {
-    border-top: 4px solid $color-booked;
-    background: linear-gradient(
-      180deg,
-      $color-booked-light 0%,
-      var(--mat-sys-surface) 100px
-    );
+    border-top: 4px solid var(--mat-sys-error);
+
+    .room-card__status-bar {
+      background: linear-gradient(
+        to bottom,
+        rgba(244, 67, 54, 0.08),
+        var(--mat-sys-surface-container)
+      );
+    }
 
     .room-card__status-indicator {
-      background: $color-booked;
+      background: var(--mat-sys-error);
     }
 
     .room-card__status-text {
-      color: $color-booked;
+      color: var(--mat-sys-error);
     }
   }
 
   &--disabled {
     opacity: 0.7;
     cursor: not-allowed;
-    background: $color-disabled-light;
+
+    .room-card__status-bar {
+      background: var(--mat-sys-surface-container);
+    }
 
     &:hover {
       transform: none;
@@ -125,37 +126,53 @@ $color-disabled-light: #f3f4f6;
     }
 
     .room-card__status-indicator {
-      background: $color-disabled;
+      background: var(--mat-sys-outline);
+    }
+
+    .room-card__status-text {
+      color: var(--mat-sys-on-surface-variant);
     }
   }
 
   &--night-rest {
-    border-top: 4px solid #1e293b;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    color: #f1f5f9;
+    border-top: 4px solid #334155;
+    opacity: 0.75;
+    cursor: not-allowed;
 
-    .room-card__header,
-    .room-card__amenities,
-    .room-card__status-text {
-      color: #f1f5f9;
-    }
-
-    .room-card__location,
-    .room-card__capacity,
-    .room-card__amenities-header {
-      color: #cbd5e1;
+    .room-card__status-bar {
+      background: linear-gradient(
+        to bottom,
+        rgba(30, 41, 59, 0.15),
+        var(--mat-sys-surface-container)
+      );
     }
 
     .room-card__status-indicator {
       background: #334155;
     }
+
+    .room-card__status-text {
+      color: var(--mat-sys-on-surface-variant);
+    }
   }
 
   &--maintenance {
-    border-top: 4px solid #f97316;
+    border-top: 4px solid var(--mat-sys-tertiary);
+
+    .room-card__status-bar {
+      background: linear-gradient(
+        to bottom,
+        rgba(255, 152, 0, 0.08),
+        var(--mat-sys-surface-container)
+      );
+    }
 
     .room-card__status-indicator {
-      background: #f97316;
+      background: var(--mat-sys-tertiary);
+    }
+
+    .room-card__status-text {
+      color: var(--mat-sys-tertiary);
     }
   }
 
@@ -165,36 +182,54 @@ $color-disabled-light: #f3f4f6;
     box-shadow: $shadow-lifted;
 
     &::before {
-      content: "";
+      content: '';
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(
-        90deg,
-        #f79533,
-        #ef4e7b,
-        #a166ab,
-        #1098ad,
-        #f79533
-      );
+      background: linear-gradient(90deg, #f79533, #ef4e7b, #a166ab, #1098ad, #f79533);
       background-size: 300% 100%;
       animation: gradient-shift 3s linear infinite;
     }
   }
 }
 
-// Status bar section
+// Status bar section - Enhanced with subtle depth
 .room-card__status-bar {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 1rem $card-padding;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--mat-sys-surface-container);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  border-top: 1px solid rgba(255, 255, 255, 0.7);
   min-height: 60px;
+  position: relative;
+
+  // Subtle inset shadow for depth
+  box-shadow:
+    inset 0 2px 4px rgba(15, 23, 42, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.5);
+
+  // Create a subtle 3D effect with pseudo-element
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.8) 20%,
+      rgba(255, 255, 255, 0.8) 80%,
+      transparent
+    );
+    opacity: 0.6;
+  }
 }
 
 .room-card__status-indicator {
@@ -254,7 +289,7 @@ $color-disabled-light: #f3f4f6;
 
 .room-card__progress-text {
   font-weight: 600;
-  color: $color-booked;
+  color: var(--mat-sys-error);
 }
 
 // Header section
@@ -276,11 +311,7 @@ $color-disabled-light: #f3f4f6;
   width: 56px;
   height: 56px;
   border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    var(--mat-sys-primary-container),
-    var(--mat-sys-secondary-container)
-  );
+  background: linear-gradient(135deg, var(--mat-sys-primary-container), var(--mat-sys-secondary-container));
   color: var(--mat-sys-on-primary-container);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 
@@ -416,7 +447,7 @@ $color-disabled-light: #f3f4f6;
   }
 
   &--soon {
-    background: linear-gradient(135deg, $color-soon, color.adjust($color-soon, $lightness: 10%));
+    background: linear-gradient(135deg, var(--mat-sys-secondary), var(--mat-sys-secondary-container));
   }
 
   &--disabled {
@@ -465,8 +496,7 @@ $color-disabled-light: #f3f4f6;
 
 // Animations
 @keyframes pulse {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
   }
   50% {
@@ -533,27 +563,15 @@ $color-disabled-light: #f3f4f6;
 @media (prefers-color-scheme: dark) {
   .room-card {
     &--available {
-      background: linear-gradient(
-        180deg,
-        rgba(37, 99, 235, 0.1) 0%,
-        var(--mat-sys-surface) 100px
-      );
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.1) 0%, var(--mat-sys-surface) 100px);
     }
 
     &--available-soon {
-      background: linear-gradient(
-        180deg,
-        rgba(124, 58, 237, 0.1) 0%,
-        var(--mat-sys-surface) 100px
-      );
+      background: linear-gradient(180deg, rgba(124, 58, 237, 0.1) 0%, var(--mat-sys-surface) 100px);
     }
 
     &--booked {
-      background: linear-gradient(
-        180deg,
-        rgba(220, 38, 38, 0.1) 0%,
-        var(--mat-sys-surface) 100px
-      );
+      background: linear-gradient(180deg, rgba(220, 38, 38, 0.1) 0%, var(--mat-sys-surface) 100px);
     }
 
     &__status-bar {
