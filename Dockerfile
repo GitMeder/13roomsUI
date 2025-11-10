@@ -48,6 +48,9 @@ FROM nginx:alpine AS production
 # Angular outputPath from angular.json: "dist/13roomsUI"
 COPY --from=build /app/dist/13roomsUI/browser /usr/share/nginx/html
 
+# Copy custom nginx configuration with SPA routing support
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
