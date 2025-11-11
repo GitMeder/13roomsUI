@@ -105,6 +105,22 @@ export class DashboardPageComponent implements OnInit {
   readonly isAdmin = computed(() => this.currentUser()?.role === 'admin');
   readonly currentUserId = computed(() => this.currentUser()?.id ?? null);
 
+  // Central room statuses - computed Map that updates with heartbeat
+  readonly roomStatuses = computed(() => {
+    const tick = this.heartbeat(); // Create reactive dependency on heartbeat
+    const allRooms = this.rooms(); // Create reactive dependency on rooms list
+
+    // Create a Map to hold the status for each room ID
+    const statuses = new Map<number, { text: string; cssClass: string }>();
+
+    for (const room of allRooms) {
+      // Calculate and store the status for each room
+      statuses.set(room.id, this.getRoomStatus(room));
+    }
+
+    return statuses;
+  });
+
   // Welcome message with time-based greeting
   readonly welcomeMessage = computed(() => {
     const user = this.currentUser();
@@ -129,7 +145,7 @@ export class DashboardPageComponent implements OnInit {
   // Room statistics - computed signals for reactive updates
   readonly roomStats = computed(() => {
     const list = this.rooms();
-    const tick = this.heartbeat(); // Create reactive dependency on heartbeat
+    const statuses = this.roomStatuses(); // Use central roomStatuses Map
     if (!list.length) return null;
 
     const stats = {
@@ -146,7 +162,7 @@ export class DashboardPageComponent implements OnInit {
     let maxBookings = 0;
 
     for (const room of list) {
-      const status = this.getRoomStatus(room, tick);
+      const status = statuses.get(room.id)!;
 
       switch (status.cssClass) {
         case 'available':
@@ -358,9 +374,9 @@ export class DashboardPageComponent implements OnInit {
 
   /**
    * Enhanced getRoomStatus with cleaner logic using modern ES6 features
-   * @param _heartbeat - Unused parameter to create reactive dependency on heartbeat signal
+   * Pure function that calculates room status based on current time and room data
    */
-  getRoomStatus(room: Room, _heartbeat: number): { text: string; cssClass: string } {
+  getRoomStatus(room: Room): { text: string; cssClass: string } {
     const rawStatus = room.statusRaw ?? room.status?.toString().toLowerCase();
 
     // Handle special states first
