@@ -91,6 +91,7 @@ export class DashboardPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly rooms = signal<Room[]>([]);
   readonly countdown = signal<number>(0);
+  readonly heartbeat = signal<number>(0);
   readonly highlightedRoomId = signal<number | null>(null);
   readonly selectedRoom = signal<Room | null>(null);
   readonly roomBookings = signal<Booking[] | null>(null);
@@ -128,6 +129,7 @@ export class DashboardPageComponent implements OnInit {
   // Room statistics - computed signals for reactive updates
   readonly roomStats = computed(() => {
     const list = this.rooms();
+    const tick = this.heartbeat(); // Create reactive dependency on heartbeat
     if (!list.length) return null;
 
     const stats = {
@@ -144,7 +146,7 @@ export class DashboardPageComponent implements OnInit {
     let maxBookings = 0;
 
     for (const room of list) {
-      const status = this.getRoomStatus(room);
+      const status = this.getRoomStatus(room, tick);
 
       switch (status.cssClass) {
         case 'available':
@@ -284,10 +286,15 @@ export class DashboardPageComponent implements OnInit {
   });
 
   constructor() {
-    // Set up real-time updates
+    // Set up real-time updates for progress bars (every second)
     timer(0, 1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.countdown.set(Date.now()));
+
+    // Set up heartbeat for room status re-evaluation (every 60 seconds)
+    timer(0, 60000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.heartbeat.set(Date.now()));
 
     // Reload on navigation to dashboard
     this.router.events
@@ -351,8 +358,9 @@ export class DashboardPageComponent implements OnInit {
 
   /**
    * Enhanced getRoomStatus with cleaner logic using modern ES6 features
+   * @param _heartbeat - Unused parameter to create reactive dependency on heartbeat signal
    */
-  getRoomStatus(room: Room): { text: string; cssClass: string } {
+  getRoomStatus(room: Room, _heartbeat: number): { text: string; cssClass: string } {
     const rawStatus = room.statusRaw ?? room.status?.toString().toLowerCase();
 
     // Handle special states first

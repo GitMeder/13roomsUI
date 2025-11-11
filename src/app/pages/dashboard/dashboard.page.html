@@ -92,7 +92,7 @@
           @for (room of rooms(); track room.id) {
             <app-room-card
               [room]="room"
-              [statusInfo]="getRoomStatus(room)"
+              [statusInfo]="getRoomStatus(room, heartbeat())"
               [canDelete]="isAdmin()"
               [isHighlighted]="room.id === highlightedRoomId()"
               (deleteRoomEvent)="onDeleteRoom($event)"
