@@ -62,11 +62,12 @@ enum FormMode {
   selector: 'app-booking-form',
   standalone: true,
   imports: [
-    DatePipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule,
+    ReactiveFormsModule, MatFormFieldModule, MatInputModule,
     MatDatepickerModule, MatNativeDateModule, MatButtonModule, MatIconModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule,
     NgxMaterialTimepickerModule
   ],
+  providers: [DatePipe],
   templateUrl: './booking-form.component.html',
   styleUrls: ['./booking-form.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -607,7 +608,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     if (conflict) {
       const conflictEndTime = new Date(conflict.end_time);
-      const availableLabel = this.datePipe.transform(conflictEndTime, 'HH:mm');
+      const availableLabel = this.formatTime(conflictEndTime);
       this.availabilityCountdown.set(
         availableLabel ? `Wieder verfügbar ab ${availableLabel} Uhr` : null
       );
@@ -628,9 +629,17 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  public formatTime(dateString: string): string {
-    if (!dateString) return '';
-    return this.datePipe.transform(new Date(dateString), 'HH:mm') || '';
+  /**
+   * Formats a date/time string to HH:mm format using the browser's local timezone.
+   * This is the single source of truth for time formatting in the booking form.
+   */
+  public formatTime(dateString: string | Date | undefined | null): string {
+    if (!dateString) {
+      return '';
+    }
+    // DatePipe automatically uses the browser's local timezone
+    // No need to create new Date() - DatePipe handles string inputs correctly
+    return this.datePipe.transform(dateString, 'HH:mm') || '';
   }
 
   public isSubmitDisabled(): boolean {

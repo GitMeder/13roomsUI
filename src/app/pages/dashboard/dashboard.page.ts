@@ -401,7 +401,7 @@ export class DashboardPageComponent implements OnInit {
           room.currentBooking,
           room.allBookingsToday ?? []
         );
-        const formattedEndTime = this.datePipe.transform(blockEndTime, 'HH:mm');
+        const formattedEndTime = this.formatTime(blockEndTime);
 
         // Check if heavily booked
         const totalBookings = room.totalBookingsToday ?? 0;
@@ -423,7 +423,7 @@ export class DashboardPageComponent implements OnInit {
     // Check for upcoming bookings
     if (room.nextBooking) {
       const nextStart = new Date(room.nextBooking.start_time);
-      const formattedTime = this.datePipe.transform(nextStart, 'HH:mm');
+      const formattedTime = this.formatTime(nextStart);
       return {
         text: `Verfügbar bis ${formattedTime} Uhr`,
         cssClass: 'available-soon',
@@ -577,8 +577,17 @@ export class DashboardPageComponent implements OnInit {
   }
 
   // Utilities
-  formatTime(value: string): string {
-    return this.datePipe.transform(value, 'HH:mm', undefined, 'de-DE') ?? '';
+  /**
+   * Formats a date/time string to HH:mm format using the browser's local timezone.
+   * This is the single source of truth for time formatting across the dashboard.
+   */
+  formatTime(value: string | Date | undefined | null): string {
+    if (!value) {
+      return '';
+    }
+    // DatePipe automatically uses the browser's local timezone
+    // No locale parameter needed - it will correctly display local time
+    return this.datePipe.transform(value, 'HH:mm') || '';
   }
 
   isOwnBooking(booking: Booking): boolean {

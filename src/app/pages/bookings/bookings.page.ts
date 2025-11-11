@@ -36,6 +36,7 @@ export class BookingsPageComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly authService = inject(AuthService);
   private readonly bookingDataService = inject(BookingDataService);
+  private readonly datePipe = inject(DatePipe);
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isSmartRebooking = signal<boolean>(false);
@@ -155,15 +156,9 @@ export class BookingsPageComponent implements OnInit {
     const endTime = new Date(startTime);
     endTime.setMinutes(startTime.getMinutes() + 30);
 
-    const formatTime = (date: Date): string => {
-      const hours = date.getHours().toString().padStart(2, '0');
-      const mins = date.getMinutes().toString().padStart(2, '0');
-      return `${hours}:${mins}`;
-    };
-
     return {
-      suggestedStartTime: formatTime(startTime),
-      suggestedEndTime: formatTime(endTime)
+      suggestedStartTime: this.formatTime(startTime),
+      suggestedEndTime: this.formatTime(endTime)
     };
   }
 
@@ -498,5 +493,17 @@ export class BookingsPageComponent implements OnInit {
       default:
         return 'active';
     }
+  }
+
+  /**
+   * Formats a date/time to HH:mm format using the browser's local timezone.
+   * This is the single source of truth for time formatting in the bookings page.
+   */
+  private formatTime(value: string | Date | undefined | null): string {
+    if (!value) {
+      return '';
+    }
+    // DatePipe automatically uses the browser's local timezone
+    return this.datePipe.transform(value, 'HH:mm') || '';
   }
 }

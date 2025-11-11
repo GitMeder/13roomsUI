@@ -22,7 +22,7 @@
       <div class="booking-timeline__header">
         <mat-icon class="booking-timeline__icon">schedule</mat-icon>
         <div class="booking-timeline__title">
-          Raum aktuell belegt bis {{ liveStatus().blockEndTime | date:'HH:mm' }} Uhr
+          Raum aktuell belegt bis {{ formatTime(liveStatus().blockEndTime) }} Uhr
         </div>
       </div>
 
@@ -62,7 +62,7 @@
       @if (liveStatus().nextTitle) {
         <div class="booking-timeline__next">
           <mat-icon class="next-icon">arrow_forward</mat-icon>
-          <span>Nächste Buchung: „{{ liveStatus().nextTitle }}“ um {{ liveStatus().nextBookingStartTime | date:'HH:mm' }} Uhr</span>
+          <span>Nächste Buchung: „{{ liveStatus().nextTitle }}" um {{ formatTime(liveStatus().nextBookingStartTime) }} Uhr</span>
         </div>
       }
     </div>
