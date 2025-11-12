@@ -223,4 +223,27 @@ export class AdminUsersComponent implements OnInit {
   getRoleIcon(role: string): string {
     return role === 'admin' ? 'admin_panel_settings' : 'person';
   }
+
+  exportCsv() {
+    const data = this.dataSource.filteredData.length ? this.dataSource.filteredData : this.dataSource.data;
+    if (!data.length) return;
+
+    const header = ['Name', 'E-Mail', 'Rolle', 'Status'];
+    const rows = data.map(u => [
+      `"${u.fullName}"`,
+      `"${u.email}"`,
+      `"${this.getRoleLabel(u.role)}"`,
+      `"${u.is_active ? 'Aktiv' : 'Inaktiv'}"`
+    ]);
+
+    const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'users.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 }
