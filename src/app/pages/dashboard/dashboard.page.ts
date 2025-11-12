@@ -578,16 +578,34 @@ export class DashboardPageComponent implements OnInit {
 
   // Utilities
   /**
-   * Formats a date/time string to HH:mm format using the browser's local timezone.
+   * Formats a date/time string to HH:mm format WITHOUT timezone conversion.
    * This is the single source of truth for time formatting across the dashboard.
+   * Simply extracts the time part from the datetime string without any conversion.
    */
   formatTime(value: string | Date | undefined | null): string {
     if (!value) {
       return '';
     }
-    // DatePipe automatically uses the browser's local timezone
-    // No locale parameter needed - it will correctly display local time
-    return this.datePipe.transform(value, 'HH:mm') || '';
+
+    // Convert Date object to ISO string if needed
+    const isoString = (value instanceof Date) ? value.toISOString() : value;
+
+    // Extract time part from strings like "2025-11-13T08:00:00.000Z" or "2025-11-13 08:00:00"
+    // Check for both ISO format (with 'T') and SQL format (with space)
+    if (isoString.includes('T')) {
+      const timePart = isoString.split('T')[1];
+      if (timePart) {
+        return timePart.substring(0, 5); // Returns "08:00"
+      }
+    } else if (isoString.includes(' ')) {
+      // SQL datetime format: "2025-11-13 08:00:00"
+      const timePart = isoString.split(' ')[1];
+      if (timePart) {
+        return timePart.substring(0, 5); // Returns "08:00"
+      }
+    }
+
+    return ''; // Fallback
   }
 
   isOwnBooking(booking: Booking): boolean {

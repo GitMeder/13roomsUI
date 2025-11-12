@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject, input, output, ViewChild, ElementRef, signal, effect, ChangeDetectionStrategy, computed } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, ValidatorFn, ValidationErrors, AbstractControl } from '@angular/forms';
 import { Subject, timer, Subscription } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged, map, takeWhile } from 'rxjs/operators';
@@ -68,7 +67,6 @@ interface RoomLiveStatus {
     MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule, MatTooltipModule, CommonModule,
     NgxMaterialTimepickerModule
   ],
-  providers: [DatePipe],
   templateUrl: './booking-form.component.html',
   styleUrls: ['./booking-form.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -77,7 +75,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly datePipe = inject(DatePipe);
   private destroy$ = new Subject<void>();
   private countdownSubscription: Subscription | null = null;
 
@@ -798,16 +795,34 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Formats a date/time string to HH:mm format using the browser's local timezone.
+   * Formats a date/time string to HH:mm format WITHOUT timezone conversion.
    * This is the single source of truth for time formatting in the booking form.
+   * Simply extracts the time part from the datetime string without any conversion.
    */
   public formatTime(dateString: string | Date | undefined | null): string {
     if (!dateString) {
       return '';
     }
-    // DatePipe automatically uses the browser's local timezone
-    // No need to create new Date() - DatePipe handles string inputs correctly
-    return this.datePipe.transform(dateString, 'HH:mm') || '';
+
+    // Convert Date object to ISO string if needed
+    const isoString = (dateString instanceof Date) ? dateString.toISOString() : dateString;
+
+    // Extract time part from strings like "2025-11-13T08:00:00.000Z" or "2025-11-13 08:00:00"
+    // Check for both ISO format (with 'T') and SQL format (with space)
+    if (isoString.includes('T')) {
+      const timePart = isoString.split('T')[1];
+      if (timePart) {
+        return timePart.substring(0, 5); // Returns "08:00"
+      }
+    } else if (isoString.includes(' ')) {
+      // SQL datetime format: "2025-11-13 08:00:00"
+      const timePart = isoString.split(' ')[1];
+      if (timePart) {
+        return timePart.substring(0, 5); // Returns "08:00"
+      }
+    }
+
+    return ''; // Fallback
   }
 
   public isSubmitDisabled(): boolean {
