@@ -1,35 +1,51 @@
 <!-- Admin Dashboard Layout with Tab Navigation -->
 <div class="admin-layout">
-  <!-- Header Section -->
+  <!-- Header Section with Integrated Navigation -->
   <header class="admin-layout__header">
     <div class="admin-layout__header-content">
+      <!-- Title Group with Activity Log Button -->
       <div class="admin-layout__title-group">
-        <mat-icon class="admin-layout__icon">admin_panel_settings</mat-icon>
-        <div>
-          <h1 class="admin-layout__title">Admin Dashboard</h1>
-          <p class="admin-layout__subtitle">Verwaltung von Buchungen, Räumen und Benutzern</p>
+        <!-- Left Side: Icon and Title -->
+        <div class="admin-layout__title-section">
+          <mat-icon class="admin-layout__icon">admin_panel_settings</mat-icon>
+          <div>
+            <h1 class="admin-layout__title">Admin Dashboard</h1>
+            <p class="admin-layout__subtitle">Verwaltung von Buchungen, Räumen und Benutzern</p>
+          </div>
         </div>
+
+        <!-- Right Side: Activity Log Button -->
+        <a
+          mat-icon-button
+          routerLink="/admin/logs"
+          routerLinkActive="admin-layout__log-button--active"
+          matTooltip="Aktivitätsprotokoll"
+          matTooltipPosition="below"
+          class="admin-layout__log-button">
+          <mat-icon>history</mat-icon>
+        </a>
+      </div>
+
+      <!-- Navigation Row with Management Tabs -->
+      <div class="admin-layout__nav-row">
+        <!-- Primary Management Tab Navigation -->
+        <nav mat-tab-nav-bar [tabPanel]="tabPanel" class="admin-layout__tab-nav">
+          @for (link of managementNavLinks; track link.path) {
+            <a
+              mat-tab-link
+              [routerLink]="link.path"
+              routerLinkActive
+              #rla="routerLinkActive"
+              [active]="rla.isActive"
+              class="admin-layout__tab-link">
+              <mat-icon>{{ link.icon }}</mat-icon>
+              <span>{{ link.label }}</span>
+            </a>
+          }
+        </nav>
       </div>
     </div>
   </header>
-
-  <!-- Tab Navigation -->
-  <nav class="admin-layout__nav">
-    <nav mat-tab-nav-bar [tabPanel]="tabPanel" class="admin-layout__tab-nav">
-      @for (link of navLinks; track link.path) {
-        <a
-          mat-tab-link
-          [routerLink]="link.path"
-          routerLinkActive
-          #rla="routerLinkActive"
-          [active]="rla.isActive"
-          class="admin-layout__tab-link">
-          <mat-icon>{{ link.icon }}</mat-icon>
-          <span>{{ link.label }}</span>
-        </a>
-      }
-    </nav>
-  </nav>
 
   <!-- Content Area with Router Outlet -->
   <div class="admin-layout__content" mat-tab-nav-panel #tabPanel>

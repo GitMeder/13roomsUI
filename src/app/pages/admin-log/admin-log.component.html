@@ -1,0 +1,159 @@
+<div class="admin-log-container">
+  <div class="admin-log-header">
+    <div class="header-title-section">
+      <h2 class="admin-log-title">Aktivitätsprotokoll</h2>
+      <p class="admin-log-subtitle">Vollständige Übersicht aller Systemaktivitäten</p>
+    </div>
+
+    <div class="header-controls">
+      <!-- CSV Export Button -->
+      <button
+        mat-stroked-button
+        color="primary"
+        (click)="exportToCsv()"
+        [disabled]="logs().length === 0"
+        class="export-button">
+        <mat-icon>file_download</mat-icon>
+        Export as CSV
+      </button>
+
+      <!-- View Toggle -->
+      <mat-slide-toggle
+        [checked]="viewMode() === 'text'"
+        (change)="viewMode.set($event.checked ? 'text' : 'visual')"
+        class="view-toggle">
+        Text-Ansicht
+      </mat-slide-toggle>
+
+      <!-- Search Input -->
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          placeholder="Logs durchsuchen..."
+          [value]="searchText()"
+          (input)="searchText.set($any($event.target).value)" />
+      </mat-form-field>
+    </div>
+  </div>
+
+  @if (loading() && logs().length === 0) {
+    <div class="loading-spinner">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Lade Aktivitätsprotokoll...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <mat-card class="error-card">
+      <mat-icon class="error-icon">error</mat-icon>
+      <p>{{ error() }}</p>
+      <button mat-raised-button color="primary" (click)="loadLogs()">
+        Erneut versuchen
+      </button>
+    </mat-card>
+  }
+
+  @if (!loading() && logs().length === 0 && !error()) {
+    <mat-card class="empty-state">
+      <mat-icon class="empty-icon">history</mat-icon>
+      <h3>Keine Aktivitäten vorhanden</h3>
+      <p>Es wurden noch keine Aktivitäten aufgezeichnet.</p>
+    </mat-card>
+  }
+
+  @if (filteredLogs().length === 0 && logs().length > 0 && searchText()) {
+    <mat-card class="empty-state">
+      <mat-icon class="empty-icon">search_off</mat-icon>
+      <h3>Keine Ergebnisse gefunden</h3>
+      <p>Keine Logs entsprechen Ihrer Suchanfrage "{{ searchText() }}".</p>
+    </mat-card>
+  }
+
+  @if (logs().length > 0 && filteredLogs().length > 0) {
+    <!-- Visual View (Timeline) -->
+    @if (viewMode() === 'visual') {
+      <div class="timeline">
+        @for (log of filteredLogs(); track log.id) {
+        <div class="timeline-item">
+          <div class="timeline-icon" [ngClass]="getActionColor(log.action_type)">
+            <mat-icon>{{ getActionIcon(log.action_type) }}</mat-icon>
+          </div>
+          <div class="timeline-content">
+            <mat-card class="log-card">
+              <div class="log-card-header">
+                <div class="log-action-text">
+                  <strong>{{ getActionText(log) }}</strong>
+                </div>
+                <div class="log-timestamp">
+                  <mat-icon class="timestamp-icon">schedule</mat-icon>
+                  <span>{{ getRelativeTime(log.timestamp) }}</span>
+                </div>
+              </div>
+
+              <div class="log-meta">
+                <span class="log-meta-item">
+                  <mat-icon class="meta-icon">tag</mat-icon>
+                  {{ getEntityTypeLabel(log.entity_type) }}
+                  @if (log.entity_id) {
+                    <span class="entity-id">ID: {{ log.entity_id }}</span>
+                  }
+                </span>
+                <span class="log-meta-item">
+                  <mat-icon class="meta-icon">event</mat-icon>
+                  {{ formatTimestamp(log.timestamp) }}
+                </span>
+              </div>
+
+              @if (hasDetails(log)) {
+                <mat-expansion-panel class="details-panel">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>
+                      <mat-icon>info</mat-icon>
+                      Details anzeigen
+                    </mat-panel-title>
+                  </mat-expansion-panel-header>
+                  <pre class="details-content">{{ formatDetails(log.details!) }}</pre>
+                </mat-expansion-panel>
+              }
+            </mat-card>
+          </div>
+        </div>
+        }
+      </div>
+    }
+
+    <!-- Text-Only View -->
+    @if (viewMode() === 'text') {
+      <mat-card class="text-view-container">
+        <pre class="text-view-content">@for (log of filteredLogs(); track log.id) {{{ formatLogAsText(log) }}
+}</pre>
+      </mat-card>
+    }
+
+    @if (hasNextPage()) {
+      <div class="load-more-container">
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="loadMore()"
+          [disabled]="loading()">
+          @if (loading()) {
+            <span>
+              <mat-spinner diameter="20"></mat-spinner>
+              Lädt...
+            </span>
+          } @else {
+            <span>
+              <mat-icon>expand_more</mat-icon>
+              Weitere Einträge laden
+            </span>
+          }
+        </button>
+        <p class="pagination-info">
+          Seite {{ currentPage() }} von {{ totalPages() }}
+        </p>
+      </div>
+    }
+  }
+</div>

@@ -11,20 +11,35 @@
 .admin-layout__header {
   background: var(--mat-sys-surface-container-low);
   color: var(--mat-sys-on-surface);
-  padding: 3rem 2rem 2rem;
+  padding: 3rem 2rem 1.5rem;
   border-bottom: 3px solid var(--mat-sys-primary);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .admin-layout__header-content {
   max-width: 1400px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .admin-layout__title-group {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.admin-layout__title-section {
+  display: flex;
   align-items: center;
   gap: 1.5rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .admin-layout__icon {
@@ -32,6 +47,7 @@
   width: 3rem;
   height: 3rem;
   color: var(--mat-sys-primary);
+  flex-shrink: 0;
 }
 
 .admin-layout__title {
@@ -49,20 +65,15 @@
   font-weight: 400;
 }
 
-/* Tab Navigation */
-.admin-layout__nav {
-  background: var(--mat-sys-surface-container-low);
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+/* Navigation Row with Management Tabs */
+.admin-layout__nav-row {
+  display: flex;
+  width: 100%;
 }
 
+/* Primary Tab Navigation */
 .admin-layout__tab-nav {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1rem 2rem;
+  width: 100%;
   border: none !important;
   background: transparent !important;
 }
@@ -107,6 +118,39 @@
   height: 1.25rem;
 }
 
+/* Activity Log Button (Top Right) */
+.admin-layout__log-button {
+  width: 48px !important;
+  height: 48px !important;
+  flex-shrink: 0;
+  border-radius: 12px !important;
+  background: var(--mat-sys-surface-container) !important;
+  color: var(--mat-sys-on-surface-variant) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 2px solid transparent !important;
+}
+
+.admin-layout__log-button:hover {
+  background: var(--mat-sys-surface-container-high) !important;
+  color: var(--mat-sys-on-surface) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  border-color: var(--mat-sys-outline-variant) !important;
+}
+
+.admin-layout__log-button--active {
+  background: var(--mat-sys-secondary-container) !important;
+  color: var(--mat-sys-on-secondary-container) !important;
+  border-color: var(--mat-sys-secondary) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.admin-layout__log-button mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
 /* Hide the default Material tab indicator */
 ::ng-deep .mat-mdc-tab-header-pagination,
 ::ng-deep .mdc-tab-indicator,
@@ -129,6 +173,18 @@
     padding: 2rem 1rem 1.5rem;
   }
 
+  .admin-layout__header-content {
+    gap: 1.5rem;
+  }
+
+  .admin-layout__title-group {
+    gap: 1rem;
+  }
+
+  .admin-layout__title-section {
+    gap: 1rem;
+  }
+
   .admin-layout__title {
     font-size: 1.5rem;
   }
@@ -143,19 +199,28 @@
     height: 2rem;
   }
 
-  .admin-layout__tab-nav {
-    padding: 0 1rem;
+  .admin-layout__log-button {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .admin-layout__log-button mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
   }
 
   .admin-layout__tab-link {
     min-width: auto;
+    flex: 1;
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.75rem;
+    padding: 0.5rem 0.75rem !important;
   }
 
   .admin-layout__tab-link span {
-    display: none;
+    font-size: 0.7rem;
   }
 
   .admin-layout__content {

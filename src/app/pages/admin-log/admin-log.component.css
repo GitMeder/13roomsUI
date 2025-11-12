@@ -1,0 +1,390 @@
+.admin-log-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-log-header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.header-title-section {
+  flex: 1;
+  min-width: 250px;
+}
+
+.admin-log-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1976d2;
+  margin: 0 0 0.5rem 0;
+}
+
+.admin-log-subtitle {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.export-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.export-button mat-icon {
+  font-size: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.view-toggle {
+  white-space: nowrap;
+}
+
+.search-field {
+  min-width: 250px;
+  max-width: 350px;
+}
+
+.search-field mat-icon {
+  color: #666;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 0;
+  gap: 1rem;
+}
+
+.loading-spinner p {
+  color: #666;
+  font-size: 1rem;
+}
+
+.error-card,
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.error-icon,
+.empty-icon {
+  font-size: 4rem;
+  width: 4rem;
+  height: 4rem;
+  color: #f44336;
+}
+
+.empty-icon {
+  color: #9e9e9e;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 1.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #e3f2fd, #bbdefb);
+}
+
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.timeline-icon {
+  position: absolute;
+  left: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.timeline-icon mat-icon {
+  color: white;
+  font-size: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.action-create {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+}
+
+.action-update {
+  background: linear-gradient(135deg, #2196f3, #42a5f5);
+}
+
+.action-delete {
+  background: linear-gradient(135deg, #f44336, #ef5350);
+}
+
+.action-login {
+  background: linear-gradient(135deg, #ff9800, #ffa726);
+}
+
+.action-logout {
+  background: linear-gradient(135deg, #9e9e9e, #bdbdbd);
+}
+
+.action-default {
+  background: linear-gradient(135deg, #607d8b, #78909c);
+}
+
+.timeline-content {
+  flex: 1;
+  margin-left: 3.5rem;
+}
+
+.log-card {
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  border-left: 4px solid #2196f3;
+}
+
+.log-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(4px);
+}
+
+.log-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.log-action-text {
+  flex: 1;
+  font-size: 1.1rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+.log-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.timestamp-icon {
+  font-size: 1.2rem;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.log-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.log-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.meta-icon {
+  font-size: 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: #999;
+}
+
+.entity-id {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: #e3f2fd;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1976d2;
+}
+
+.details-panel {
+  margin-top: 1rem;
+  box-shadow: none !important;
+  border: 1px solid #e0e0e0;
+}
+
+.details-panel mat-expansion-panel-header {
+  background: #f5f5f5;
+}
+
+.details-panel mat-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.details-panel mat-panel-title mat-icon {
+  font-size: 1.2rem;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.details-content {
+  padding: 1rem;
+  background: #fafafa;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  color: #333;
+  margin: 0;
+}
+
+.load-more-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e0e0e0;
+}
+
+.load-more-container button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+}
+
+.load-more-container button mat-spinner {
+  margin-right: 0.5rem;
+}
+
+.pagination-info {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.text-view-container {
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-left: 4px solid #1976d2;
+}
+
+.text-view-content {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #333;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .admin-log-container {
+    padding: 1rem;
+  }
+
+  .admin-log-header {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .header-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .export-button,
+  .view-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .search-field {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .timeline {
+    padding-left: 1rem;
+  }
+
+  .timeline::before {
+    left: 0.75rem;
+  }
+
+  .timeline-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .timeline-icon mat-icon {
+    font-size: 1.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .timeline-content {
+    margin-left: 2.5rem;
+  }
+
+  .log-card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .log-timestamp {
+    align-self: flex-start;
+  }
+
+  .log-meta {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}

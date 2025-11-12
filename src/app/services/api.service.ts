@@ -491,4 +491,51 @@ export class ApiService {
   deleteUser(id: number): Observable<void> {
     return this.delete<void>(`users/${id}`);
   }
+
+  getActivityLogs(page: number = 1, limit: number = 50): Observable<{
+    logs: ActivityLog[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+    };
+  }> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('limit', limit.toString());
+
+    return this.get<{
+      logs: ActivityLog[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+      };
+    }>('logs', { params });
+  }
+}
+
+export interface ActivityLog {
+  id: number;
+  user_id: number | null;
+  action_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT';
+  entity_type: 'BOOKING' | 'ROOM' | 'USER';
+  entity_id: number | null;
+  details: Record<string, any> | null;
+  timestamp: string;
+  firstname: string | null;
+  surname: string | null;
+  email: string | null;
+  user: {
+    id: number;
+    firstname: string;
+    surname: string;
+    email: string;
+  } | null;
 }
