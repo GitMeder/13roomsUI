@@ -196,4 +196,32 @@ export class AdminBookingsComponent implements OnInit {
       }
     });
   }
+
+  exportCsv() {
+  const data = this.dataSource.filteredData.length
+    ? this.dataSource.filteredData
+    : this.dataSource.data;
+  if (!data.length) return;
+
+  const header = ['Raum', 'Titel', 'Datum', 'Zeit', 'Gebucht von', 'Kommentar'];
+  const rows = data.map(b => [
+    `"${b.room_name}"`,
+    `"${b.title}"`,
+    `"${b.formattedDate}"`,
+    `"${b.formattedTime}"`,
+    `"${b.bookedBy}"`,
+    `"${b.comment || ''}"`
+  ]);
+
+  const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
+  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'bookings.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 }
