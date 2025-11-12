@@ -6,7 +6,7 @@
       <div class="booking-form__conflict-warning">
         <mat-icon>warning</mat-icon>
         <span>
-          Dieser Zeitraum ist bereits belegt durch „{{ conflict.title }}“ ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr).
+          Dieser Zeitraum ist bereits belegt. ({{ formatTime(conflict.start_time) }} - {{ formatTime(conflict.end_time) }} Uhr)
           @if (availabilityCountdown(); as countdown) {
             {{ countdown }}
           }
