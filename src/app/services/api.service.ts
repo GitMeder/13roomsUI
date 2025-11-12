@@ -290,11 +290,17 @@ export class ApiService {
     };
   }
 
-  private mapBooking(raw: RawBookingResponse | null | undefined): Booking | null {
-    if (!raw) {
-      return null;
-    }
-
+  /**
+   * Extracts and normalizes user fields from raw API data.
+   * Handles both snake_case and camelCase field names from different API responses.
+   * This is the single source of truth for field normalization.
+   */
+  private extractUserFields(raw: any): {
+    createdBy: number | null;
+    createdByName: string | null;
+    createdByEmail: string | null;
+    guestName: string | null;
+  } {
     const createdBy =
       typeof raw.created_by === 'number'
         ? raw.created_by
@@ -335,16 +341,28 @@ export class ApiService {
       : null;
 
     return {
+      createdBy,
+      createdByName,
+      createdByEmail: creatorEmail,
+      guestName
+    };
+  }
+
+  private mapBooking(raw: RawBookingResponse | null | undefined): Booking | null {
+    if (!raw) {
+      return null;
+    }
+
+    const userFields = this.extractUserFields(raw);
+
+    return {
       id: raw.id,
       room_id: raw.room_id,
       title: raw.title ?? raw.name ?? 'Ohne Titel',
       start_time: raw.start_time,
       end_time: raw.end_time,
       comment: raw.comment ?? null,
-      createdBy,
-      createdByName,
-      createdByEmail: creatorEmail,
-      guestName
+      ...userFields
     };
   }
 
@@ -408,51 +426,11 @@ export class ApiService {
     createdByEmail: string | null;
     guestName: string | null;
   } {
-    const createdBy =
-      typeof raw['created_by'] === 'number'
-        ? raw['created_by']
-        : typeof raw['createdBy'] === 'number'
-          ? raw['createdBy']
-          : null;
-
-    const creatorFirstname: string | null =
-      typeof raw['creator_firstname'] === 'string'
-        ? raw['creator_firstname']
-        : typeof raw['creatorFirstname'] === 'string'
-          ? raw['creatorFirstname']
-          : null;
-
-    const creatorSurname: string | null =
-      typeof raw['creator_surname'] === 'string'
-        ? raw['creator_surname']
-        : typeof raw['creatorSurname'] === 'string'
-          ? raw['creatorSurname']
-          : null;
-
-    const creatorEmail: string | null =
-      typeof raw['creator_email'] === 'string'
-        ? raw['creator_email']
-        : typeof raw['creatorEmail'] === 'string'
-          ? raw['creatorEmail']
-          : null;
-
-    const guestName: string | null =
-      typeof raw['guest_name'] === 'string' && raw['guest_name'].trim()
-        ? raw['guest_name'].trim()
-        : typeof raw['guestName'] === 'string' && raw['guestName'].trim()
-          ? raw['guestName'].trim()
-          : null;
-
-    const createdByName = creatorFirstname || creatorSurname
-      ? [creatorFirstname, creatorSurname].filter(Boolean).join(' ').trim() || null
-      : null;
+    const userFields = this.extractUserFields(raw);
 
     return {
       ...raw,
-      createdBy,
-      createdByName,
-      createdByEmail: creatorEmail,
-      guestName
+      ...userFields
     };
   }
 

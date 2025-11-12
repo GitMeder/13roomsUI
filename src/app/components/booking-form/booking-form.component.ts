@@ -7,6 +7,7 @@ import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
 import { FormMode, BookingFormState, BookingFormData } from '../../models/booking-form-state.model';
 import { formatToHHMM } from '../../utils/date-time.utils';
+import { ErrorHandlingService } from '../../core/services/error-handling.service';
 
 // Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -67,6 +68,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly errorHandler = inject(ErrorHandlingService);
   private destroy$ = new Subject<void>();
   private countdownSubscription: Subscription | null = null;
 
@@ -814,41 +816,15 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: (response) => {
-        this.snackBar.open('Buchung erfolgreich aktualisiert!', 'OK', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom',
-          panelClass: ['success-snackbar']
-        });
+        this.errorHandler.showSuccess('Buchung erfolgreich aktualisiert!');
 
         setTimeout(() => {
           window.history.back();
         }, 500);
       },
       error: (error) => {
-        if (error.status === 409) {
-          this.snackBar.open(
-            'Konflikt: Der gewählte Zeitraum ist bereits belegt.',
-            'OK',
-            {
-              duration: 5000,
-              horizontalPosition: 'center',
-              verticalPosition: 'bottom',
-              panelClass: ['error-snackbar']
-            }
-          );
-        } else {
-          this.snackBar.open(
-            'Fehler beim Aktualisieren der Buchung. Bitte versuchen Sie es erneut.',
-            'OK',
-            {
-              duration: 5000,
-              horizontalPosition: 'center',
-              verticalPosition: 'bottom',
-              panelClass: ['error-snackbar']
-            }
-          );
-        }
+        // ErrorHandlingService will handle the error display via ApiService
+        // No need for manual error handling here
       }
     });
   }
