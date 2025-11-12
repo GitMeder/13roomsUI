@@ -72,7 +72,6 @@ export class AdminRoomsComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        console.error('Failed to load rooms:', err);
         this.error.set(err.error?.message || 'Fehler beim Laden der Räume.');
         this.loading.set(false);
       }
@@ -123,7 +122,6 @@ export class AdminRoomsComponent implements OnInit {
         this.loadRooms();
       },
       error: (err) => {
-        console.error('Failed to delete room:', err);
         this.snackBar.open(
           err.error?.message || 'Fehler beim Löschen des Raums.',
           'OK',

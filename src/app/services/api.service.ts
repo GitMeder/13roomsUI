@@ -3,6 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, delay, map, of, throwError, switchMap } from 'rxjs';
 import { Room } from '../models/room.model';
 import { Booking, BookingPayload } from '../models/booking.model';
+import { ErrorHandlingService } from '../core/services/error-handling.service';
+import { environment } from '../../environments/environment';
+import {
+  RawBookingResponse,
+  BookingWithRoomInfo,
+  ApiUser,
+  GetUsersResponse,
+  UserResponse
+} from '../models/api-responses.model';
 
 interface ApiRoom {
   id: number;
@@ -57,7 +66,8 @@ export interface UpdateRoomPayload {
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:3000/api';
+  private readonly errorHandler = inject(ErrorHandlingService);
+  private readonly baseUrl = environment.apiUrl;
 
   private readonly knownStatuses = new Set(['available', 'occupied', 'maintenance', 'active', 'inactive']);
 
@@ -70,12 +80,8 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
-    console.log(`API GET: ${url}`);
     return this.http.get<T>(url, options).pipe(
-      catchError((error) => {
-        console.error(`API GET Error for ${url}:`, error);
-        return throwError(() => error);
-      })
+      catchError((error) => this.errorHandler.handleHttpError(error, `GET ${endpoint}`))
     );
   }
 
@@ -85,12 +91,8 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
-    console.log(`API POST: ${url}`, body);
     return this.http.post<T>(url, body, options).pipe(
-      catchError((error) => {
-        console.error(`API POST Error for ${url}:`, error);
-        return throwError(() => error);
-      })
+      catchError((error) => this.errorHandler.handleHttpError(error, `POST ${endpoint}`))
     );
   }
 
@@ -100,12 +102,8 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
-    console.log(`API PUT: ${url}`, body);
     return this.http.put<T>(url, body, options).pipe(
-      catchError((error) => {
-        console.error(`API PUT Error for ${url}:`, error);
-        return throwError(() => error);
-      })
+      catchError((error) => this.errorHandler.handleHttpError(error, `PUT ${endpoint}`))
     );
   }
 
@@ -115,66 +113,30 @@ export class ApiService {
     };
   }): Observable<T> {
     const url = `${this.baseUrl}/${endpoint}`;
-    console.log(`API DELETE: ${url}`);
     return this.http.delete<T>(url, options).pipe(
-      catchError((error) => {
-        console.error(`API DELETE Error for ${url}:`, error);
-        return throwError(() => error);
-      })
+      catchError((error) => this.errorHandler.handleHttpError(error, `DELETE ${endpoint}`))
     );
   }
 
-  /**
-   * Fetches all available rooms from the backend API.
-   * Falls back to mock data if the API is unavailable.
-   * @returns Observable emitting an array of Room objects with current booking information
-   */
   getRooms(): Observable<Room[]> {
-    console.log('Fetching rooms...');
-    // Attempt to reach the real API first, otherwise fall back to the mock data.
     return this.get<ApiRoom[]>('rooms').pipe(
-      map((rooms) => rooms.map((room) => this.normalizeRoom(room))),
-      catchError((error) => {
-        console.error('Error fetching rooms:', error);
-        return throwError(() => error);
-      })
+      map((rooms) => rooms.map((room) => this.normalizeRoom(room)))
     );
   }
 
   createRoom(roomData: CreateRoomPayload): Observable<Room> {
-    console.log('Creating room:', roomData);
     return this.post<Room>('rooms', roomData);
   }
 
-  /**
-   * Fetches all bookings created by the currently authenticated user.
-   * Includes room name and icon for display purposes.
-   * @returns Observable emitting an array of user's bookings with room info
-   */
-  getMyBookings(): Observable<any[]> {
-    console.log('Fetching my bookings');
-    return this.get<any[]>('bookings/my-bookings');
+  getMyBookings(): Observable<BookingWithRoomInfo[]> {
+    return this.get<BookingWithRoomInfo[]>('bookings/my-bookings');
   }
 
-  /**
-   * Updates a booking (currently supports title and comment updates).
-   * @param id - The ID of the booking to update
-   * @param payload - Object containing title and optionally comment
-   * @returns Observable emitting success response
-   */
   updateBooking(id: number, payload: { title: string; comment?: string | null }): Observable<{ message: string }> {
-    console.log(`Updating booking ${id}:`, payload);
     return this.put<{ message: string }>(`bookings/${id}`, payload);
   }
 
-  /**
-   * Reschedules a booking (updates all fields including date/time).
-   * @param id - The ID of the booking to reschedule
-   * @param payload - Complete booking details including date, time range, title, and comment
-   * @returns Observable emitting success response
-   */
   rescheduleBooking(id: number, payload: BookingPayload): Observable<{ message: string }> {
-    console.log(`Rescheduling booking ${id}:`, payload);
 
     const requestBody = {
       room_id: payload.roomId,
@@ -187,49 +149,29 @@ export class ApiService {
     return this.put<{ message: string }>(`bookings/${id}`, requestBody);
   }
 
-  /**
-   * Deletes a booking by ID. Requires authentication and ownership/admin rights.
-   * @param id - The ID of the booking to delete
-   * @returns Observable emitting void on success
-   */
   deleteBooking(id: number): Observable<void> {
-    console.log(`Deleting booking with ID: ${id}`);
     return this.delete<void>(`bookings/${id}`);
   }
 
-  /**
-   * Gets all bookings across all rooms (admin only).
-   * @returns Observable emitting array of all bookings with room and creator information
-   */
-  getAllBookings(): Observable<any[]> {
-    console.log('Fetching all bookings (admin)');
-    return this.get<any[]>('bookings');
+  getAllBookings(): Observable<BookingWithRoomInfo[]> {
+    return this.get<BookingWithRoomInfo[]>('bookings');
   }
 
   updateRoom(id: number, payload: UpdateRoomPayload): Observable<Room> {
-    console.log(`Updating room ${id}:`, payload);
     return this.put<{ message: string; room: ApiRoom }>(`rooms/${id}`, payload).pipe(
       map(response => this.normalizeRoom(response.room))
     );
   }
 
   deleteRoom(id: number): Observable<void> {
-    console.log(`Deleting room with ID: ${id}`);
     return this.delete<void>(`rooms/${id}`);
   }
 
-  /**
-   * Fetches all bookings for a specific room, optionally filtered by date.
-   * @param roomId - The ID of the room to fetch bookings for
-   * @param date - Optional date string in YYYY-MM-DD format to filter bookings
-   * @returns Observable emitting an array of Booking objects
-   */
   getRoomBookings(roomId: number, date?: string): Observable<Booking[]> {
-    console.log(`Fetching bookings for room ID: ${roomId}${date ? ' on ' + date : ''}`);
 
     if (date) {
       const params = new HttpParams().set('date', date);
-      return this.get<any[]>(`bookings/room/${roomId}`, { params }).pipe(
+      return this.get<RawBookingResponse[]>(`bookings/room/${roomId}`, { params }).pipe(
         map((rows) =>
           rows
             .map((raw) => this.mapBooking(raw))
@@ -238,7 +180,7 @@ export class ApiService {
       );
     }
 
-    return this.get<any[]>(`bookings/room/${roomId}`).pipe(
+    return this.get<RawBookingResponse[]>(`bookings/room/${roomId}`).pipe(
       map((rows) =>
         rows
           .map((raw) => this.mapBooking(raw))
@@ -247,16 +189,7 @@ export class ApiService {
     );
   }
 
-  /**
-   * Checks if a booking would conflict with existing bookings for a room.
-   * @param roomId - The ID of the room to check
-   * @param date - Date string in YYYY-MM-DD format
-   * @param startTime - Start time in HH:mm format
-   * @param endTime - End time in HH:mm format
-   * @returns Observable emitting the conflicting Booking or null if no conflict exists
-   */
   checkBookingConflict(roomId: number, date: string, startTime: string, endTime: string): Observable<Booking | null> {
-    console.log(`Checking for conflicts for room: ${roomId} on ${date} from ${startTime} to ${endTime}`);
 
     // Call the backend API to check for conflicts
     const params = new HttpParams()
@@ -265,25 +198,17 @@ export class ApiService {
       .set('endTime', endTime);
 
     return this.http
-      .get<any>(`${this.baseUrl}/bookings/check-conflict/${roomId}`, { params })
+      .get<RawBookingResponse | null>(`${this.baseUrl}/bookings/check-conflict/${roomId}`, { params })
       .pipe(
         map((raw) => this.mapBooking(raw)),
-        catchError(error => {
-          console.error('Error checking booking conflict:', error);
-          // Return null on error instead of throwing
-          return of(null);
-        })
+        catchError(error => this.errorHandler.handleHttpErrorSilently(error, 'Checking booking conflict', null))
       );
   }
 
   getRoom(roomId: number): Observable<Room> {
     return this.http.get<ApiRoom>(`${this.baseUrl}/rooms/${roomId}`).pipe(
       map((room) => this.normalizeRoom(room)),
-      catchError(err => {
-        console.error('Error fetching room:', err);
-        // throwError is important to let the component know the call failed
-        return throwError(() => new Error('Room not found'));
-      })
+      catchError(err => this.errorHandler.handleHttpError(err, `Loading room ${roomId}`))
     );
   }
 
@@ -314,17 +239,7 @@ export class ApiService {
     return this.post<BookingResponse>('bookings', requestBody);
   }
 
-  /**
-   * PHASE 3: Smart Failure Recovery
-   * Searches for alternative rooms that are available for the specified time slot.
-   *
-   * @param date Date in ISO format (YYYY-MM-DD)
-   * @param startTime Time in HH:mm format
-   * @param endTime Time in HH:mm format
-   * @returns Observable of available rooms
-   */
   getAvailableRooms(date: string, startTime: string, endTime: string): Observable<Room[]> {
-    console.log(`Searching for available rooms on ${date} from ${startTime} to ${endTime}`);
 
     const params = new HttpParams()
       .set('date', date)
@@ -333,11 +248,7 @@ export class ApiService {
 
     return this.get<ApiRoom[]>('rooms/available', { params }).pipe(
       map((rooms) => rooms.map((room) => this.normalizeRoom(room))),
-      catchError((error) => {
-        console.error('Error fetching available rooms:', error);
-        // Return empty array on error instead of throwing
-        return of([]);
-      })
+      catchError((error) => this.errorHandler.handleHttpErrorSilently(error, 'Loading available rooms', []))
     );
   }
 
@@ -379,7 +290,7 @@ export class ApiService {
     };
   }
 
-  private mapBooking(raw: any | null | undefined): Booking | null {
+  private mapBooking(raw: RawBookingResponse | null | undefined): Booking | null {
     if (!raw) {
       return null;
     }
@@ -412,6 +323,13 @@ export class ApiService {
           ? raw.creatorEmail
           : null;
 
+    const guestName: string | null =
+      typeof raw.guest_name === 'string' && raw.guest_name.trim()
+        ? raw.guest_name.trim()
+        : typeof raw.guestName === 'string' && raw.guestName.trim()
+          ? raw.guestName.trim()
+          : null;
+
     const createdByName = creatorFirstname || creatorSurname
       ? [creatorFirstname, creatorSurname].filter(Boolean).join(' ').trim() || null
       : null;
@@ -425,7 +343,8 @@ export class ApiService {
       comment: raw.comment ?? null,
       createdBy,
       createdByName,
-      createdByEmail: creatorEmail
+      createdByEmail: creatorEmail,
+      guestName
     };
   }
 
@@ -457,7 +376,12 @@ export class ApiService {
     }
   }
 
-  private toInternalStatus(status?: string | null): 'active' | 'inactive' | 'maintenance' {
+  /**
+   * Normalizes room status to internal canonical values.
+   * Maps various status representations to 'active' | 'inactive' | 'maintenance'.
+   * This is the single source of truth for status normalization across the application.
+   */
+  toInternalStatus(status?: string | null): 'active' | 'inactive' | 'maintenance' {
     const normalized = status?.toLowerCase();
     switch (normalized) {
       case 'maintenance':
@@ -471,27 +395,73 @@ export class ApiService {
   }
 
   /**
-   * ========================================================================
-   * USER MANAGEMENT ENDPOINTS (Admin Only)
-   * ========================================================================
+   * Normalizes booking fields from raw API response.
+   * This method handles field name variations (snake_case vs camelCase) and creates computed fields.
+   * Components should use this to normalize bookings that include extra fields beyond the base Booking interface.
+   *
+   * @param raw - Raw booking data from API (may include extra fields like room_name, status, etc.)
+   * @returns Normalized booking with standardized field names and computed fields, preserving any extra fields
    */
+  normalizeBookingFields<T extends Record<string, unknown>>(raw: T): T & {
+    createdBy: number | null;
+    createdByName: string | null;
+    createdByEmail: string | null;
+    guestName: string | null;
+  } {
+    const createdBy =
+      typeof raw['created_by'] === 'number'
+        ? raw['created_by']
+        : typeof raw['createdBy'] === 'number'
+          ? raw['createdBy']
+          : null;
 
-  /**
-   * Gets all users in the system (admin only).
-   * @returns Observable emitting array of all users
-   */
-  getAllUsers(): Observable<any[]> {
-    console.log('Fetching all users (admin)');
-    return this.get<{ message: string; users: any[] }>('users').pipe(
+    const creatorFirstname: string | null =
+      typeof raw['creator_firstname'] === 'string'
+        ? raw['creator_firstname']
+        : typeof raw['creatorFirstname'] === 'string'
+          ? raw['creatorFirstname']
+          : null;
+
+    const creatorSurname: string | null =
+      typeof raw['creator_surname'] === 'string'
+        ? raw['creator_surname']
+        : typeof raw['creatorSurname'] === 'string'
+          ? raw['creatorSurname']
+          : null;
+
+    const creatorEmail: string | null =
+      typeof raw['creator_email'] === 'string'
+        ? raw['creator_email']
+        : typeof raw['creatorEmail'] === 'string'
+          ? raw['creatorEmail']
+          : null;
+
+    const guestName: string | null =
+      typeof raw['guest_name'] === 'string' && raw['guest_name'].trim()
+        ? raw['guest_name'].trim()
+        : typeof raw['guestName'] === 'string' && raw['guestName'].trim()
+          ? raw['guestName'].trim()
+          : null;
+
+    const createdByName = creatorFirstname || creatorSurname
+      ? [creatorFirstname, creatorSurname].filter(Boolean).join(' ').trim() || null
+      : null;
+
+    return {
+      ...raw,
+      createdBy,
+      createdByName,
+      createdByEmail: creatorEmail,
+      guestName
+    };
+  }
+
+  getAllUsers(): Observable<ApiUser[]> {
+    return this.get<GetUsersResponse>('users').pipe(
       map(response => response.users)
     );
   }
 
-  /**
-   * Creates a new user (admin only).
-   * @param payload - User details including email, firstname, surname, password, role, and is_active
-   * @returns Observable emitting the created user
-   */
   createUser(payload: {
     email: string;
     firstname: string;
@@ -499,19 +469,12 @@ export class ApiService {
     password: string;
     role?: 'user' | 'admin';
     is_active?: boolean;
-  }): Observable<any> {
-    console.log('Creating new user (admin):', payload);
-    return this.post<{ message: string; user: any }>('users', payload).pipe(
+  }): Observable<ApiUser> {
+    return this.post<UserResponse>('users', payload).pipe(
       map(response => response.user)
     );
   }
 
-  /**
-   * Updates an existing user (admin only).
-   * @param id - User ID
-   * @param payload - Fields to update
-   * @returns Observable emitting the updated user
-   */
   updateUser(id: number, payload: {
     email?: string;
     firstname?: string;
@@ -519,20 +482,13 @@ export class ApiService {
     password?: string;
     role?: 'user' | 'admin';
     is_active?: boolean;
-  }): Observable<any> {
-    console.log(`Updating user ${id} (admin):`, payload);
-    return this.put<{ message: string; user: any }>(`users/${id}`, payload).pipe(
+  }): Observable<ApiUser> {
+    return this.put<UserResponse>(`users/${id}`, payload).pipe(
       map(response => response.user)
     );
   }
 
-  /**
-   * Deletes a user (admin only).
-   * @param id - User ID to delete
-   * @returns Observable emitting void on success
-   */
   deleteUser(id: number): Observable<void> {
-    console.log(`Deleting user ${id} (admin)`);
     return this.delete<void>(`users/${id}`);
   }
 }

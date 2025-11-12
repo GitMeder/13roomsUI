@@ -8,6 +8,7 @@ export interface Booking {
   createdBy: number | null;
   createdByName: string | null;
   createdByEmail: string | null;
+  guestName: string | null;
 }
 
 export interface BookingPayload {

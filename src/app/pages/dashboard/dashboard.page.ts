@@ -7,8 +7,8 @@ import {
   signal,
   DestroyRef,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { formatToHHMM, formatToYYYYMMDD, formatToVerboseGermanDate } from '../../utils/date-time.utils';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -24,6 +24,7 @@ import { Router, RouterLink, NavigationEnd } from '@angular/router';
 import { timer } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
+import { ErrorHandlingService } from '../../core/services/error-handling.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { animate, style, transition, trigger } from '@angular/animations';
 
@@ -50,7 +51,6 @@ import { animate, style, transition, trigger } from '@angular/animations';
     RoomCardComponent,
     RouterLink,
   ],
-  providers: [DatePipe],
   templateUrl: './dashboard.page.html',
   styleUrls: ['./dashboard.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -82,9 +82,9 @@ export class DashboardPageComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
-  private readonly datePipe = inject(DatePipe);
   private readonly authService = inject(AuthService);
   private readonly dialog = inject(MatDialog);
+  private readonly errorHandler = inject(ErrorHandlingService);
 
   // Core state signals
   readonly loading = signal<boolean>(true);
@@ -227,11 +227,8 @@ export class DashboardPageComponent implements OnInit {
   });
 
   // Date utilities
-  readonly todayKey =
-    this.datePipe.transform(new Date(), 'yyyy-MM-dd', undefined, 'de-DE') ?? '';
-  readonly todayLabel =
-    this.datePipe.transform(new Date(), 'EEEE, d. MMM', undefined, 'de-DE') ??
-    'Heute';
+  readonly todayKey = formatToYYYYMMDD(new Date());
+  readonly todayLabel = formatToVerboseGermanDate(new Date());
 
   // Booking groups for selected room
   readonly bookingGroups = computed(() => {
@@ -262,12 +259,7 @@ export class DashboardPageComponent implements OnInit {
         const isPast = firstDate.getTime() < startOfToday.getTime();
         const label = isToday
           ? 'Heute'
-          : this.datePipe.transform(
-              firstDate,
-              'EEEE, d. MMM',
-              undefined,
-              'de-DE'
-            ) ?? dateKey;
+          : formatToVerboseGermanDate(firstDate);
 
         return {
           dateKey,
@@ -363,11 +355,9 @@ export class DashboardPageComponent implements OnInit {
           this.loading.set(false);
         },
         error: (err) => {
-          console.error('Error loading rooms:', err);
-          this.error.set(
-            'Die Räume konnten nicht geladen werden. Bitte versuchen Sie es erneut.'
-          );
+          this.error.set('Die Räume konnten nicht geladen werden.');
           this.loading.set(false);
+          // ErrorHandlingService already displays error via ApiService
         },
       });
   }
@@ -468,10 +458,11 @@ export class DashboardPageComponent implements OnInit {
   onDeleteRoom(roomId: number): void {
     this.api.deleteRoom(roomId).subscribe({
       next: () => {
+        this.errorHandler.showSuccess('Raum erfolgreich gelöscht.');
         this.loadRooms();
       },
-      error: (err) => {
-        console.error(`Error deleting room ${roomId}:`, err);
+      error: () => {
+        // ErrorHandlingService already displays error via ApiService
       },
     });
   }
@@ -520,10 +511,10 @@ export class DashboardPageComponent implements OnInit {
           this.roomBookings.set(bookings);
           this.bookingsLoading.set(false);
         },
-        error: (err) => {
-          console.error(`Error loading bookings for room ${roomId}:`, err);
+        error: () => {
           this.bookingsError.set('Die Buchungen konnten nicht geladen werden.');
           this.bookingsLoading.set(false);
+          // ErrorHandlingService already displays error via ApiService
         },
       });
   }
@@ -562,15 +553,14 @@ export class DashboardPageComponent implements OnInit {
           .subscribe({
             next: () => {
               this.deletingBookingId.set(null);
+              this.errorHandler.showSuccess('Buchung erfolgreich gelöscht.');
               this.fetchRoomBookings(selectedRoomId, true);
               this.loadRooms();
             },
-            error: (err) => {
-              console.error(`Error deleting booking ${booking.id}:`, err);
+            error: () => {
               this.deletingBookingId.set(null);
-              this.bookingsError.set(
-                'Die Buchung konnte nicht gelöscht werden.'
-              );
+              this.bookingsError.set('Die Buchung konnte nicht gelöscht werden.');
+              // ErrorHandlingService already displays error via ApiService
             },
           });
       });
@@ -582,31 +572,7 @@ export class DashboardPageComponent implements OnInit {
    * This is the single source of truth for time formatting across the dashboard.
    * Simply extracts the time part from the datetime string without any conversion.
    */
-  formatTime(value: string | Date | undefined | null): string {
-    if (!value) {
-      return '';
-    }
-
-    // Convert Date object to ISO string if needed
-    const isoString = (value instanceof Date) ? value.toISOString() : value;
-
-    // Extract time part from strings like "2025-11-13T08:00:00.000Z" or "2025-11-13 08:00:00"
-    // Check for both ISO format (with 'T') and SQL format (with space)
-    if (isoString.includes('T')) {
-      const timePart = isoString.split('T')[1];
-      if (timePart) {
-        return timePart.substring(0, 5); // Returns "08:00"
-      }
-    } else if (isoString.includes(' ')) {
-      // SQL datetime format: "2025-11-13 08:00:00"
-      const timePart = isoString.split(' ')[1];
-      if (timePart) {
-        return timePart.substring(0, 5); // Returns "08:00"
-      }
-    }
-
-    return ''; // Fallback
-  }
+  formatTime = formatToHHMM;
 
   isOwnBooking(booking: Booking): boolean {
     const userId = this.currentUserId();
@@ -625,8 +591,6 @@ export class DashboardPageComponent implements OnInit {
 
   private getDateKey(value: string | Date): string {
     const date = value instanceof Date ? value : new Date(value);
-    return (
-      this.datePipe.transform(date, 'yyyy-MM-dd', undefined, 'de-DE') ?? ''
-    );
+    return formatToYYYYMMDD(date);
   }
 }

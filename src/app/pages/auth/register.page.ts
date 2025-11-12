@@ -10,6 +10,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { UserRole } from '../../models/enums';
 
 @Component({
   selector: 'app-register-page',
@@ -44,7 +45,7 @@ export class RegisterPageComponent {
     surname: ['', [Validators.required, Validators.minLength(2)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
-    role: ['user' as 'user' | 'admin', Validators.required]
+    role: [UserRole.USER as UserRole.USER | UserRole.ADMIN, Validators.required]
   });
 
   onSubmit(): void {
@@ -60,17 +61,14 @@ export class RegisterPageComponent {
       next: () => {
         this.submitting.set(false);
 
-        // Check for redirect parameter (e.g., from guest booking flow)
         const redirectUrl = this.route.snapshot.queryParams['redirect'];
         if (redirectUrl) {
-          console.log('[RegisterPage] Redirecting to:', redirectUrl);
           void this.router.navigateByUrl(redirectUrl);
         } else {
           void this.router.navigateByUrl('/');
         }
       },
       error: (error) => {
-        console.error('Registration failed', error);
         this.submitting.set(false);
         this.snackBar.open(
           error?.error?.message ?? 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.',

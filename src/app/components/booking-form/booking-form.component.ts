@@ -6,6 +6,7 @@ import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
 import { FormMode, BookingFormState, BookingFormData } from '../../models/booking-form-state.model';
+import { formatToHHMM } from '../../utils/date-time.utils';
 
 // Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -48,15 +49,6 @@ interface RoomLiveStatus {
   nextTitle?: string;
   nextBookingStartTime?: Date;
 }
-
-/**
- * LEGACY: Old FormMode enum - now replaced by the comprehensive FormMode in booking-form-state.model.ts
- * Kept here temporarily for reference during migration.
- */
-// enum FormMode {
-//   Suggesting, // Normal mode: calculating and showing suggestions
-//   Prefilled   // Smart Rebooking mode: form is pre-filled, no suggestions
-// }
 
 @Component({
   selector: 'app-booking-form',
@@ -133,7 +125,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   // Live Status Banner State
   public readonly liveStatus = signal<RoomLiveStatus>({ type: null });
   public readonly countdownText = signal<string>('');
-  private liveStatusTimer: any = null;
+  private liveStatusTimer: ReturnType<typeof setInterval> | null = null;
 
   // ViewChild for focus management
   @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
@@ -153,19 +145,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       comment: new FormControl<string | null>(null),
     }, { validators: [this.timeRangeValidator()] });
 
-    // === CENTRALIZED STATE CONFIGURATION EFFECT ===
-    // This is THE entry point for all state configuration
     effect(() => {
       const state = this.initialState();
 
       if (state) {
-        // NEW API: Use the unified state object
-        console.log('[BookingForm] Configuring from initialState:', state);
         this.currentMode.set(state.mode);
         this.formData.set(state.data || null);
         this.configureFormForMode(state);
       } else {
-        // LEGACY API: Fall back to old input signals for backwards compatibility
         this.configureLegacyInputs();
       }
     }, { allowSignalWrites: true });
@@ -334,22 +321,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         next: (bookings) => {
           this.dayBookings.set(bookings);
           this.calculateAvailableTimes(bookings, date);
-
-          // LIVE STATUS BANNER: Calculate live status after bookings are loaded
           this.calculateLiveStatus();
-
-          // CRITICAL FIX: Set loading state to false AFTER all calculations are complete
-          // This ensures the UI never sees an intermediate state where loading=false but suggestedSlots is still empty
         },
         error: (error) => {
-          // On error, assume no bookings and continue
           this.dayBookings.set([]);
           this.calculateAvailableTimes([], date);
-
-          // LIVE STATUS BANNER: Calculate live status even on error
           this.calculateLiveStatus();
-
-          // CRITICAL FIX: Set loading state to false AFTER all calculations are complete
         }
       });
   }
@@ -450,23 +427,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     let startSearchFrom: string;
     if (isToday) {
-      // SMART SUGGESTION: Always start from the NEXT available 15-minute interval
       const minutes = now.getMinutes();
       const interval = 15;
-
-      // Calculate how many minutes past the last interval we are
       const remainder = minutes % interval;
-
-      // If we are not exactly on an interval, calculate minutes to add
       const minutesToAdd = remainder === 0 ? 0 : interval - remainder;
-
-      // Create the next valid slot time
       const nextSlotTime = new Date(now.getTime() + minutesToAdd * 60000);
-
-      // Round down seconds and milliseconds for a clean start time
       nextSlotTime.setSeconds(0, 0);
-
-      // Format this as HH:mm for startSearchFrom
       startSearchFrom = `${nextSlotTime.getHours().toString().padStart(2, '0')}:${nextSlotTime.getMinutes().toString().padStart(2, '0')}`;
     } else {
       startSearchFrom = '00:00';
@@ -511,10 +477,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.hasCalculatedSlots.set(true);
   }
 
-  /**
-   * Selects a suggested slot by index.
-   * Called when user clicks on a suggestion chip.
-   */
   public selectSlot(index: number): void {
     const slots = this.suggestedSlots();
     if (index < 0 || index >= slots.length) {
@@ -524,22 +486,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const slot = slots[index];
     this.selectedSlotIndex.set(index);
 
-    // Update form fields without triggering change detection cascade
     this.form.patchValue({
       startTime: slot.startTime,
       endTime: slot.endTime
     }, { emitEvent: false });
 
-    // Trigger conflict check manually since we disabled emitEvent
     this.checkConflict();
   }
 
-  // === MODE-SPECIFIC CONFIGURATION METHODS ===
-
-  /**
-   * Routes to the appropriate configuration method based on the mode.
-   * This is the central dispatcher for form behavior.
-   */
   private configureFormForMode(state: BookingFormState): void {
     switch (state.mode) {
       case FormMode.NEW:
@@ -559,33 +513,16 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         break;
 
       default:
-        console.warn('[BookingForm] Unknown mode:', state.mode);
         this.configureForNewBooking();
     }
   }
 
-  /**
-   * Configuration for NEW booking mode.
-   * - Reset form to defaults
-   * - Generate suggested slots based on current time
-   * - Enable all fields
-   * - No special UI indicators
-   */
   private configureForNewBooking(): void {
-    console.log('[BookingForm] Configuring for NEW booking');
-    // Form will calculate slots in ngOnInit
     this.isLoadingSlots.set(true);
     this.hasCalculatedSlots.set(false);
   }
 
-  /**
-   * Configuration for NEW_WITH_SUGGESTION mode.
-   * - Pre-fill date/time from suggestion
-   * - Keep title/comment empty
-   * - Highlight the selected slot chip
-   */
   private configureWithSuggestion(data: BookingFormData): void {
-    console.log('[BookingForm] Configuring with SUGGESTION', data);
 
     if (data.date && data.startTime && data.endTime) {
       const dateObj = new Date(data.date + 'T00:00:00');
@@ -600,18 +537,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.isLoadingSlots.set(false);
   }
 
-  /**
-   * Configuration for RESCHEDULE mode.
-   * - Pre-fill ALL fields from existing booking
-   * - Show banner: "Umbuchung von [original date/time]"
-   * - Store the booking ID for update operation
-   */
   private configureForReschedule(data: BookingFormData): void {
-    console.log('[BookingForm] Configuring for RESCHEDULE', data);
-
-    // Store the booking ID for the update operation
     this.bookingToUpdateId.set(data.bookingId ?? null);
-    console.log('[BookingForm] Booking to update ID:', data.bookingId);
 
     if (data.date && data.startTime && data.endTime) {
       const dateObj = new Date(data.date + 'T00:00:00');
@@ -629,15 +556,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.isLoadingSlots.set(false);
   }
 
-  /**
-   * Configuration for SMART_RECOVERY mode.
-   * - Pre-fill date/time/title from failed attempt
-   * - Show rainbow highlight banner
-   * - Display "Smart Rebooking" message
-   * - Generate slots for NEW room
-   */
   private configureForSmartRecovery(data: BookingFormData): void {
-    console.log('[BookingForm] Configuring for SMART_RECOVERY', data);
 
     if (data.date && data.startTime && data.endTime) {
       const dateObj = new Date(data.date + 'T00:00:00');
@@ -655,15 +574,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.isLoadingSlots.set(false);
   }
 
-  /**
-   * LEGACY: Handles configuration from old input signals for backwards compatibility.
-   * This will be deprecated once all parent components are migrated to the new API.
-   */
   private configureLegacyInputs(): void {
-    // Handle prefillData input (reschedule or smart recovery)
     const prefill = this.prefillData();
     if (prefill) {
-      console.warn('[BookingForm] Using LEGACY prefillData input. Please migrate to initialState API.');
 
       const isSmartRebooking = this.isSmartRebooking();
       this.currentMode.set(isSmartRebooking ? FormMode.SMART_RECOVERY : FormMode.RESCHEDULE);
@@ -683,30 +596,22 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Handle suggested times input (new with suggestion)
     const startTime = this.suggestedStartTime();
     const endTime = this.suggestedEndTime();
     if (startTime && endTime) {
-      console.warn('[BookingForm] Using LEGACY suggestedStartTime/suggestedEndTime inputs. Please migrate to initialState API.');
       this.currentMode.set(FormMode.NEW_WITH_SUGGESTION);
       this.form.patchValue({ startTime, endTime }, { emitEvent: false });
       return;
     }
 
-    // Handle initialConflict input
     const conflict = this.initialConflict();
     if (conflict) {
-      console.warn('[BookingForm] Using LEGACY initialConflict input. Please migrate to initialState API.');
       this.bookingConflict.set(conflict);
     }
 
-    // Default: NEW booking mode
     this.currentMode.set(FormMode.NEW);
   }
 
-  /**
-   * Returns the header title based on the current mode.
-   */
   private getHeaderTitle(): string {
     switch (this.currentMode()) {
       case FormMode.NEW:
@@ -727,27 +632,22 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     if (this.countdownSubscription) {
       this.countdownSubscription.unsubscribe();
     }
-    // CRITICAL: Clean up live status timer to prevent memory leaks
     if (this.liveStatusTimer) {
       clearInterval(this.liveStatusTimer);
       this.liveStatusTimer = null;
     }
   }
-  
+
   private checkConflict(): void {
     const formValue = this.form.getRawValue();
     const { roomId, date, startTime, endTime } = formValue;
 
-    // CRITICAL: Only check for conflicts if ALL required fields are filled
-    // This ensures the warning only appears when user has actually selected a time range
     if (!roomId || !date || !startTime || !endTime) {
-      // Clear any existing conflict warning when fields are incomplete
       this.bookingConflict.set(null);
       this.updateCountdown(null);
       return;
     }
 
-    // Validate that times are properly formatted
     if (!startTime.includes(':') || !endTime.includes(':')) {
       this.bookingConflict.set(null);
       this.updateCountdown(null);
@@ -765,10 +665,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   }
 
   private updateCountdown(conflict: Booking | null): void {
-    // Clean up any previous countdown
     if (this.countdownSubscription) {
       this.countdownSubscription.unsubscribe();
-      this.countdownSubscription = null; // Reset subscription
+      this.countdownSubscription = null;
     }
 
     if (conflict) {
@@ -794,36 +693,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Formats a date/time string to HH:mm format WITHOUT timezone conversion.
-   * This is the single source of truth for time formatting in the booking form.
-   * Simply extracts the time part from the datetime string without any conversion.
-   */
-  public formatTime(dateString: string | Date | undefined | null): string {
-    if (!dateString) {
-      return '';
-    }
-
-    // Convert Date object to ISO string if needed
-    const isoString = (dateString instanceof Date) ? dateString.toISOString() : dateString;
-
-    // Extract time part from strings like "2025-11-13T08:00:00.000Z" or "2025-11-13 08:00:00"
-    // Check for both ISO format (with 'T') and SQL format (with space)
-    if (isoString.includes('T')) {
-      const timePart = isoString.split('T')[1];
-      if (timePart) {
-        return timePart.substring(0, 5); // Returns "08:00"
-      }
-    } else if (isoString.includes(' ')) {
-      // SQL datetime format: "2025-11-13 08:00:00"
-      const timePart = isoString.split(' ')[1];
-      if (timePart) {
-        return timePart.substring(0, 5); // Returns "08:00"
-      }
-    }
-
-    return ''; // Fallback
-  }
+  public formatTime = formatToHHMM;
 
   public isSubmitDisabled(): boolean {
     const formValue = this.form.getRawValue();
@@ -831,19 +701,11 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     return !formValue.roomId || !formValue.startTime || !formValue.endTime || title.length < 2;
   }
 
-  /**
-   * Normalizes time format to 24-hour HH:mm format.
-   * Handles both 24-hour format (already correct) and 12-hour AM/PM format (needs conversion).
-   * @param time Time string in either "HH:mm" or "h:mm AM/PM" format
-   * @returns Time string in "HH:mm" format
-   */
   private normalizeTimeFormat(time: string): string {
-    // Check if time contains AM/PM (12-hour format)
     const amPmRegex = /(\d{1,2}):(\d{2})\s*(AM|PM)/i;
     const match = time.match(amPmRegex);
 
     if (match) {
-      // Convert 12-hour to 24-hour format
       let hours = parseInt(match[1], 10);
       const minutes = match[2];
       const period = match[3].toUpperCase();
@@ -857,7 +719,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return `${hours.toString().padStart(2, '0')}:${minutes}`;
     }
 
-    // Already in 24-hour format, return as is
     return time;
   }
 
@@ -936,35 +797,23 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       comment: formValue.comment || undefined,
     };
 
-    // === RESCHEDULE MODE: Update existing booking instead of creating new one ===
     const mode = this.currentMode();
     const bookingId = this.bookingToUpdateId();
 
     if (mode === FormMode.RESCHEDULE && bookingId) {
-      console.log('[BookingForm] RESCHEDULE mode detected - updating booking', bookingId);
       this.handleRescheduleSubmission(bookingId, payload);
       return;
     }
 
-    // === DEFAULT: Emit event for parent to handle (NEW, NEW_WITH_SUGGESTION, SMART_RECOVERY) ===
-    console.log('[BookingForm] Standard submission - emitting to parent');
     this.submitted.emit(payload);
   }
 
-  /**
-   * Handles the submission of a rescheduled booking.
-   * Updates the existing booking via API instead of creating a new one.
-   */
   private handleRescheduleSubmission(bookingId: number, payload: BookingPayload): void {
-    console.log('[BookingForm] Rescheduling booking via API:', bookingId, payload);
 
     this.apiService.rescheduleBooking(bookingId, payload).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (response) => {
-        console.log('[BookingForm] Reschedule successful:', response);
-
-        // Show success message
         this.snackBar.open('Buchung erfolgreich aktualisiert!', 'OK', {
           duration: 3000,
           horizontalPosition: 'center',
@@ -972,15 +821,11 @@ export class BookingFormComponent implements OnInit, OnDestroy {
           panelClass: ['success-snackbar']
         });
 
-        // Navigate back to My Bookings after a short delay
         setTimeout(() => {
           window.history.back();
         }, 500);
       },
       error: (error) => {
-        console.error('[BookingForm] Error rescheduling booking:', error);
-
-        // Check for conflict error (409)
         if (error.status === 409) {
           this.snackBar.open(
             'Konflikt: Der gewählte Zeitraum ist bereits belegt.',
@@ -993,7 +838,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
             }
           );
         } else {
-          // Generic error
           this.snackBar.open(
             'Fehler beim Aktualisieren der Buchung. Bitte versuchen Sie es erneut.',
             'OK',
@@ -1014,14 +858,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.resetForm.emit();
   }
 
-  /**
-   * TIMELINE: Finds all consecutive bookings in a block and returns them as an ordered array.
-   * This builds the complete timeline for visualization.
-   */
   private findBookingBlock(currentBooking: Booking, allBookings: Booking[]): Booking[] {
     const blockBookings: Booking[] = [currentBooking];
-
-    // Look for consecutive bookings
     let foundConsecutive = true;
     let currentEnd = new Date(currentBooking.end_time);
 
@@ -1032,7 +870,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         const bookingStart = new Date(booking.start_time);
         const bookingEnd = new Date(booking.end_time);
 
-        // Check if this booking starts exactly when the current block ends
         if (bookingStart.getTime() === currentEnd.getTime()) {
           blockBookings.push(booking);
           currentEnd = bookingEnd;
@@ -1045,10 +882,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     return blockBookings;
   }
 
-  /**
-   * LIVE STATUS BANNER: Calculates the current room status for the live banner.
-   * Only active for today's date.
-   */
   private calculateLiveStatus(): void {
     const formValue = this.form.getRawValue();
     const { date } = formValue;
@@ -1062,7 +895,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const selectedDate = new Date(date);
     const isToday = selectedDate.toDateString() === now.toDateString();
 
-    // Only show banner for today
     if (!isToday) {
       this.liveStatus.set({ type: null });
       this.stopLiveCountdown();
@@ -1071,24 +903,18 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     const bookings = this.dayBookings();
 
-    // Find current booking (room is occupied right now)
     const currentBooking = bookings.find(booking => {
       const start = new Date(booking.start_time);
       const end = new Date(booking.end_time);
-      // CRITICAL FIX: Compare timestamps, not Date objects
       return start.getTime() <= now.getTime() && end.getTime() > now.getTime();
     });
 
     if (currentBooking) {
-      // Room is currently booked! Build the complete timeline
       const blockBookings = this.findBookingBlock(currentBooking, bookings);
       const blockStartTime = new Date(blockBookings[0].start_time);
       const blockEndTime = new Date(blockBookings[blockBookings.length - 1].end_time);
-
-      // Calculate total block duration in minutes
       const totalBlockMinutes = Math.floor((blockEndTime.getTime() - blockStartTime.getTime()) / 60000);
 
-      // Build timeline segments with proportional widths
       const timelineSegments: TimelineSegment[] = blockBookings.map(booking => {
         const start = new Date(booking.start_time);
         const end = new Date(booking.end_time);
@@ -1104,13 +930,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         };
       });
 
-      // Find which segment is currently active
       const currentSegmentIndex = timelineSegments.findIndex(segment => {
-        // CRITICAL FIX: Compare timestamps, not Date objects
         return now.getTime() >= segment.startTime.getTime() && now.getTime() < segment.endTime.getTime();
       });
 
-      // Calculate progress of current segment (0-100%)
       let currentSegmentProgress = 0;
       if (currentSegmentIndex >= 0) {
         const currentSegment = timelineSegments[currentSegmentIndex];
@@ -1119,8 +942,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         currentSegmentProgress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
       }
 
-      // Find next booking after the block ends
-      // CRITICAL FIX: Compare timestamps, not Date objects
       const nextBooking = bookings
         .filter(b => new Date(b.start_time).getTime() >= blockEndTime.getTime())
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
@@ -1140,31 +961,18 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Room is not currently booked
     this.liveStatus.set({ type: null });
     this.stopLiveCountdown();
   }
 
-  /**
-   * TIMELINE: Starts the live countdown timer for the current segment.
-   * Updates every second, showing countdown for active meeting and progress.
-   */
   private startLiveCountdown(): void {
-    // Clear any existing timer
     this.stopLiveCountdown();
-
-    // Update immediately
     this.updateTimeline();
-
-    // Update every second
     this.liveStatusTimer = setInterval(() => {
       this.updateTimeline();
     }, 1000);
   }
 
-  /**
-   * TIMELINE: Stops the live countdown timer.
-   */
   private stopLiveCountdown(): void {
     if (this.liveStatusTimer) {
       clearInterval(this.liveStatusTimer);
@@ -1173,15 +981,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * TIMELINE: Updates the countdown text and segment progress.
-   * Shows countdown for the current segment only.
-   */
   private updateTimeline(): void {
     const status = this.liveStatus();
 
     if (!status.timelineSegments || status.currentSegmentIndex === undefined || status.currentSegmentIndex < 0) {
-      // No active segment
       this.calculateLiveStatus();
       return;
     }
@@ -1189,14 +992,11 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const currentSegment = status.timelineSegments[status.currentSegmentIndex];
     const now = new Date();
 
-    // CRITICAL FIX: Compare timestamps, not Date objects
-    // Check if current segment has ended
     if (now.getTime() >= currentSegment.endTime.getTime()) {
       this.calculateLiveStatus();
       return;
     }
 
-    // Calculate remaining time for current segment
     const remainingMs = currentSegment.endTime.getTime() - now.getTime();
     const totalSeconds = Math.floor(remainingMs / 1000);
 
@@ -1208,12 +1008,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     this.countdownText.set(formattedTime);
 
-    // Calculate and update segment progress
     const segmentDurationMs = currentSegment.endTime.getTime() - currentSegment.startTime.getTime();
     const elapsedMs = now.getTime() - currentSegment.startTime.getTime();
     const progress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
 
-    // Update the live status with new progress
     const updatedStatus: RoomLiveStatus = {
       ...status,
       currentSegmentProgress: progress
@@ -1222,10 +1020,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.liveStatus.set(updatedStatus);
   }
 
-  /**
-   * TIMELINE: Helper method to check if countdown should be displayed.
-   * This provides type-safe access to timeline data in the template.
-   */
   public shouldShowCountdown(): boolean {
     const status = this.liveStatus();
     return status.currentSegmentIndex !== undefined &&
@@ -1235,10 +1029,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
            status.timelineSegments.length > 0;
   }
 
-  /**
-   * TIMELINE: Gets the current segment's booking title safely.
-   * Only call this after shouldShowCountdown() returns true.
-   */
   public getCurrentSegmentTitle(): string {
     const status = this.liveStatus();
     if (status.currentSegmentIndex !== undefined &&

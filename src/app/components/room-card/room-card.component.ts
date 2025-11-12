@@ -2,8 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   input,
-  Output,
-  EventEmitter,
+  output,
   inject,
   computed,
   signal,
@@ -61,9 +60,9 @@ export class RoomCardComponent {
   readonly canDelete = input(false);
   readonly isHighlighted = input(false);
 
-  @Output() deleteRoomEvent = new EventEmitter<number>();
-  @Output() cardClick = new EventEmitter<number>();
-  @Output() showBookings = new EventEmitter<number>();
+  readonly deleteRoomEvent = output<number>();
+  readonly cardClick = output<number>();
+  readonly showBookings = output<number>();
 
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);

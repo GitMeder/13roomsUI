@@ -1,6 +1,7 @@
 import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { formatToHHMM, formatToGermanDate } from '../../utils/date-time.utils';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
@@ -13,22 +14,18 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
+import { Booking } from '../../models/booking.model';
+import { ErrorHandlingService } from '../../core/services/error-handling.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
+import { BookingWithRoomInfo } from '../../models/api-responses.model';
 
-interface AdminBooking {
-  id: number;
-  room_id: number;
+/**
+ * Extended booking interface for admin table display.
+ * Includes presentation-specific fields (formattedDate, formattedTime, bookedBy).
+ */
+interface AdminBooking extends Booking {
   room_name: string;
-  title: string;
-  start_time: string;
-  end_time: string;
-  comment: string | null;
-  created_by: number | null;
-  guest_name: string | null;
-  creator_firstname: string | null;
-  creator_surname: string | null;
-  creator_email: string | null;
-  status: 'confirmed' | 'canceled';
+  status: string;
   formattedDate: string;
   formattedTime: string;
   bookedBy: string;
@@ -54,7 +51,7 @@ interface AdminBooking {
 })
 export class AdminBookingsComponent implements OnInit {
   private readonly apiService = inject(ApiService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly errorHandler = inject(ErrorHandlingService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
 
@@ -83,36 +80,36 @@ export class AdminBookingsComponent implements OnInit {
 
     this.apiService.getAllBookings().subscribe({
       next: (bookings) => {
+        // BookingWithRoomInfo is already normalized by ApiService
         const formatted = bookings.map(b => this.formatBooking(b));
         this.dataSource.data = formatted;
         this.loading.set(false);
       },
-      error: (err) => {
-        console.error('Failed to load bookings:', err);
-        this.error.set(err.error?.message || 'Fehler beim Laden der Buchungen.');
+      error: () => {
+        this.error.set('Fehler beim Laden der Buchungen.');
         this.loading.set(false);
+        // ErrorHandlingService already displays error via ApiService
       }
     });
   }
 
-  formatBooking(booking: any): AdminBooking {
+  /**
+   * Adds presentation-specific fields to a booking.
+   * The ApiService handles all data normalization, this method only adds display formatting.
+   */
+  formatBooking(booking: BookingWithRoomInfo): AdminBooking {
     const startDate = new Date(booking.start_time);
     const endDate = new Date(booking.end_time);
 
-    const formattedDate = startDate.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-
+    const formattedDate = formatToGermanDate(startDate);
     const formattedTime = `${this.formatTime(startDate)} – ${this.formatTime(endDate)}`;
 
-    let bookedBy = 'Unbekannt';
-    if (booking.creator_firstname && booking.creator_surname) {
-      bookedBy = `${booking.creator_firstname} ${booking.creator_surname}`;
-    } else if (booking.guest_name) {
-      bookedBy = `Gast: ${booking.guest_name}`;
-    }
+    // Use normalized data from ApiService (createdByName, guestName)
+    const bookedBy = booking.createdByName
+      ? booking.createdByName
+      : booking.guestName
+        ? `Gast: ${booking.guestName}`
+        : 'Unbekannt';
 
     return {
       ...booking,
@@ -122,13 +119,7 @@ export class AdminBookingsComponent implements OnInit {
     };
   }
 
-  formatTime(date: Date): string {
-    return date.toLocaleTimeString('de-DE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-  }
+  formatTime = formatToHHMM;
 
   applyFilter(event: Event): void {
     const filterValue = (event.target as HTMLInputElement).value;
@@ -178,21 +169,13 @@ export class AdminBookingsComponent implements OnInit {
 
     this.apiService.deleteBooking(id).subscribe({
       next: () => {
-        this.snackBar.open('Buchung erfolgreich gelöscht.', 'OK', {
-          duration: 3000,
-          panelClass: 'snackbar-success'
-        });
+        this.errorHandler.showSuccess('Buchung erfolgreich gelöscht.');
         this.deletingId.set(null);
         this.loadBookings();
       },
-      error: (err) => {
-        console.error('Failed to delete booking:', err);
-        this.snackBar.open(
-          err.error?.message || 'Fehler beim Löschen der Buchung.',
-          'OK',
-          { duration: 5000, panelClass: 'snackbar-error' }
-        );
+      error: () => {
         this.deletingId.set(null);
+        // ErrorHandlingService already displays error via ApiService
       }
     });
   }

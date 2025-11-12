@@ -63,7 +63,6 @@ export class LoginPageComponent implements OnInit {
         void this.router.navigateByUrl(target);
       },
       error: (error) => {
-        console.error('Login failed', error);
         this.submitting.set(false);
         this.snackBar.open(
           error?.error?.message ?? 'Login fehlgeschlagen. Bitte überprüfen Sie Ihre Angaben.',

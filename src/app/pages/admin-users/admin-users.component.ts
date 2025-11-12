@@ -15,16 +15,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { UserFormDialogComponent, UserFormData } from '../../components/user-form-dialog/user-form-dialog.component';
+import { ApiUser } from '../../models/api-responses.model';
 
-interface AdminUser {
-  id: number;
-  email: string;
-  firstname: string;
-  surname: string;
-  role: 'user' | 'admin';
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+interface AdminUser extends ApiUser {
   fullName: string;
 }
 
@@ -85,7 +78,6 @@ export class AdminUsersComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        console.error('Failed to load users:', err);
         this.error.set(err.error?.message || 'Fehler beim Laden der Benutzer.');
         this.loading.set(false);
       }
@@ -162,7 +154,6 @@ export class AdminUsersComponent implements OnInit {
         this.loadUsers();
       },
       error: (err) => {
-        console.error('Failed to create user:', err);
         this.snackBar.open(
           err.error?.message || 'Fehler beim Anlegen des Benutzers.',
           'OK',
@@ -182,7 +173,6 @@ export class AdminUsersComponent implements OnInit {
         this.loadUsers();
       },
       error: (err) => {
-        console.error('Failed to update user:', err);
         this.snackBar.open(
           err.error?.message || 'Fehler beim Aktualisieren des Benutzers.',
           'OK',
@@ -205,7 +195,6 @@ export class AdminUsersComponent implements OnInit {
         this.loadUsers();
       },
       error: (err) => {
-        console.error('Failed to delete user:', err);
         this.snackBar.open(
           err.error?.message || 'Fehler beim Löschen des Benutzers.',
           'OK',

@@ -1,6 +1,8 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { UserRole } from '../models/enums';
 
 interface AuthApiResponse {
   message: string;
@@ -13,7 +15,7 @@ export interface AuthUser {
   email?: string;
   firstname?: string;
   surname?: string;
-  role: 'user' | 'admin' | 'guest';
+  role: UserRole;
   name?: string;
 }
 
@@ -22,15 +24,15 @@ export interface AuthUser {
 })
 export class AuthService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:3000/api/auth';
+  private readonly baseUrl = `${environment.apiUrl}/auth`;
   private readonly tokenKey = 'auth_token';
   private readonly userKey = 'auth_user';
 
-  private readonly guestUser: AuthUser = { role: 'guest' };
+  private readonly guestUser: AuthUser = { role: UserRole.GUEST };
 
   readonly currentUser = signal<AuthUser>(this.readStoredUser());
-  readonly isGuest = computed(() => this.currentUser().role === 'guest');
-  readonly isAuthenticated = computed(() => this.currentUser().role !== 'guest');
+  readonly isGuest = computed(() => this.currentUser().role === UserRole.GUEST);
+  readonly isAuthenticated = computed(() => this.currentUser().role !== UserRole.GUEST);
 
   get token(): string | null {
     return localStorage.getItem(this.tokenKey);
@@ -48,7 +50,7 @@ export class AuthService {
     firstname: string;
     surname: string;
     password: string;
-    role: 'user' | 'admin';
+    role: UserRole.USER | UserRole.ADMIN;
   }): Observable<AuthUser> {
     return this.http.post<AuthApiResponse>(`${this.baseUrl}/register`, payload).pipe(
       tap((response) => this.persistSession(response)),

@@ -101,7 +101,6 @@ export class RoomEditPageComponent implements OnInit, OnDestroy {
       .subscribe({
         next: room => this.populateForm(room),
         error: error => {
-          console.error('Failed to load room', error);
           this.loadError.set('Raum konnte nicht geladen werden. Bitte versuchen Sie es erneut.');
           this.isLoading.set(false);
         }
@@ -182,7 +181,6 @@ export class RoomEditPageComponent implements OnInit, OnDestroy {
         void this.router.navigate(['/']);
       },
       error: error => {
-        console.error('Failed to update room', error);
         this.isSaving.set(false);
         this.snackBar.open('Aktualisierung fehlgeschlagen. Bitte erneut versuchen.', 'OK', { duration: 3500 });
       }

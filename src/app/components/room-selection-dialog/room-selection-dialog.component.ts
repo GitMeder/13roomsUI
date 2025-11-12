@@ -10,10 +10,6 @@ export interface RoomSelectionDialogData {
   rooms: Room[];
 }
 
-/**
- * PHASE 3+: Smart Recovery Enhancement
- * Dialog for selecting an alternative room when multiple options are available.
- */
 @Component({
   selector: 'app-room-selection-dialog',
   standalone: true,

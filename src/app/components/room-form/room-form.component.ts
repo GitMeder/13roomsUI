@@ -60,10 +60,6 @@ export class RoomFormComponent implements OnInit {
     'Outdoor-Spielplatz-Zugang'
   ];
 
-  constructor() {
-    console.log('RoomFormComponent constructor called.');
-  }
-
   ngOnInit(): void {
     this.roomForm = this.fb.group({
       name: ['', Validators.required],
@@ -106,7 +102,6 @@ export class RoomFormComponent implements OnInit {
   }
 
   onSubmit(): void {
-    console.log('onSubmit called');
     if (this.roomForm.valid) {
       const { name, capacity, location, icon } = this.roomForm.value;
       const sanitizedLocation = location?.trim();
@@ -119,19 +114,13 @@ export class RoomFormComponent implements OnInit {
         amenities: this.amenities
       };
 
-      console.log('Form is valid. Submitting with data:', payload);
       this.apiService.createRoom(payload).subscribe({
         next: (response) => {
-          console.log('Room created successfully', response);
-          this.router.navigate(['/']); // Navigate back to dashboard
+          this.router.navigate(['/']);
         },
         error: (error) => {
-          console.error('Error creating room', error);
-          // Handle error, e.g., display a message to the user
         }
       });
-    } else {
-      console.log('Form is invalid. Cannot submit.');
     }
   }
 }
