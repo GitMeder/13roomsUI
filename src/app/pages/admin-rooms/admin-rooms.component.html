@@ -40,11 +40,18 @@
   @else {
     <div class="admin-section__content">
       <!-- Filter Input -->
-      <mat-form-field class="admin-section__filter" appearance="outline">
-        <mat-label>Suchen</mat-label>
-        <input matInput (keyup)="applyFilter($event)" placeholder="Name, Standort ...">
-        <mat-icon matPrefix>search</mat-icon>
-      </mat-form-field>
+      <div class="admin-section__filter-group">
+        <mat-form-field class="admin-section__filter" appearance="outline">
+          <mat-label>Filtern nach...</mat-label>
+          <input matInput (keyup)="applyFilter($event)" placeholder="Name, Standort ...">
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+
+        <button mat-stroked-button color="primary" (click)="exportCsv()" class="admin-section__filter">
+            <mat-icon>download</mat-icon>
+              Als CSV exportieren
+        </button>
+      </div>
 
       <!-- Data Table -->
       <div class="admin-section__table-container">

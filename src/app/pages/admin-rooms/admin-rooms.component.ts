@@ -153,4 +153,29 @@ export class AdminRoomsComponent implements OnInit {
     };
     return colorMap[status] || '';
   }
+
+  exportCsv() {
+    const data = this.dataSource.filteredData.length
+      ? this.dataSource.filteredData
+      : this.dataSource.data;
+    if (!data.length) return;
+
+    const header = ['Name', 'Kapazität', 'Standort', 'Status'];
+    const rows = data.map(r => [
+      `"${r.name}"`,
+      `"${r.capacity}"`,
+      `"${r.location || ''}"`,
+      `"${this.getStatusLabel(r.status)}"`
+    ]);
+
+    const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'rooms.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 }

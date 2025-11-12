@@ -98,6 +98,16 @@
   max-width: 400px;
 }
 
+.admin-section__filter-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--mat-sys-outline-variant);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 /* Table Container */
 .admin-section__table-container {
   overflow-x: auto;
