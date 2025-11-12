@@ -4,7 +4,7 @@ import { Observable, catchError, delay, map, of, throwError, switchMap } from 'r
 import { Room } from '../models/room.model';
 import { Booking, BookingPayload } from '../models/booking.model';
 import { ErrorHandlingService } from '../core/services/error-handling.service';
-import { environment } from '../../environments/environment';
+import { environment } from '@env/environment';
 import {
   RawBookingResponse,
   BookingWithRoomInfo,

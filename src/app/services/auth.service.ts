@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { environment } from '@env/environment';
 import { UserRole } from '../models/enums';
 
 interface AuthApiResponse {
