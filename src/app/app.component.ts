@@ -22,6 +22,7 @@ export class AppComponent {
 
   readonly currentUser = computed(() => this.authService.currentUser());
   readonly isGuest = computed(() => this.authService.isGuest());
+  readonly isAdmin = computed(() => this.currentUser().role === 'admin');
 
   logout(): void {
     this.authService.logout();

@@ -1,0 +1,139 @@
+<!-- Admin Users Management -->
+<div class="admin-section">
+  <!-- Header -->
+  <header class="admin-section__header">
+    <div class="admin-section__title-group">
+      <mat-icon>people</mat-icon>
+      <div>
+        <h2>Benutzerverwaltung</h2>
+        <p>Benutzer erstellen, bearbeiten und löschen</p>
+      </div>
+    </div>
+    <button mat-fab extended color="primary" (click)="onCreateUser()" class="admin-section__action-btn">
+      <mat-icon>person_add</mat-icon>
+      Neuen Benutzer anlegen
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="admin-section__loading">
+      <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+      <p>Benutzer werden geladen ...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (error()) {
+    <div class="admin-section__error">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Fehler beim Laden</h3>
+      <p>{{ error() }}</p>
+      <button mat-flat-button color="primary" (click)="loadUsers()">
+        <mat-icon>refresh</mat-icon>
+        Erneut versuchen
+      </button>
+    </div>
+  }
+
+  <!-- Table -->
+  @else {
+    <div class="admin-section__content">
+      <!-- Filter Input -->
+      <mat-form-field class="admin-section__filter" appearance="outline">
+        <mat-label>Suchen</mat-label>
+        <input matInput (keyup)="applyFilter($event)" placeholder="Name, E-Mail ...">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+
+      <!-- Data Table -->
+      <div class="admin-section__table-container">
+        <table mat-table [dataSource]="dataSource" matSort class="admin-table">
+          <!-- Name Column -->
+          <ng-container matColumnDef="fullName">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+            <td mat-cell *matCellDef="let user">
+              <div class="admin-table__user">
+                <mat-icon>{{ getRoleIcon(user.role) }}</mat-icon>
+                <span>{{ user.fullName }}</span>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Email Column -->
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>E-Mail</th>
+            <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+          </ng-container>
+
+          <!-- Role Column -->
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Rolle</th>
+            <td mat-cell *matCellDef="let user">
+              <mat-chip [class.chip-admin]="user.role === 'admin'">
+                {{ getRoleLabel(user.role) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Active Column -->
+          <ng-container matColumnDef="is_active">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+            <td mat-cell *matCellDef="let user">
+              <mat-chip [class.chip-active]="user.is_active" [class.chip-inactive]="!user.is_active">
+                {{ user.is_active ? 'Aktiv' : 'Inaktiv' }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Aktionen</th>
+            <td mat-cell *matCellDef="let user">
+              <div class="admin-table__actions">
+                <button
+                  mat-icon-button
+                  color="primary"
+                  matTooltip="Bearbeiten"
+                  (click)="onEdit(user)"
+                  [disabled]="deletingId() === user.id">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  color="warn"
+                  matTooltip="Löschen"
+                  (click)="onDelete(user)"
+                  [disabled]="deletingId() === user.id">
+                  @if (deletingId() === user.id) {
+                    <mat-progress-spinner mode="indeterminate" diameter="20"></mat-progress-spinner>
+                  } @else {
+                    <mat-icon>delete</mat-icon>
+                  }
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+          <!-- No Data Row -->
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell admin-table__no-data" [attr.colspan]="displayedColumns.length">
+              <mat-icon>people</mat-icon>
+              <span>Keine Benutzer gefunden.</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Paginator -->
+      <mat-paginator
+        [pageSizeOptions]="[10, 25, 50, 100]"
+        showFirstLastButtons
+        aria-label="Benutzer auswählen">
+      </mat-paginator>
+    </div>
+  }
+</div>

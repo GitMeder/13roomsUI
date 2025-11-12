@@ -1,0 +1,156 @@
+<!-- Admin Rooms Management -->
+<div class="admin-section">
+  <!-- Header -->
+  <header class="admin-section__header">
+    <div class="admin-section__title-group">
+      <mat-icon>meeting_room</mat-icon>
+      <div>
+        <h2>Raumverwaltung</h2>
+        <p>Räume erstellen, bearbeiten und löschen</p>
+      </div>
+    </div>
+    <button mat-fab extended color="primary" routerLink="/rooms/new" class="admin-section__action-btn">
+      <mat-icon>add</mat-icon>
+      Neuen Raum erstellen
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="admin-section__loading">
+      <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+      <p>Räume werden geladen ...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (error()) {
+    <div class="admin-section__error">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Fehler beim Laden</h3>
+      <p>{{ error() }}</p>
+      <button mat-flat-button color="primary" (click)="loadRooms()">
+        <mat-icon>refresh</mat-icon>
+        Erneut versuchen
+      </button>
+    </div>
+  }
+
+  <!-- Table -->
+  @else {
+    <div class="admin-section__content">
+      <!-- Filter Input -->
+      <mat-form-field class="admin-section__filter" appearance="outline">
+        <mat-label>Suchen</mat-label>
+        <input matInput (keyup)="applyFilter($event)" placeholder="Name, Standort ...">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+
+      <!-- Data Table -->
+      <div class="admin-section__table-container">
+        <table mat-table [dataSource]="dataSource" matSort class="admin-table">
+          <!-- Icon Column -->
+          <ng-container matColumnDef="icon">
+            <th mat-header-cell *matHeaderCellDef>Icon</th>
+            <td mat-cell *matCellDef="let room">
+              <mat-icon [style.color]="'var(--mat-sys-primary)'">
+                {{ room.icon || 'meeting_room' }}
+              </mat-icon>
+            </td>
+          </ng-container>
+
+          <!-- Name Column -->
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+            <td mat-cell *matCellDef="let room">
+              <span class="admin-table__room-name">{{ room.name }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Capacity Column -->
+          <ng-container matColumnDef="capacity">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Kapazität</th>
+            <td mat-cell *matCellDef="let room">
+              <div class="admin-table__capacity">
+                <mat-icon>people</mat-icon>
+                <span>{{ room.capacity }}</span>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Location Column -->
+          <ng-container matColumnDef="location">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Standort</th>
+            <td mat-cell *matCellDef="let room">
+              @if (room.location) {
+                <div class="admin-table__location">
+                  <mat-icon>place</mat-icon>
+                  <span>{{ room.location }}</span>
+                </div>
+              } @else {
+                <span class="admin-table__no-value">—</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+            <td mat-cell *matCellDef="let room">
+              <mat-chip [style.background-color]="getStatusColor(room.status) ? 'var(--mat-sys-' + getStatusColor(room.status) + ')' : 'transparent'">
+                {{ getStatusLabel(room.status) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Aktionen</th>
+            <td mat-cell *matCellDef="let room">
+              <div class="admin-table__actions">
+                <button
+                  mat-icon-button
+                  color="primary"
+                  matTooltip="Bearbeiten"
+                  (click)="onEdit(room)"
+                  [disabled]="deletingId() === room.id">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  color="warn"
+                  matTooltip="Löschen"
+                  (click)="onDelete(room)"
+                  [disabled]="deletingId() === room.id">
+                  @if (deletingId() === room.id) {
+                    <mat-progress-spinner mode="indeterminate" diameter="20"></mat-progress-spinner>
+                  } @else {
+                    <mat-icon>delete</mat-icon>
+                  }
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+          <!-- No Data Row -->
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell admin-table__no-data" [attr.colspan]="displayedColumns.length">
+              <mat-icon>meeting_room</mat-icon>
+              <span>Keine Räume gefunden.</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Paginator -->
+      <mat-paginator
+        [pageSizeOptions]="[10, 25, 50, 100]"
+        showFirstLastButtons
+        aria-label="Räume auswählen">
+      </mat-paginator>
+    </div>
+  }
+</div>

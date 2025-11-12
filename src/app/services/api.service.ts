@@ -197,6 +197,15 @@ export class ApiService {
     return this.delete<void>(`bookings/${id}`);
   }
 
+  /**
+   * Gets all bookings across all rooms (admin only).
+   * @returns Observable emitting array of all bookings with room and creator information
+   */
+  getAllBookings(): Observable<any[]> {
+    console.log('Fetching all bookings (admin)');
+    return this.get<any[]>('bookings');
+  }
+
   updateRoom(id: number, payload: UpdateRoomPayload): Observable<Room> {
     console.log(`Updating room ${id}:`, payload);
     return this.put<{ message: string; room: ApiRoom }>(`rooms/${id}`, payload).pipe(
@@ -459,5 +468,71 @@ export class ApiService {
       default:
         return 'active';
     }
+  }
+
+  /**
+   * ========================================================================
+   * USER MANAGEMENT ENDPOINTS (Admin Only)
+   * ========================================================================
+   */
+
+  /**
+   * Gets all users in the system (admin only).
+   * @returns Observable emitting array of all users
+   */
+  getAllUsers(): Observable<any[]> {
+    console.log('Fetching all users (admin)');
+    return this.get<{ message: string; users: any[] }>('users').pipe(
+      map(response => response.users)
+    );
+  }
+
+  /**
+   * Creates a new user (admin only).
+   * @param payload - User details including email, firstname, surname, password, role, and is_active
+   * @returns Observable emitting the created user
+   */
+  createUser(payload: {
+    email: string;
+    firstname: string;
+    surname: string;
+    password: string;
+    role?: 'user' | 'admin';
+    is_active?: boolean;
+  }): Observable<any> {
+    console.log('Creating new user (admin):', payload);
+    return this.post<{ message: string; user: any }>('users', payload).pipe(
+      map(response => response.user)
+    );
+  }
+
+  /**
+   * Updates an existing user (admin only).
+   * @param id - User ID
+   * @param payload - Fields to update
+   * @returns Observable emitting the updated user
+   */
+  updateUser(id: number, payload: {
+    email?: string;
+    firstname?: string;
+    surname?: string;
+    password?: string;
+    role?: 'user' | 'admin';
+    is_active?: boolean;
+  }): Observable<any> {
+    console.log(`Updating user ${id} (admin):`, payload);
+    return this.put<{ message: string; user: any }>(`users/${id}`, payload).pipe(
+      map(response => response.user)
+    );
+  }
+
+  /**
+   * Deletes a user (admin only).
+   * @param id - User ID to delete
+   * @returns Observable emitting void on success
+   */
+  deleteUser(id: number): Observable<void> {
+    console.log(`Deleting user ${id} (admin)`);
+    return this.delete<void>(`users/${id}`);
   }
 }

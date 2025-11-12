@@ -1,0 +1,38 @@
+<!-- Admin Dashboard Layout with Tab Navigation -->
+<div class="admin-layout">
+  <!-- Header Section -->
+  <header class="admin-layout__header">
+    <div class="admin-layout__header-content">
+      <div class="admin-layout__title-group">
+        <mat-icon class="admin-layout__icon">admin_panel_settings</mat-icon>
+        <div>
+          <h1 class="admin-layout__title">Admin Dashboard</h1>
+          <p class="admin-layout__subtitle">Verwaltung von Buchungen, Räumen und Benutzern</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tab Navigation -->
+  <nav class="admin-layout__nav">
+    <nav mat-tab-nav-bar [tabPanel]="tabPanel" class="admin-layout__tab-nav">
+      @for (link of navLinks; track link.path) {
+        <a
+          mat-tab-link
+          [routerLink]="link.path"
+          routerLinkActive
+          #rla="routerLinkActive"
+          [active]="rla.isActive"
+          class="admin-layout__tab-link">
+          <mat-icon>{{ link.icon }}</mat-icon>
+          <span>{{ link.label }}</span>
+        </a>
+      }
+    </nav>
+  </nav>
+
+  <!-- Content Area with Router Outlet -->
+  <div class="admin-layout__content" mat-tab-nav-panel #tabPanel>
+    <router-outlet></router-outlet>
+  </div>
+</div>

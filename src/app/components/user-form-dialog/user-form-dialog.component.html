@@ -1,0 +1,88 @@
+<h2 mat-dialog-title>
+  <mat-icon>{{ isEditMode ? 'edit' : 'person_add' }}</mat-icon>
+  {{ isEditMode ? 'Benutzer bearbeiten' : 'Neuen Benutzer anlegen' }}
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="user-form">
+    <!-- Email -->
+    <mat-form-field appearance="outline">
+      <mat-label>E-Mail-Adresse</mat-label>
+      <input matInput type="email" formControlName="email" placeholder="benutzer@example.com">
+      <mat-icon matPrefix>email</mat-icon>
+      @if (form.get('email')?.hasError('required')) {
+        <mat-error>E-Mail-Adresse ist erforderlich</mat-error>
+      }
+      @if (form.get('email')?.hasError('email')) {
+        <mat-error>Bitte geben Sie eine gültige E-Mail-Adresse ein</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- First Name -->
+    <mat-form-field appearance="outline">
+      <mat-label>Vorname</mat-label>
+      <input matInput formControlName="firstname" placeholder="Max">
+      <mat-icon matPrefix>person</mat-icon>
+      @if (form.get('firstname')?.hasError('required')) {
+        <mat-error>Vorname ist erforderlich</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Last Name -->
+    <mat-form-field appearance="outline">
+      <mat-label>Nachname</mat-label>
+      <input matInput formControlName="surname" placeholder="Mustermann">
+      <mat-icon matPrefix>person</mat-icon>
+      @if (form.get('surname')?.hasError('required')) {
+        <mat-error>Nachname ist erforderlich</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Password -->
+    <mat-form-field appearance="outline">
+      <mat-label>{{ isEditMode ? 'Neues Passwort (optional)' : 'Passwort' }}</mat-label>
+      <input matInput type="password" formControlName="password" [placeholder]="isEditMode ? 'Leer lassen, um beizubehalten' : '••••••••'">
+      <mat-icon matPrefix>lock</mat-icon>
+      @if (form.get('password')?.hasError('required')) {
+        <mat-error>Passwort ist erforderlich</mat-error>
+      }
+      @if (form.get('password')?.hasError('minlength')) {
+        <mat-error>Passwort muss mindestens 6 Zeichen lang sein</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Role -->
+    <mat-form-field appearance="outline">
+      <mat-label>Rolle</mat-label>
+      <mat-select formControlName="role">
+        <mat-option value="user">
+          <mat-icon>person</mat-icon>
+          Benutzer
+        </mat-option>
+        <mat-option value="admin">
+          <mat-icon>admin_panel_settings</mat-icon>
+          Administrator
+        </mat-option>
+      </mat-select>
+      <mat-icon matPrefix>badge</mat-icon>
+    </mat-form-field>
+
+    <!-- Active Status -->
+    <div class="user-form__checkbox">
+      <mat-checkbox formControlName="is_active">
+        Konto ist aktiv
+      </mat-checkbox>
+      <p class="user-form__hint">Deaktivierte Konten können sich nicht anmelden.</p>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">
+    Abbrechen
+  </button>
+  <button mat-flat-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
+    <mat-icon>{{ isEditMode ? 'save' : 'add' }}</mat-icon>
+    {{ isEditMode ? 'Speichern' : 'Anlegen' }}
+  </button>
+</mat-dialog-actions>

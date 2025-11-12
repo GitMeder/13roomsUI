@@ -9,6 +9,10 @@ import { MyBookingsPageComponent } from './pages/my-bookings/my-bookings.page';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
 import { RoomEditPageComponent } from './pages/room-edit/room-edit.page';
+import { AdminLayoutComponent } from './pages/admin-layout/admin-layout.component';
+import { AdminBookingsComponent } from './pages/admin-bookings/admin-bookings.component';
+import { AdminRoomsComponent } from './pages/admin-rooms/admin-rooms.component';
+import { AdminUsersComponent } from './pages/admin-users/admin-users.component';
 
 export const routes: Routes = [
   {
@@ -56,5 +60,32 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
     component: RoomEditPageComponent,
     title: '13Rooms · Raum bearbeiten'
+  },
+  {
+    path: 'admin',
+    canActivate: [authGuard, adminGuard],
+    component: AdminLayoutComponent,
+    children: [
+      {
+        path: 'bookings',
+        component: AdminBookingsComponent,
+        title: '13Rooms · Buchungsverwaltung'
+      },
+      {
+        path: 'rooms',
+        component: AdminRoomsComponent,
+        title: '13Rooms · Raumverwaltung'
+      },
+      {
+        path: 'users',
+        component: AdminUsersComponent,
+        title: '13Rooms · Benutzerverwaltung'
+      },
+      {
+        path: '',
+        redirectTo: 'bookings',
+        pathMatch: 'full'
+      }
+    ]
   }
 ];

@@ -1,0 +1,136 @@
+/* Admin Layout - Premium Dashboard Design */
+
+.admin-layout {
+  min-height: 100vh;
+  background: var(--mat-sys-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Section */
+.admin-layout__header {
+  background: linear-gradient(135deg, var(--mat-sys-primary) 0%, var(--mat-sys-tertiary) 100%);
+  color: var(--mat-sys-on-primary);
+  padding: 3rem 2rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.admin-layout__header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.admin-layout__title-group {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.admin-layout__icon {
+  font-size: 3rem;
+  width: 3rem;
+  height: 3rem;
+  opacity: 0.9;
+}
+
+.admin-layout__title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.admin-layout__subtitle {
+  margin: 0.5rem 0 0;
+  font-size: 1rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+/* Tab Navigation */
+.admin-layout__nav {
+  background: var(--mat-sys-surface);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.admin-layout__tab-nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.admin-layout__tab-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 180px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.025em;
+}
+
+.admin-layout__tab-link mat-icon {
+  font-size: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Content Area */
+.admin-layout__content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .admin-layout__header {
+    padding: 2rem 1rem 1.5rem;
+  }
+
+  .admin-layout__title {
+    font-size: 1.5rem;
+  }
+
+  .admin-layout__subtitle {
+    font-size: 0.875rem;
+  }
+
+  .admin-layout__icon {
+    font-size: 2rem;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .admin-layout__tab-nav {
+    padding: 0 1rem;
+  }
+
+  .admin-layout__tab-link {
+    min-width: auto;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-layout__tab-link span {
+    display: none;
+  }
+
+  .admin-layout__content {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .admin-layout__content {
+    padding: 1.5rem;
+  }
+}
