@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { formatToHHMM, formatToGermanDate } from '../../utils/date-time.utils';
@@ -11,13 +11,15 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
 import { Booking } from '../../models/booking.model';
+import { Room } from '../../models/room.model';
 import { ErrorHandlingService } from '../../core/services/error-handling.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
-import { BookingWithRoomInfo } from '../../models/api-responses.model';
+import { BookingWithRoomInfo, ApiUser } from '../../models/api-responses.model';
 import { CsvExportService } from '../../utils/csv-export.service';
 
 /**
@@ -45,7 +47,8 @@ interface AdminBooking extends Booking {
     MatTooltipModule,
     MatInputModule,
     MatFormFieldModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatSelectModule
   ],
   templateUrl: './admin-bookings.component.html',
   styleUrl: './admin-bookings.component.css',
@@ -64,11 +67,51 @@ export class AdminBookingsComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly deletingId = signal<number | null>(null);
 
+  // Data signals
+  readonly allBookings = signal<AdminBooking[]>([]);
+  readonly allUsers = signal<ApiUser[]>([]);
+  readonly allRooms = signal<Room[]>([]);
+
+  // Filter signals
+  readonly selectedRoomId = signal<number | 'all'>('all');
+  readonly selectedUserId = signal<number | 'all'>('all');
+  readonly textFilter = signal<string>('');
+
+  // Computed filtered data
+  readonly filteredBookings = computed(() => {
+    const bookings = this.allBookings();
+    const roomId = this.selectedRoomId();
+    const userId = this.selectedUserId();
+    const text = this.textFilter().toLowerCase();
+
+    return bookings.filter(booking => {
+      const roomMatch = (roomId === 'all' || booking.room_id === roomId);
+      const userMatch = (userId === 'all' || booking.createdBy === userId);
+
+      // Text filter matches room name, title, or bookedBy
+      const textMatch = !text ||
+        booking.room_name.toLowerCase().includes(text) ||
+        booking.title.toLowerCase().includes(text) ||
+        booking.bookedBy.toLowerCase().includes(text);
+
+      return roomMatch && userMatch && textMatch;
+    });
+  });
+
   dataSource = new MatTableDataSource<AdminBooking>([]);
   displayedColumns = ['room_name', 'title', 'formattedDate', 'formattedTime', 'bookedBy', 'actions'];
 
+  constructor() {
+    // Update dataSource whenever filteredBookings changes
+    effect(() => {
+      this.dataSource.data = this.filteredBookings();
+    });
+  }
+
   ngOnInit(): void {
     this.loadBookings();
+    this.loadUsers();
+    this.loadRooms();
   }
 
   ngAfterViewInit(): void {
@@ -84,13 +127,37 @@ export class AdminBookingsComponent implements OnInit {
       next: (bookings) => {
         // BookingWithRoomInfo is already normalized by ApiService
         const formatted = bookings.map(b => this.formatBooking(b));
-        this.dataSource.data = formatted;
+        this.allBookings.set(formatted);
         this.loading.set(false);
       },
       error: () => {
         this.error.set('Fehler beim Laden der Buchungen.');
         this.loading.set(false);
         // ErrorHandlingService already displays error via ApiService
+      }
+    });
+  }
+
+  loadUsers(): void {
+    this.apiService.getAllUsers().subscribe({
+      next: (users) => {
+        this.allUsers.set(users);
+      },
+      error: () => {
+        // Silent fail - filter will just show no users
+        this.allUsers.set([]);
+      }
+    });
+  }
+
+  loadRooms(): void {
+    this.apiService.getRooms().subscribe({
+      next: (rooms) => {
+        this.allRooms.set(rooms);
+      },
+      error: () => {
+        // Silent fail - filter will just show no rooms
+        this.allRooms.set([]);
       }
     });
   }
@@ -125,7 +192,17 @@ export class AdminBookingsComponent implements OnInit {
 
   applyFilter(event: Event): void {
     const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
+    this.textFilter.set(filterValue.trim());
+
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
+    }
+  }
+
+  clearFilters(): void {
+    this.selectedRoomId.set('all');
+    this.selectedUserId.set('all');
+    this.textFilter.set('');
 
     if (this.dataSource.paginator) {
       this.dataSource.paginator.firstPage();
@@ -183,9 +260,8 @@ export class AdminBookingsComponent implements OnInit {
   }
 
   exportCsv(): void {
-    const dataToExport = this.dataSource.filteredData.length
-      ? this.dataSource.filteredData
-      : this.dataSource.data;
+    // Use the current filtered data
+    const dataToExport = this.filteredBookings();
 
     // Map data to row arrays with formatted values
     const rows = dataToExport.map(booking => [

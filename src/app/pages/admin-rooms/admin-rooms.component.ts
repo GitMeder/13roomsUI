@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -52,8 +52,37 @@ export class AdminRoomsComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly deletingId = signal<number | null>(null);
 
+  // Data signals
+  readonly allRooms = signal<Room[]>([]);
+
+  // Filter signals
+  readonly textFilter = signal<string>('');
+
+  // Computed filtered data
+  readonly filteredRooms = computed(() => {
+    const rooms = this.allRooms();
+    const text = this.textFilter().toLowerCase();
+
+    return rooms.filter(room => {
+      // Text filter matches name, location, or status
+      const textMatch = !text ||
+        room.name.toLowerCase().includes(text) ||
+        (room.location && room.location.toLowerCase().includes(text)) ||
+        this.getStatusLabel(room.status).toLowerCase().includes(text);
+
+      return textMatch;
+    });
+  });
+
   dataSource = new MatTableDataSource<Room>([]);
   displayedColumns = ['icon', 'name', 'capacity', 'location', 'status', 'actions'];
+
+  constructor() {
+    // Update dataSource whenever filteredRooms changes
+    effect(() => {
+      this.dataSource.data = this.filteredRooms();
+    });
+  }
 
   ngOnInit(): void {
     this.loadRooms();
@@ -70,7 +99,7 @@ export class AdminRoomsComponent implements OnInit {
 
     this.apiService.getRooms().subscribe({
       next: (rooms) => {
-        this.dataSource.data = rooms;
+        this.allRooms.set(rooms);
         this.loading.set(false);
       },
       error: (err) => {
@@ -82,7 +111,15 @@ export class AdminRoomsComponent implements OnInit {
 
   applyFilter(event: Event): void {
     const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
+    this.textFilter.set(filterValue.trim());
+
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
+    }
+  }
+
+  clearFilters(): void {
+    this.textFilter.set('');
 
     if (this.dataSource.paginator) {
       this.dataSource.paginator.firstPage();
@@ -157,9 +194,8 @@ export class AdminRoomsComponent implements OnInit {
   }
 
   exportCsv(): void {
-    const dataToExport = this.dataSource.filteredData.length
-      ? this.dataSource.filteredData
-      : this.dataSource.data;
+    // Use the current filtered data
+    const dataToExport = this.filteredRooms();
 
     // Map data to row arrays with formatted values
     const rows = dataToExport.map(room => [

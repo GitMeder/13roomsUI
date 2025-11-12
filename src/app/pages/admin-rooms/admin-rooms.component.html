@@ -39,18 +39,29 @@
   <!-- Table -->
   @else {
     <div class="admin-section__content">
-      <!-- Filter Input -->
+      <!-- Unified Filter Bar -->
       <div class="admin-section__filter-group">
-        <mat-form-field class="admin-section__filter" appearance="outline">
+        <!-- filter1 and filter2 grid areas remain empty for perfect alignment -->
+
+        <!-- Text Search Filter -->
+        <mat-form-field class="filter-search" appearance="outline">
           <mat-label>Filtern nach...</mat-label>
-          <input matInput (keyup)="applyFilter($event)" placeholder="Name, Standort ...">
+          <input matInput [value]="textFilter()" (keyup)="applyFilter($event)" placeholder="Name, Standort ...">
           <mat-icon matPrefix>search</mat-icon>
         </mat-form-field>
 
-        <button mat-stroked-button color="primary" (click)="exportCsv()" class="admin-section__filter">
+        <!-- Action Buttons -->
+        <div class="filter-actions">
+          <button mat-stroked-button (click)="clearFilters()" matTooltip="Filter zurücksetzen">
+            <mat-icon>filter_list_off</mat-icon>
+            Filter löschen
+          </button>
+
+          <button mat-stroked-button color="primary" (click)="exportCsv()">
             <mat-icon>download</mat-icon>
-              Als CSV exportieren
-        </button>
+            Als CSV exportieren
+          </button>
+        </div>
       </div>
 
       <!-- Data Table -->
@@ -60,7 +71,7 @@
           <ng-container matColumnDef="icon">
             <th mat-header-cell *matHeaderCellDef>Icon</th>
             <td mat-cell *matCellDef="let room">
-              <mat-icon [style.color]="'var(--mat-sys-primary)'">
+              <mat-icon class="admin-table__room-icon">
                 {{ room.icon || 'meeting_room' }}
               </mat-icon>
             </td>

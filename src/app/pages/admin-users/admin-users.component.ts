@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSortModule, MatSort } from '@angular/material/sort';
@@ -54,8 +54,38 @@ export class AdminUsersComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly deletingId = signal<number | null>(null);
 
+  // Data signals
+  readonly allUsers = signal<AdminUser[]>([]);
+
+  // Filter signals
+  readonly textFilter = signal<string>('');
+
+  // Computed filtered data
+  readonly filteredUsers = computed(() => {
+    const users = this.allUsers();
+    const text = this.textFilter().toLowerCase();
+
+    return users.filter(user => {
+      // Text filter matches fullName, email, role, or status
+      const textMatch = !text ||
+        user.fullName.toLowerCase().includes(text) ||
+        user.email.toLowerCase().includes(text) ||
+        this.getRoleLabel(user.role).toLowerCase().includes(text) ||
+        (user.is_active ? 'aktiv' : 'inaktiv').includes(text);
+
+      return textMatch;
+    });
+  });
+
   dataSource = new MatTableDataSource<AdminUser>([]);
   displayedColumns = ['fullName', 'email', 'role', 'is_active', 'actions'];
+
+  constructor() {
+    // Update dataSource whenever filteredUsers changes
+    effect(() => {
+      this.dataSource.data = this.filteredUsers();
+    });
+  }
 
   ngOnInit(): void {
     this.loadUsers();
@@ -76,7 +106,7 @@ export class AdminUsersComponent implements OnInit {
           ...u,
           fullName: `${u.firstname} ${u.surname}`
         }));
-        this.dataSource.data = formatted;
+        this.allUsers.set(formatted);
         this.loading.set(false);
       },
       error: (err) => {
@@ -88,7 +118,15 @@ export class AdminUsersComponent implements OnInit {
 
   applyFilter(event: Event): void {
     const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
+    this.textFilter.set(filterValue.trim());
+
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
+    }
+  }
+
+  clearFilters(): void {
+    this.textFilter.set('');
 
     if (this.dataSource.paginator) {
       this.dataSource.paginator.firstPage();
@@ -216,9 +254,8 @@ export class AdminUsersComponent implements OnInit {
   }
 
   exportCsv(): void {
-    const dataToExport = this.dataSource.filteredData.length
-      ? this.dataSource.filteredData
-      : this.dataSource.data;
+    // Use the current filtered data
+    const dataToExport = this.filteredUsers();
 
     // Map data to row arrays with formatted values
     const rows = dataToExport.map(user => [

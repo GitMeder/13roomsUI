@@ -9,10 +9,11 @@
 
 /* Header Section */
 .admin-layout__header {
-  background: linear-gradient(135deg, var(--mat-sys-primary) 0%, var(--mat-sys-tertiary) 100%);
-  color: var(--mat-sys-on-primary);
+  background: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
   padding: 3rem 2rem 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-bottom: 3px solid var(--mat-sys-primary);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .admin-layout__header-content {
@@ -30,26 +31,27 @@
   font-size: 3rem;
   width: 3rem;
   height: 3rem;
-  opacity: 0.9;
+  color: var(--mat-sys-primary);
 }
 
 .admin-layout__title {
   margin: 0;
   font-size: 2rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.025em;
+  color: var(--mat-sys-on-surface);
 }
 
 .admin-layout__subtitle {
   margin: 0.5rem 0 0;
   font-size: 1rem;
-  opacity: 0.9;
+  color: var(--mat-sys-on-surface-variant);
   font-weight: 400;
 }
 
 /* Tab Navigation */
 .admin-layout__nav {
-  background: var(--mat-sys-surface);
+  background: var(--mat-sys-surface-container-low);
   border-bottom: 1px solid var(--mat-sys-outline-variant);
   position: sticky;
   top: 0;
@@ -60,11 +62,13 @@
 .admin-layout__tab-nav {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 1rem 2rem;
+  border: none !important;
+  background: transparent !important;
 }
 
 .admin-layout__tab-link {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   gap: 0.5rem;
   min-width: 180px;
@@ -72,12 +76,42 @@
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0.025em;
+  padding: 0.75rem 1.5rem !important;
+  margin: 0 0.5rem 0 0 !important;
+  border-radius: 12px !important;
+  background: var(--mat-sys-surface) !important;
+  border: 2px solid var(--mat-sys-outline-variant) !important;
+  color: var(--mat-sys-on-surface-variant) !important;
+  transition: all 0.2s ease !important;
+  opacity: 1 !important;
+}
+
+.admin-layout__tab-link:hover {
+  background: var(--mat-sys-surface-container) !important;
+  border-color: var(--mat-sys-outline) !important;
+  color: var(--mat-sys-on-surface) !important;
+}
+
+.admin-layout__tab-link[aria-current="page"],
+.admin-layout__tab-link.mdc-tab--active {
+  background: var(--mat-sys-primary-container) !important;
+  border-color: var(--mat-sys-primary) !important;
+  color: var(--mat-sys-on-primary-container) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
 .admin-layout__tab-link mat-icon {
   font-size: 1.25rem;
   width: 1.25rem;
   height: 1.25rem;
+}
+
+/* Hide the default Material tab indicator */
+::ng-deep .mat-mdc-tab-header-pagination,
+::ng-deep .mdc-tab-indicator,
+::ng-deep .mat-mdc-tab-link .mdc-tab-indicator {
+  display: none !important;
 }
 
 /* Content Area */

@@ -35,18 +35,51 @@
   <!-- Table -->
   @else {
     <div class="admin-section__content">
-      <!-- Filter Input -->
+      <!-- Unified Filter Bar -->
       <div class="admin-section__filter-group">
-        <mat-form-field class="admin-section__filter" appearance="outline">
+        <!-- Room Filter -->
+        <mat-form-field class="filter-room" appearance="outline">
+          <mat-label>Nach Raum filtern</mat-label>
+          <mat-select [value]="selectedRoomId()" (selectionChange)="selectedRoomId.set($event.value)">
+            <mat-option value="all">Alle Räume</mat-option>
+            @for (room of allRooms(); track room.id) {
+              <mat-option [value]="room.id">{{ room.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-icon matPrefix>meeting_room</mat-icon>
+        </mat-form-field>
+
+        <!-- User Filter -->
+        <mat-form-field class="filter-user" appearance="outline">
+          <mat-label>Nach Benutzer filtern</mat-label>
+          <mat-select [value]="selectedUserId()" (selectionChange)="selectedUserId.set($event.value)">
+            <mat-option value="all">Alle Benutzer</mat-option>
+            @for (user of allUsers(); track user.id) {
+              <mat-option [value]="user.id">{{ user.firstname }} {{ user.surname }}</mat-option>
+            }
+          </mat-select>
+          <mat-icon matPrefix>person</mat-icon>
+        </mat-form-field>
+
+        <!-- Text Search Filter -->
+        <mat-form-field class="filter-search" appearance="outline">
           <mat-label>Filtern nach...</mat-label>
-          <input matInput (keyup)="applyFilter($event)" placeholder="Raum, Titel, Gebucht von ...">
+          <input matInput [value]="textFilter()" (keyup)="applyFilter($event)" placeholder="Raum, Titel, Gebucht von ...">
           <mat-icon matPrefix>search</mat-icon>
         </mat-form-field>
 
-        <button mat-stroked-button color="primary" (click)="exportCsv()" class="admin-section__filter">
+        <!-- Action Buttons -->
+        <div class="filter-actions">
+          <button mat-stroked-button (click)="clearFilters()" matTooltip="Filter zurücksetzen">
+            <mat-icon>filter_list_off</mat-icon>
+            Filter löschen
+          </button>
+
+          <button mat-stroked-button color="primary" (click)="exportCsv()">
             <mat-icon>download</mat-icon>
-              Als CSV exportieren
-        </button>
+            Als CSV exportieren
+          </button>
+        </div>
       </div>
 
       <!-- Data Table -->
