@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy, computed } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { Observable } from 'rxjs';
@@ -18,6 +18,7 @@ import { RoomSelectionDialogComponent } from '../../components/room-selection-di
 import { AuthService } from '../../services/auth.service';
 import { BookingDataService } from '../../services/booking-data.service';
 import { AuthPromptDialogComponent, AuthPromptResult } from '../../components/auth-prompt-dialog/auth-prompt-dialog.component';
+import { FormMode, BookingFormState } from '../../models/booking-form-state.model';
 
 @Component({
   selector: 'app-bookings-page',
@@ -39,7 +40,6 @@ export class BookingsPageComponent implements OnInit {
   private readonly datePipe = inject(DatePipe);
 
   readonly isSubmitting = signal<boolean>(false);
-  readonly isSmartRebooking = signal<boolean>(false);
 
   // Store original booking payload for smart rebooking
   private originalBookingPayload: BookingPayload | null = null;
@@ -50,7 +50,12 @@ export class BookingsPageComponent implements OnInit {
   // SNACKBAR SPAM FIX: Flag to prevent duplicate alternative room searches
   private isSearchingAlternatives = false;
 
-  // Observable for the page data
+  // === NEW STATE MACHINE API ===
+  readonly formState = signal<BookingFormState | null>(null);
+  readonly room = signal<Room | null>(null);
+  private roomId: number = 0;
+
+  // Observable for the page data (legacy, kept for compatibility)
   pageData$!: Observable<{
     room: Room | null;
     conflict: Booking | null;
@@ -68,43 +73,102 @@ export class BookingsPageComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('[BookingsPage] ngOnInit');
+
+    // Get roomId from route params
+    this.route.params.subscribe(params => {
+      this.roomId = +params['id'];
+    });
+
+    // Get room data from resolver
+    this.route.data.subscribe(data => {
+      const pageData = data['pageData'];
+      console.log('[BookingsPage] Received resolved data:', pageData);
+
+      if (pageData.room) {
+        this.room.set(pageData.room);
+      }
+
+      // Determine the form state from all sources
+      const state = this.determineFormState(pageData);
+      this.formState.set(state);
+    });
+
+    // LEGACY: Keep pageData$ for compatibility with other parts of the page
     this.pageData$ = this.route.data.pipe(
       map(data => {
         const pageData = data['pageData'];
-        console.log('[BookingsPage] Received resolved data:', pageData);
-
-        // Set smart rebooking flag if present
-        if (pageData.isSmartRebooking) {
-          this.isSmartRebooking.set(true);
-        }
-
-        // Check for temporary booking data (from registration flow)
-        const tempBooking = this.bookingDataService.getTempBooking();
-        if (tempBooking) {
-          console.log('[BookingsPage] Restoring temporary booking data:', tempBooking);
-
-          // Merge temp booking data into prefillData
-          return {
-            ...pageData,
-            prefillData: {
-              date: tempBooking.startDate,
-              startTime: tempBooking.startTime,
-              endTime: tempBooking.endTime,
-              title: tempBooking.title,
-              comment: tempBooking.comment
-            }
-          };
-        }
-
-        // Add suggested times for normal booking mode
-        if (pageData.room && !pageData.conflict && !pageData.isSmartRebooking) {
-          const { suggestedStartTime, suggestedEndTime } = this.calculateSuggestedTimes();
-          return { ...pageData, suggestedStartTime, suggestedEndTime };
-        }
-
         return pageData;
       })
     );
+  }
+
+  /**
+   * Determines the BookingFormState from all possible sources:
+   * 1. Router state (highest priority - from reschedule/smart recovery)
+   * 2. Temp booking (from registration flow)
+   * 3. Resolver data (for smart recovery)
+   * 4. Default NEW booking
+   */
+  private determineFormState(resolverData: any): BookingFormState {
+    // Priority 1: Check router state (from MyBookingsPage reschedule or smart recovery navigation)
+    const routerState = history.state?.['formState'];
+    if (routerState) {
+      console.log('[BookingsPage] Using router formState:', routerState);
+      return {
+        ...routerState,
+        room: this.room()
+      };
+    }
+
+    // Priority 2: Check for temp booking (from registration flow)
+    const tempBooking = this.bookingDataService.getTempBooking();
+    if (tempBooking) {
+      console.log('[BookingsPage] Restoring temporary booking:', tempBooking);
+      return {
+        mode: FormMode.NEW_WITH_SUGGESTION,
+        roomId: this.roomId,
+        room: this.room() || undefined,
+        data: {
+          date: tempBooking.startDate,
+          startTime: tempBooking.startTime,
+          endTime: tempBooking.endTime,
+          title: tempBooking.title,
+          comment: tempBooking.comment
+        }
+      };
+    }
+
+    // Priority 3: Check resolver data for smart recovery
+    if (resolverData?.isSmartRebooking && resolverData?.prefillData) {
+      console.log('[BookingsPage] Using smart recovery from resolver:', resolverData.prefillData);
+      return {
+        mode: FormMode.SMART_RECOVERY,
+        roomId: this.roomId,
+        room: this.room() || undefined,
+        data: resolverData.prefillData
+      };
+    }
+
+    // Priority 4: Check for legacy prefillData in router state (backwards compatibility)
+    const legacyPrefillData = history.state?.['prefillData'];
+    if (legacyPrefillData) {
+      console.log('[BookingsPage] Using LEGACY prefillData from router state:', legacyPrefillData);
+      const isSmartRebooking = history.state?.['isSmartRebooking'];
+      return {
+        mode: isSmartRebooking ? FormMode.SMART_RECOVERY : FormMode.RESCHEDULE,
+        roomId: this.roomId,
+        room: this.room() || undefined,
+        data: legacyPrefillData
+      };
+    }
+
+    // Default: NEW booking
+    console.log('[BookingsPage] Using default NEW booking mode');
+    return {
+      mode: FormMode.NEW,
+      roomId: this.roomId,
+      room: this.room() || undefined
+    };
   }
 
   /**
@@ -456,27 +520,26 @@ export class BookingsPageComponent implements OnInit {
       return;
     }
 
-    // STRATEGIC DEBUG LOG: Verify state object before navigation
-    const navigationState = {
-      isSmartRebooking: true,
-      prefillData: {
+    // Create BookingFormState for SMART_RECOVERY mode
+    const formState: BookingFormState = {
+      mode: FormMode.SMART_RECOVERY,
+      roomId: newRoomId,
+      data: {
         date: this.originalBookingPayload.date,
         startTime: this.originalBookingPayload.startTime,
         endTime: this.originalBookingPayload.endTime,
         title: this.originalBookingPayload.title,
-        name: this.originalBookingPayload.title,
-        comment: this.originalBookingPayload.comment
+        comment: this.originalBookingPayload.comment,
+        originalRoomId: this.roomId
       }
     };
 
     console.log('[SmartRebooking] 📤 NAVIGATING to room:', newRoomId);
-    console.log('[SmartRebooking] 📤 State object being passed:', JSON.stringify(navigationState, null, 2));
-    console.log('[SmartRebooking] 📤 isSmartRebooking:', navigationState.isSmartRebooking);
-    console.log('[SmartRebooking] 📤 prefillData:', navigationState.prefillData);
+    console.log('[SmartRebooking] 📤 BookingFormState:', JSON.stringify(formState, null, 2));
 
-    // Navigate with state containing the original booking data and smart rebooking flag
+    // Navigate with state containing the BookingFormState
     this.router.navigate(['/bookings', newRoomId], {
-      state: navigationState
+      state: { formState }
     });
   }
 

@@ -46,18 +46,32 @@
   gap: 0.5rem;
 }
 
-.user-chip {
-  display: inline-flex;
+.user-chip-button {
+  display: inline-flex !important;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 999px;
+  padding: 0.35rem 0.6rem !important;
+  border-radius: 999px !important;
   background: rgba(15, 23, 42, 0.05);
-  font-size: 0.95rem;
+  font-size: 0.95rem !important;
+  transition: all 200ms ease;
 }
 
-.user-chip mat-icon {
+.user-chip-button:hover {
+  background: rgba(15, 23, 42, 0.1);
+}
+
+.user-chip-button mat-icon {
   font-size: 1.1rem;
+}
+
+.user-chip-button .dropdown-icon {
+  margin-left: -0.25rem;
+  transition: transform 200ms ease;
+}
+
+.user-chip-button[aria-expanded="true"] .dropdown-icon {
+  transform: rotate(180deg);
 }
 
 .mat-mdc-button.app-toolbar__link--active {

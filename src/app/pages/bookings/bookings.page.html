@@ -11,49 +11,46 @@
     </p>
   </header>
 
-  @if (pageData$ | async; as data) {
-    @if (data.room) {
-      @if (isRoomBookable(data.room)) {
-        <mat-card appearance="outlined">
-          <app-booking-form
-            [roomId]="data.room.id || null"
-            [initialConflict]="data.conflict"
-            [room]="data.room"
-            [suggestedStartTime]="data.suggestedStartTime"
-            [suggestedEndTime]="data.suggestedEndTime"
-            [isSubmitting]="isSubmitting()"
-            [isSmartRebooking]="isSmartRebooking()"
-            [prefillData]="data.prefillData || null"
-            (submitted)="onBookingSubmit($event)"
-          ></app-booking-form>
-        </mat-card>
-      } @else {
-        <mat-card appearance="outlined" class="bookings-page__unavailable-card">
-          <div class="bookings-page__warning-message">
-            <span class="bookings-page__warning-icon">
-              <mat-icon>block</mat-icon>
-            </span>
-            <div class="bookings-page__warning-text">
-              <h2>Raum nicht buchbar</h2>
-              <p>Raum "{{ data.room.name }}" {{ getRoomAvailabilityMessage(data.room) }}</p>
-            </div>
-          </div>
-          <div class="bookings-page__actions">
-            <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
-          </div>
-        </mat-card>
-      }
+  @if (room(); as currentRoom) {
+    @if (isRoomBookable(currentRoom)) {
+      <mat-card appearance="outlined">
+        <app-booking-form
+          [initialState]="formState()"
+          [room]="currentRoom"
+          [isSubmitting]="isSubmitting()"
+          (submitted)="onBookingSubmit($event)"
+        ></app-booking-form>
+      </mat-card>
     } @else {
-      <div class="page-state error">
-        <mat-icon>error_outline</mat-icon>
-        <p>Der angeforderte Raum konnte nicht gefunden werden.</p>
-        <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
-      </div>
+      <mat-card appearance="outlined" class="bookings-page__unavailable-card">
+        <div class="bookings-page__warning-message">
+          <span class="bookings-page__warning-icon">
+            <mat-icon>block</mat-icon>
+          </span>
+          <div class="bookings-page__warning-text">
+            <h2>Raum nicht buchbar</h2>
+            <p>Raum "{{ currentRoom.name }}" {{ getRoomAvailabilityMessage(currentRoom) }}</p>
+          </div>
+        </div>
+        <div class="bookings-page__actions">
+          <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
+        </div>
+      </mat-card>
     }
   } @else {
-    <div class="page-state">
-      <mat-spinner diameter="48"></mat-spinner>
-      <p>Buchungsformular wird geladen...</p>
-    </div>
+    @if (pageData$ | async; as data) {
+      @if (!data.room) {
+        <div class="page-state error">
+          <mat-icon>error_outline</mat-icon>
+          <p>Der angeforderte Raum konnte nicht gefunden werden.</p>
+          <a mat-stroked-button routerLink="/">Zurück zum Dashboard</a>
+        </div>
+      }
+    } @else {
+      <div class="page-state">
+        <mat-spinner diameter="48"></mat-spinner>
+        <p>Buchungsformular wird geladen...</p>
+      </div>
+    }
   }
 </section>

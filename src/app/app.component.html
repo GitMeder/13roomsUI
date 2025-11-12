@@ -11,13 +11,23 @@
 
   <nav class="app-toolbar__nav">
     @if (!isGuest()) {
-      <div class="user-chip">
+      <button mat-button [matMenuTriggerFor]="userMenu" class="user-chip-button">
         <mat-icon aria-hidden="true">person</mat-icon>
         <span>{{ currentUser().firstname }} {{ currentUser().surname }} · {{ currentUser().role }}</span>
-        <button mat-button (click)="logout()">
-          Abmelden
+        <mat-icon class="dropdown-icon">arrow_drop_down</mat-icon>
+      </button>
+
+      <mat-menu #userMenu="matMenu" class="user-menu">
+        <button mat-menu-item routerLink="/my-bookings">
+          <mat-icon>calendar_month</mat-icon>
+          <span>Meine Buchungen</span>
         </button>
-      </div>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Abmelden</span>
+        </button>
+      </mat-menu>
     } @else {
       <a mat-button routerLink="/login">Anmelden</a>
       <a mat-stroked-button color="primary" routerLink="/register">Registrieren</a>

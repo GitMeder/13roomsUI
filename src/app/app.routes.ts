@@ -5,6 +5,7 @@ import { RoomFormComponent } from './components/room-form/room-form.component';
 import { bookingPageDataResolver } from './resolvers/booking-page-data.resolver';
 import { LoginPageComponent } from './pages/auth/login.page';
 import { RegisterPageComponent } from './pages/auth/register.page';
+import { MyBookingsPageComponent } from './pages/my-bookings/my-bookings.page';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
 import { RoomEditPageComponent } from './pages/room-edit/room-edit.page';
@@ -37,6 +38,12 @@ export const routes: Routes = [
     resolve: {
       pageData: bookingPageDataResolver
     }
+  },
+  {
+    path: 'my-bookings',
+    canActivate: [authGuard],
+    component: MyBookingsPageComponent,
+    title: '13Rooms · Meine Buchungen'
   },
   {
     path: 'rooms/new',

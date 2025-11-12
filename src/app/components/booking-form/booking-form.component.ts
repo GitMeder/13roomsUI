@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, input, output, ViewChild, ElementRef, signal, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, input, output, ViewChild, ElementRef, signal, effect, ChangeDetectionStrategy, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, ValidatorFn, ValidationErrors, AbstractControl } from '@angular/forms';
 import { Subject, timer, Subscription } from 'rxjs';
@@ -6,6 +6,7 @@ import { takeUntil, debounceTime, distinctUntilChanged, map, takeWhile } from 'r
 import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
+import { FormMode, BookingFormState, BookingFormData } from '../../models/booking-form-state.model';
 
 // Other necessary imports for Angular Material
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -50,13 +51,13 @@ interface RoomLiveStatus {
 }
 
 /**
- * STATE MACHINE: FormMode enum represents the two distinct modes of the booking form.
- * This is the single source of truth for component behavior.
+ * LEGACY: Old FormMode enum - now replaced by the comprehensive FormMode in booking-form-state.model.ts
+ * Kept here temporarily for reference during migration.
  */
-enum FormMode {
-  Suggesting, // Normal mode: calculating and showing suggestions
-  Prefilled   // Smart Rebooking mode: form is pre-filled, no suggestions
-}
+// enum FormMode {
+//   Suggesting, // Normal mode: calculating and showing suggestions
+//   Prefilled   // Smart Rebooking mode: form is pre-filled, no suggestions
+// }
 
 @Component({
   selector: 'app-booking-form',
@@ -80,22 +81,37 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private countdownSubscription: Subscription | null = null;
 
+  // === NEW STATE MACHINE API ===
+  // Single unified input for all state configuration
+  readonly initialState = input<BookingFormState | null>(null);
+
   // --- State Management ---
   // STATE MACHINE: The mode signal is the single source of truth for component behavior
-  public readonly mode = signal<FormMode>(FormMode.Suggesting);
+  private readonly currentMode = signal<FormMode>(FormMode.NEW);
+  private readonly formData = signal<BookingFormData | null>(null);
+  private readonly bookingToUpdateId = signal<number | null>(null); // ID of booking being rescheduled
   public readonly FormMode = FormMode; // Expose enum to template
 
   public readonly bookingConflict = signal<Booking | null>(null);
   public readonly availabilityCountdown = signal<string | null>(null);
 
-  // --- Input Signals ---
+  // === UI State Derived from Mode ===
+  readonly headerTitle = computed(() => this.getHeaderTitle());
+  readonly showRescheduleIndicator = computed(() =>
+    this.currentMode() === FormMode.RESCHEDULE
+  );
+  readonly showSmartRecoveryBanner = computed(() =>
+    this.currentMode() === FormMode.SMART_RECOVERY
+  );
+
+  // === LEGACY Input Signals (Backwards Compatibility) ===
   readonly room = input.required<Room>();
   readonly isSubmitting = input<boolean>(false);
-  readonly isSmartRebooking = input<boolean>(false); // PHASE 3+: Rainbow highlight for smart rebooking
+  readonly isSmartRebooking = input<boolean>(false); // DEPRECATED: Use initialState with mode=SMART_RECOVERY
   readonly roomIdInput = input<number | null>(null, { alias: 'roomId' });
-  readonly suggestedStartTime = input<string | null>(null);
-  readonly suggestedEndTime = input<string | null>(null);
-  readonly initialConflict = input<Booking | null>(null);
+  readonly suggestedStartTime = input<string | null>(null); // DEPRECATED: Use initialState with mode=NEW_WITH_SUGGESTION
+  readonly suggestedEndTime = input<string | null>(null); // DEPRECATED: Use initialState with mode=NEW_WITH_SUGGESTION
+  readonly initialConflict = input<Booking | null>(null); // DEPRECATED: Use initialState with data.conflict
   readonly prefillData = input<{
     date: string;
     startTime: string;
@@ -103,7 +119,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     title: string;
     name?: string;
     comment?: string;
-  } | null>(null); // PHASE 3+: Pre-fill data for smart rebooking
+  } | null>(null); // DEPRECATED: Use initialState with mode=RESCHEDULE or SMART_RECOVERY
 
   // Available time slots and bookings for the selected date
   public readonly dayBookings = signal<Booking[]>([]);
@@ -140,10 +156,27 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       comment: new FormControl<string | null>(null),
     }, { validators: [this.timeRangeValidator()] });
 
+    // === CENTRALIZED STATE CONFIGURATION EFFECT ===
+    // This is THE entry point for all state configuration
+    effect(() => {
+      const state = this.initialState();
+
+      if (state) {
+        // NEW API: Use the unified state object
+        console.log('[BookingForm] Configuring from initialState:', state);
+        this.currentMode.set(state.mode);
+        this.formData.set(state.data || null);
+        this.configureFormForMode(state);
+      } else {
+        // LEGACY API: Fall back to old input signals for backwards compatibility
+        this.configureLegacyInputs();
+      }
+    }, { allowSignalWrites: true });
+
     // Effect to sync roomIdInput signal to form control
     effect(() => {
       const roomId = this.roomIdInput();
-      if (this.form.get('roomId')?.value !== roomId) {
+      if (roomId && this.form.get('roomId')?.value !== roomId) {
         this.form.patchValue({ roomId }, { emitEvent: false });
       }
     });
@@ -154,64 +187,6 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       if (currentRoom && this.form.get('roomId')?.value !== currentRoom.id) {
         this.form.patchValue({ roomId: currentRoom.id }, { emitEvent: false });
       }
-    });
-
-    // Effect to sync suggested times to form controls
-    effect(() => {
-      const startTime = this.suggestedStartTime();
-      const endTime = this.suggestedEndTime();
-
-      if (startTime) {
-        this.form.patchValue({ startTime }, { emitEvent: false });
-      }
-      if (endTime) {
-        this.form.patchValue({ endTime }, { emitEvent: false });
-      }
-    });
-
-    // Effect to sync initialConflict input to bookingConflict state
-    // CRITICAL FIX: Always sync the value, including null, to ensure clean state
-    effect(() => {
-      const conflict = this.initialConflict();
-      this.bookingConflict.set(conflict);
-    });
-
-    // Effect to handle smart rebooking prefill data
-    effect(() => {
-      const prefill = this.prefillData();
-      if (prefill) {
-        this.mode.set(FormMode.Prefilled);
-
-        const dateObj = new Date(prefill.date + 'T00:00:00');
-        const bookingTitle = prefill.title ?? prefill.name ?? '';
-
-        this.form.patchValue({
-          startTime: prefill.startTime,
-          endTime: prefill.endTime,
-          date: dateObj,
-          title: bookingTitle,
-          comment: prefill.comment || null
-        }, { emitEvent: false });
-
-        this.isLoadingSlots.set(false);
-      }
-    });
-
-    // Clear conflict state when navigating to a different room
-    // CRITICAL STATE RESET: When the room context changes, it signifies a new user interaction.
-    // We must aggressively reset ALL state related to previous conflicts and booking modes.
-    effect(() => {
-      const roomId = this.roomIdInput();
-
-      console.log(`[State Reset] Room context changed to ${roomId}. Clearing all conflict state.`);
-
-      // Clear conflict-related state
-      this.bookingConflict.set(null);
-      this.availabilityCountdown.set(null);
-
-      // Reset the form mode to ensure we don't get stuck in a "Prefilled" state
-      // This prevents stale conflict data from being displayed on new bookings
-      this.mode.set(FormMode.Suggesting);
     });
   }
 
@@ -271,7 +246,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       ),
       map(values => ({ roomId: values.roomId, date: values.date }))
     ).subscribe(({ roomId, date }) => {
-      if (this.mode() === FormMode.Suggesting) {
+      // Only calculate suggestions for NEW and NEW_WITH_SUGGESTION modes
+      const mode = this.currentMode();
+      if (mode === FormMode.NEW || mode === FormMode.NEW_WITH_SUGGESTION) {
         if (roomId && date) {
           this.loadDayBookings(roomId, date);
         }
@@ -307,7 +284,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     // Handle initial load state
     setTimeout(() => {
-      if (this.mode() === FormMode.Suggesting) {
+      const mode = this.currentMode();
+      // Only calculate suggestions for NEW and NEW_WITH_SUGGESTION modes
+      if (mode === FormMode.NEW || mode === FormMode.NEW_WITH_SUGGESTION) {
         const currentRoomId = this.form.get('roomId')?.value;
         let currentDate = this.form.get('date')?.value;
 
@@ -338,7 +317,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   }
 
   private loadDayBookings(roomId: number, date: Date): void {
-    if (this.mode() === FormMode.Prefilled) {
+    const mode = this.currentMode();
+    // Don't load bookings for prefilled modes (RESCHEDULE, SMART_RECOVERY)
+    if (mode === FormMode.RESCHEDULE || mode === FormMode.SMART_RECOVERY) {
       this.isLoadingSlots.set(false);
       return;
     }
@@ -556,6 +537,193 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.checkConflict();
   }
 
+  // === MODE-SPECIFIC CONFIGURATION METHODS ===
+
+  /**
+   * Routes to the appropriate configuration method based on the mode.
+   * This is the central dispatcher for form behavior.
+   */
+  private configureFormForMode(state: BookingFormState): void {
+    switch (state.mode) {
+      case FormMode.NEW:
+        this.configureForNewBooking();
+        break;
+
+      case FormMode.NEW_WITH_SUGGESTION:
+        this.configureWithSuggestion(state.data!);
+        break;
+
+      case FormMode.RESCHEDULE:
+        this.configureForReschedule(state.data!);
+        break;
+
+      case FormMode.SMART_RECOVERY:
+        this.configureForSmartRecovery(state.data!);
+        break;
+
+      default:
+        console.warn('[BookingForm] Unknown mode:', state.mode);
+        this.configureForNewBooking();
+    }
+  }
+
+  /**
+   * Configuration for NEW booking mode.
+   * - Reset form to defaults
+   * - Generate suggested slots based on current time
+   * - Enable all fields
+   * - No special UI indicators
+   */
+  private configureForNewBooking(): void {
+    console.log('[BookingForm] Configuring for NEW booking');
+    // Form will calculate slots in ngOnInit
+    this.isLoadingSlots.set(true);
+    this.hasCalculatedSlots.set(false);
+  }
+
+  /**
+   * Configuration for NEW_WITH_SUGGESTION mode.
+   * - Pre-fill date/time from suggestion
+   * - Keep title/comment empty
+   * - Highlight the selected slot chip
+   */
+  private configureWithSuggestion(data: BookingFormData): void {
+    console.log('[BookingForm] Configuring with SUGGESTION', data);
+
+    if (data.date && data.startTime && data.endTime) {
+      const dateObj = new Date(data.date + 'T00:00:00');
+
+      this.form.patchValue({
+        date: dateObj,
+        startTime: data.startTime,
+        endTime: data.endTime
+      }, { emitEvent: false });
+    }
+
+    this.isLoadingSlots.set(false);
+  }
+
+  /**
+   * Configuration for RESCHEDULE mode.
+   * - Pre-fill ALL fields from existing booking
+   * - Show banner: "Umbuchung von [original date/time]"
+   * - Store the booking ID for update operation
+   */
+  private configureForReschedule(data: BookingFormData): void {
+    console.log('[BookingForm] Configuring for RESCHEDULE', data);
+
+    // Store the booking ID for the update operation
+    this.bookingToUpdateId.set(data.bookingId ?? null);
+    console.log('[BookingForm] Booking to update ID:', data.bookingId);
+
+    if (data.date && data.startTime && data.endTime) {
+      const dateObj = new Date(data.date + 'T00:00:00');
+      const bookingTitle = data.title || '';
+
+      this.form.patchValue({
+        date: dateObj,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        title: bookingTitle,
+        comment: data.comment || null
+      }, { emitEvent: false });
+    }
+
+    this.isLoadingSlots.set(false);
+  }
+
+  /**
+   * Configuration for SMART_RECOVERY mode.
+   * - Pre-fill date/time/title from failed attempt
+   * - Show rainbow highlight banner
+   * - Display "Smart Rebooking" message
+   * - Generate slots for NEW room
+   */
+  private configureForSmartRecovery(data: BookingFormData): void {
+    console.log('[BookingForm] Configuring for SMART_RECOVERY', data);
+
+    if (data.date && data.startTime && data.endTime) {
+      const dateObj = new Date(data.date + 'T00:00:00');
+      const bookingTitle = data.title || '';
+
+      this.form.patchValue({
+        date: dateObj,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        title: bookingTitle,
+        comment: data.comment || null
+      }, { emitEvent: false });
+    }
+
+    this.isLoadingSlots.set(false);
+  }
+
+  /**
+   * LEGACY: Handles configuration from old input signals for backwards compatibility.
+   * This will be deprecated once all parent components are migrated to the new API.
+   */
+  private configureLegacyInputs(): void {
+    // Handle prefillData input (reschedule or smart recovery)
+    const prefill = this.prefillData();
+    if (prefill) {
+      console.warn('[BookingForm] Using LEGACY prefillData input. Please migrate to initialState API.');
+
+      const isSmartRebooking = this.isSmartRebooking();
+      this.currentMode.set(isSmartRebooking ? FormMode.SMART_RECOVERY : FormMode.RESCHEDULE);
+
+      const dateObj = new Date(prefill.date + 'T00:00:00');
+      const bookingTitle = prefill.title ?? prefill.name ?? '';
+
+      this.form.patchValue({
+        startTime: prefill.startTime,
+        endTime: prefill.endTime,
+        date: dateObj,
+        title: bookingTitle,
+        comment: prefill.comment || null
+      }, { emitEvent: false });
+
+      this.isLoadingSlots.set(false);
+      return;
+    }
+
+    // Handle suggested times input (new with suggestion)
+    const startTime = this.suggestedStartTime();
+    const endTime = this.suggestedEndTime();
+    if (startTime && endTime) {
+      console.warn('[BookingForm] Using LEGACY suggestedStartTime/suggestedEndTime inputs. Please migrate to initialState API.');
+      this.currentMode.set(FormMode.NEW_WITH_SUGGESTION);
+      this.form.patchValue({ startTime, endTime }, { emitEvent: false });
+      return;
+    }
+
+    // Handle initialConflict input
+    const conflict = this.initialConflict();
+    if (conflict) {
+      console.warn('[BookingForm] Using LEGACY initialConflict input. Please migrate to initialState API.');
+      this.bookingConflict.set(conflict);
+    }
+
+    // Default: NEW booking mode
+    this.currentMode.set(FormMode.NEW);
+  }
+
+  /**
+   * Returns the header title based on the current mode.
+   */
+  private getHeaderTitle(): string {
+    switch (this.currentMode()) {
+      case FormMode.NEW:
+      case FormMode.NEW_WITH_SUGGESTION:
+        return 'Neue Buchung';
+      case FormMode.RESCHEDULE:
+        return 'Buchung verschieben';
+      case FormMode.SMART_RECOVERY:
+        return 'Smart Rebooking';
+      default:
+        return 'Buchung';
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -753,7 +921,77 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       comment: formValue.comment || undefined,
     };
 
+    // === RESCHEDULE MODE: Update existing booking instead of creating new one ===
+    const mode = this.currentMode();
+    const bookingId = this.bookingToUpdateId();
+
+    if (mode === FormMode.RESCHEDULE && bookingId) {
+      console.log('[BookingForm] RESCHEDULE mode detected - updating booking', bookingId);
+      this.handleRescheduleSubmission(bookingId, payload);
+      return;
+    }
+
+    // === DEFAULT: Emit event for parent to handle (NEW, NEW_WITH_SUGGESTION, SMART_RECOVERY) ===
+    console.log('[BookingForm] Standard submission - emitting to parent');
     this.submitted.emit(payload);
+  }
+
+  /**
+   * Handles the submission of a rescheduled booking.
+   * Updates the existing booking via API instead of creating a new one.
+   */
+  private handleRescheduleSubmission(bookingId: number, payload: BookingPayload): void {
+    console.log('[BookingForm] Rescheduling booking via API:', bookingId, payload);
+
+    this.apiService.rescheduleBooking(bookingId, payload).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (response) => {
+        console.log('[BookingForm] Reschedule successful:', response);
+
+        // Show success message
+        this.snackBar.open('Buchung erfolgreich aktualisiert!', 'OK', {
+          duration: 3000,
+          horizontalPosition: 'center',
+          verticalPosition: 'bottom',
+          panelClass: ['success-snackbar']
+        });
+
+        // Navigate back to My Bookings after a short delay
+        setTimeout(() => {
+          window.history.back();
+        }, 500);
+      },
+      error: (error) => {
+        console.error('[BookingForm] Error rescheduling booking:', error);
+
+        // Check for conflict error (409)
+        if (error.status === 409) {
+          this.snackBar.open(
+            'Konflikt: Der gewählte Zeitraum ist bereits belegt.',
+            'OK',
+            {
+              duration: 5000,
+              horizontalPosition: 'center',
+              verticalPosition: 'bottom',
+              panelClass: ['error-snackbar']
+            }
+          );
+        } else {
+          // Generic error
+          this.snackBar.open(
+            'Fehler beim Aktualisieren der Buchung. Bitte versuchen Sie es erneut.',
+            'OK',
+            {
+              duration: 5000,
+              horizontalPosition: 'center',
+              verticalPosition: 'bottom',
+              panelClass: ['error-snackbar']
+            }
+          );
+        }
+      }
+    });
   }
 
   onReset(): void {

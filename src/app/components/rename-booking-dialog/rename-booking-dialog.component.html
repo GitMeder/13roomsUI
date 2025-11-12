@@ -1,0 +1,36 @@
+<div class="rename-dialog">
+  <h2 mat-dialog-title>
+    <mat-icon>edit</mat-icon>
+    Buchung umbenennen
+  </h2>
+
+  <mat-dialog-content>
+    <form [formGroup]="form" class="rename-form">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Titel der Buchung</mat-label>
+        <input matInput formControlName="title" required placeholder="z.B. Sprint Review, Kundentermin" />
+        @if (form.get('title')?.hasError('required')) {
+          <mat-error>Bitte geben Sie einen Titel ein.</mat-error>
+        } @else if (form.get('title')?.hasError('minlength')) {
+          <mat-error>Der Titel muss mindestens 2 Zeichen lang sein.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Kommentar (optional)</mat-label>
+        <textarea matInput formControlName="comment" rows="4" placeholder="z.B. Wichtige Details zur Buchung"></textarea>
+        <mat-hint>Optional: Zusätzliche Informationen zur Buchung</mat-hint>
+      </mat-form-field>
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-stroked-button type="button" (click)="onCancel()">
+      Abbrechen
+    </button>
+    <button mat-flat-button color="primary" type="button" (click)="onSave()" [disabled]="!form.valid">
+      <mat-icon>save</mat-icon>
+      Speichern
+    </button>
+  </mat-dialog-actions>
+</div>

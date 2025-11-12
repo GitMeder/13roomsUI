@@ -146,6 +146,52 @@ export class ApiService {
     return this.post<Room>('rooms', roomData);
   }
 
+  /**
+   * Fetches all bookings created by the currently authenticated user.
+   * Includes room name and icon for display purposes.
+   * @returns Observable emitting an array of user's bookings with room info
+   */
+  getMyBookings(): Observable<any[]> {
+    console.log('Fetching my bookings');
+    return this.get<any[]>('bookings/my-bookings');
+  }
+
+  /**
+   * Updates a booking (currently supports title and comment updates).
+   * @param id - The ID of the booking to update
+   * @param payload - Object containing title and optionally comment
+   * @returns Observable emitting success response
+   */
+  updateBooking(id: number, payload: { title: string; comment?: string | null }): Observable<{ message: string }> {
+    console.log(`Updating booking ${id}:`, payload);
+    return this.put<{ message: string }>(`bookings/${id}`, payload);
+  }
+
+  /**
+   * Reschedules a booking (updates all fields including date/time).
+   * @param id - The ID of the booking to reschedule
+   * @param payload - Complete booking details including date, time range, title, and comment
+   * @returns Observable emitting success response
+   */
+  rescheduleBooking(id: number, payload: BookingPayload): Observable<{ message: string }> {
+    console.log(`Rescheduling booking ${id}:`, payload);
+
+    const requestBody = {
+      room_id: payload.roomId,
+      title: payload.title,
+      start_time: this.combineDateAndTime(payload.date, payload.startTime),
+      end_time: this.combineDateAndTime(payload.date, payload.endTime),
+      comment: payload.comment?.trim() || null
+    };
+
+    return this.put<{ message: string }>(`bookings/${id}`, requestBody);
+  }
+
+  /**
+   * Deletes a booking by ID. Requires authentication and ownership/admin rights.
+   * @param id - The ID of the booking to delete
+   * @returns Observable emitting void on success
+   */
   deleteBooking(id: number): Observable<void> {
     console.log(`Deleting booking with ID: ${id}`);
     return this.delete<void>(`bookings/${id}`);

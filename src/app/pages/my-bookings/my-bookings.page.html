@@ -1,0 +1,174 @@
+<section class="my-bookings-page">
+  <!-- Header Section -->
+  <header class="my-bookings-page__header">
+    <button mat-icon-button class="back-button" (click)="goBack()" matTooltip="Zurück zum Dashboard">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-content">
+      <h1 class="my-bookings-page__title">
+        <mat-icon>calendar_month</mat-icon>
+        Meine Buchungen
+      </h1>
+      <p class="my-bookings-page__subtitle">
+        Verwalten Sie Ihre Raumbuchungen
+      </p>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="page-state page-state--loading">
+      <mat-progress-spinner mode="indeterminate" diameter="56" strokeWidth="4"></mat-progress-spinner>
+      <p>Buchungen werden geladen...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (error()) {
+    <div class="page-state page-state--error">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Fehler</h3>
+      <p>{{ error() }}</p>
+      <button mat-flat-button color="primary" (click)="ngOnInit()">
+        <mat-icon>refresh</mat-icon>
+        Erneut versuchen
+      </button>
+    </div>
+  }
+
+  <!-- Content - Two Column Layout -->
+  @else {
+    <div class="my-bookings-page__content">
+      <!-- Upcoming Bookings Section -->
+      <section class="bookings-section bookings-section--upcoming">
+        <div class="section-header">
+          <h2>
+            <mat-icon>event</mat-icon>
+            Kommende Buchungen
+          </h2>
+          <span class="count-badge">{{ upcomingBookings().length }}</span>
+        </div>
+
+        @if (upcomingBookings().length === 0) {
+          <div class="empty-state">
+            <mat-icon>event_available</mat-icon>
+            <h3>Keine kommenden Buchungen</h3>
+            <p>Sie haben derzeit keine anstehenden Buchungen.</p>
+            <button mat-flat-button color="primary" routerLink="/">
+              <mat-icon>add</mat-icon>
+              Neue Buchung erstellen
+            </button>
+          </div>
+        } @else {
+          <div class="bookings-grid">
+            @for (booking of upcomingBookings(); track booking.id) {
+              <mat-card class="booking-card" [class.booking-card--deleting]="deletingBookingId() === booking.id">
+                <!-- Room Badge -->
+                <div class="booking-card__room-badge">
+                  <mat-icon>{{ booking.room_icon || 'meeting_room' }}</mat-icon>
+                  <span>{{ booking.room_name }}</span>
+                </div>
+
+                <!-- Booking Info -->
+                <div class="booking-card__content">
+                  <h3 class="booking-card__title">{{ booking.title }}</h3>
+
+                  <div class="booking-card__details">
+                    <div class="detail-item">
+                      <mat-icon>schedule</mat-icon>
+                      <span>{{ formatDateTime(booking.start_time) }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <mat-icon>timer</mat-icon>
+                      <span>{{ formatTimeRange(booking.start_time, booking.end_time) }}</span>
+                    </div>
+                    @if (booking.comment) {
+                      <div class="detail-item detail-item--comment">
+                        <mat-icon>comment</mat-icon>
+                        <span>{{ booking.comment }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="booking-card__actions">
+                  <button
+                    mat-icon-button
+                    matTooltip="Umbenennen"
+                    (click)="onRenameBooking(booking)"
+                    [disabled]="deletingBookingId() === booking.id">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    matTooltip="Verschieben"
+                    (click)="onRescheduleBooking(booking)"
+                    [disabled]="deletingBookingId() === booking.id">
+                    <mat-icon>event_repeat</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    matTooltip="Löschen"
+                    (click)="onDeleteBooking(booking)"
+                    [disabled]="deletingBookingId() === booking.id">
+                    @if (deletingBookingId() === booking.id) {
+                      <mat-progress-spinner mode="indeterminate" diameter="20" strokeWidth="2"></mat-progress-spinner>
+                    } @else {
+                      <mat-icon>delete</mat-icon>
+                    }
+                  </button>
+                </div>
+              </mat-card>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- Past Bookings Section -->
+      <section class="bookings-section bookings-section--past">
+        <div class="section-header">
+          <h2>
+            <mat-icon>history</mat-icon>
+            Vergangene Buchungen
+          </h2>
+          <span class="count-badge count-badge--secondary">{{ pastBookings().length }}</span>
+        </div>
+
+        @if (pastBookings().length === 0) {
+          <div class="empty-state empty-state--compact">
+            <mat-icon>history</mat-icon>
+            <p>Keine vergangenen Buchungen</p>
+          </div>
+        } @else {
+          <div class="bookings-list">
+            @for (booking of pastBookings(); track booking.id) {
+              <mat-card class="booking-card booking-card--past">
+                <div class="booking-card__room-badge booking-card__room-badge--small">
+                  <mat-icon>{{ booking.room_icon || 'meeting_room' }}</mat-icon>
+                  <span>{{ booking.room_name }}</span>
+                </div>
+
+                <div class="booking-card__content">
+                  <h4 class="booking-card__title">{{ booking.title }}</h4>
+
+                  <div class="booking-card__details">
+                    <div class="detail-item">
+                      <mat-icon>schedule</mat-icon>
+                      <span>{{ formatDateTime(booking.start_time) }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <mat-icon>timer</mat-icon>
+                      <span>{{ formatTimeRange(booking.start_time, booking.end_time) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </mat-card>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  }
+</section>
