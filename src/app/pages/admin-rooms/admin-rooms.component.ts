@@ -16,6 +16,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
+import { CsvExportService } from '../../utils/csv-export.service';
 
 @Component({
   selector: 'app-admin-rooms',
@@ -42,6 +43,7 @@ export class AdminRoomsComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  private readonly csvExportService = inject(CsvExportService);
 
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -154,28 +156,20 @@ export class AdminRoomsComponent implements OnInit {
     return colorMap[status] || '';
   }
 
-  exportCsv() {
-    const data = this.dataSource.filteredData.length
+  exportCsv(): void {
+    const dataToExport = this.dataSource.filteredData.length
       ? this.dataSource.filteredData
       : this.dataSource.data;
-    if (!data.length) return;
 
-    const header = ['Name', 'Kapazität', 'Standort', 'Status'];
-    const rows = data.map(r => [
-      `"${r.name}"`,
-      `"${r.capacity}"`,
-      `"${r.location || ''}"`,
-      `"${this.getStatusLabel(r.status)}"`
+    // Map data to row arrays with formatted values
+    const rows = dataToExport.map(room => [
+      room.name,
+      room.capacity,
+      room.location || '',
+      this.getStatusLabel(room.status)
     ]);
 
-    const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'rooms.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+    const headers = ['Name', 'Kapazität', 'Standort', 'Status'];
+    this.csvExportService.exportToCsv(rows, 'raeume-export', headers);
   }
 }

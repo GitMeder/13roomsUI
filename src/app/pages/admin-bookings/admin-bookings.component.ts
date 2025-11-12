@@ -18,6 +18,7 @@ import { Booking } from '../../models/booking.model';
 import { ErrorHandlingService } from '../../core/services/error-handling.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { BookingWithRoomInfo } from '../../models/api-responses.model';
+import { CsvExportService } from '../../utils/csv-export.service';
 
 /**
  * Extended booking interface for admin table display.
@@ -54,6 +55,7 @@ export class AdminBookingsComponent implements OnInit {
   private readonly errorHandler = inject(ErrorHandlingService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  private readonly csvExportService = inject(CsvExportService);
 
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -180,31 +182,23 @@ export class AdminBookingsComponent implements OnInit {
     });
   }
 
-  exportCsv() {
-  const data = this.dataSource.filteredData.length
-    ? this.dataSource.filteredData
-    : this.dataSource.data;
-  if (!data.length) return;
+  exportCsv(): void {
+    const dataToExport = this.dataSource.filteredData.length
+      ? this.dataSource.filteredData
+      : this.dataSource.data;
 
-  const header = ['Raum', 'Titel', 'Datum', 'Zeit', 'Gebucht von', 'Kommentar'];
-  const rows = data.map(b => [
-    `"${b.room_name}"`,
-    `"${b.title}"`,
-    `"${b.formattedDate}"`,
-    `"${b.formattedTime}"`,
-    `"${b.bookedBy}"`,
-    `"${b.comment || ''}"`
-  ]);
+    // Map data to row arrays with formatted values
+    const rows = dataToExport.map(booking => [
+      booking.room_name,
+      booking.title,
+      booking.formattedDate,
+      booking.formattedTime,
+      booking.bookedBy,
+      booking.comment || ''
+    ]);
 
-  const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
-  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'bookings.csv';
-  link.click();
-  URL.revokeObjectURL(url);
-}
+    const headers = ['Raum', 'Titel', 'Datum', 'Zeit', 'Gebucht von', 'Kommentar'];
+    this.csvExportService.exportToCsv(rows, 'buchungen-export', headers);
+  }
 
 }

@@ -16,6 +16,7 @@ import { ApiService } from '../../services/api.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { UserFormDialogComponent, UserFormData } from '../../components/user-form-dialog/user-form-dialog.component';
 import { ApiUser } from '../../models/api-responses.model';
+import { CsvExportService } from '../../utils/csv-export.service';
 
 interface AdminUser extends ApiUser {
   fullName: string;
@@ -44,6 +45,7 @@ export class AdminUsersComponent implements OnInit {
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+  private readonly csvExportService = inject(CsvExportService);
 
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -213,26 +215,20 @@ export class AdminUsersComponent implements OnInit {
     return role === 'admin' ? 'admin_panel_settings' : 'person';
   }
 
-  exportCsv() {
-    const data = this.dataSource.filteredData.length ? this.dataSource.filteredData : this.dataSource.data;
-    if (!data.length) return;
+  exportCsv(): void {
+    const dataToExport = this.dataSource.filteredData.length
+      ? this.dataSource.filteredData
+      : this.dataSource.data;
 
-    const header = ['Name', 'E-Mail', 'Rolle', 'Status'];
-    const rows = data.map(u => [
-      `"${u.fullName}"`,
-      `"${u.email}"`,
-      `"${this.getRoleLabel(u.role)}"`,
-      `"${u.is_active ? 'Aktiv' : 'Inaktiv'}"`
+    // Map data to row arrays with formatted values
+    const rows = dataToExport.map(user => [
+      user.fullName,
+      user.email,
+      this.getRoleLabel(user.role),
+      user.is_active ? 'Aktiv' : 'Inaktiv'
     ]);
 
-    const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'users.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+    const headers = ['Name', 'E-Mail', 'Rolle', 'Status'];
+    this.csvExportService.exportToCsv(rows, 'benutzer-export', headers);
   }
 }
