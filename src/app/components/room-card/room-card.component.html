@@ -57,10 +57,10 @@
         <mat-icon>{{ room().icon || "meeting_room" }}</mat-icon>
       </div>
 
-      <!-- Booking Count Badge -->
-      @if (bookingCount() > 0 && isInteractive()) {
+      <!-- Booking Count Badge (Live - shows only upcoming bookings) -->
+      @if (upcomingBookingCount() > 0 && isInteractive()) {
       <div class="room-card__badge">
-        <span>{{ bookingCount() }}</span>
+        <span>{{ upcomingBookingCount() }}</span>
         <mat-icon>event</mat-icon>
       </div>
       }

@@ -57,6 +57,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 export class RoomCardComponent {
   readonly room = input.required<Room>();
   readonly statusInfo = input.required<{ text: string; cssClass: string }>();
+  readonly upcomingBookingCount = input<number>(0);
   readonly canDelete = input(false);
   readonly isHighlighted = input(false);
 
@@ -146,12 +147,6 @@ export class RoomCardComponent {
       'maintenance-state',
       'inactive-state',
     ].includes(status);
-  });
-
-  // Computed signal for booking count badge
-  readonly bookingCount = computed(() => {
-    const room = this.room();
-    return room.totalBookingsToday || 0;
   });
 
   constructor() {

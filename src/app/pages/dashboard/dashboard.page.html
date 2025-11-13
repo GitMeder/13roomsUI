@@ -93,6 +93,7 @@
             <app-room-card
               [room]="room"
               [statusInfo]="roomStatuses().get(room.id)!"
+              [upcomingBookingCount]="upcomingBookingCounts().get(room.id) || 0"
               [canDelete]="isAdmin()"
               [isHighlighted]="room.id === highlightedRoomId()"
               (deleteRoomEvent)="onDeleteRoom($event)"

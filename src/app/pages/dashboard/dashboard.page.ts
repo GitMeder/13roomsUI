@@ -121,6 +121,32 @@ export class DashboardPageComponent implements OnInit {
     return statuses;
   });
 
+  // Live booking counts - only upcoming bookings (updates every minute with heartbeat)
+  readonly upcomingBookingCounts = computed(() => {
+    const tick = this.heartbeat(); // Create reactive dependency on heartbeat
+    const allRooms = this.rooms(); // Create reactive dependency on rooms list
+    const now = new Date();
+
+    // Create a Map to hold the upcoming booking count for each room ID
+    const counts = new Map<number, number>();
+
+    for (const room of allRooms) {
+      // Count only bookings where end_time is in the future
+      let upcomingCount = 0;
+
+      if (room.allBookingsToday && Array.isArray(room.allBookingsToday)) {
+        upcomingCount = room.allBookingsToday.filter(booking => {
+          const endTime = new Date(booking.end_time);
+          return endTime.getTime() > now.getTime();
+        }).length;
+      }
+
+      counts.set(room.id, upcomingCount);
+    }
+
+    return counts;
+  });
+
   // Welcome message with time-based greeting
   readonly welcomeMessage = computed(() => {
     const user = this.currentUser();
