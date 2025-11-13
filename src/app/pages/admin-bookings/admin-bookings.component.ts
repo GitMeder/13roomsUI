@@ -12,7 +12,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
 import { Booking } from '../../models/booking.model';
@@ -287,5 +286,60 @@ export class AdminBookingsComponent implements OnInit {
     const headers = ['Raum', 'Titel', 'Datum', 'Zeit', 'Gebucht von', 'Kommentar'];
     this.csvExportService.exportToCsv(rows, 'bookings', headers);
   }
+
+  exportIcs(booking: AdminBooking): void {
+    const start = new Date(booking.start_time);
+    const end = new Date(booking.end_time);
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    const formatDate = (d: Date) => {
+      return (
+        d.getUTCFullYear().toString() +
+        pad(d.getUTCMonth() + 1) +
+        pad(d.getUTCDate()) +
+        'T' +
+        pad(d.getUTCHours()) +
+        pad(d.getUTCMinutes()) +
+        pad(d.getUTCSeconds()) +
+        'Z'
+      );
+    };
+
+    const dtStart = formatDate(start);
+    const dtEnd = formatDate(end);
+    const dtStamp = formatDate(new Date());
+
+    const uid = `${booking.id}@your-app`;
+
+    const description = booking.comment ? booking.comment.replace(/\n/g, '\\n') : '';
+
+    const icsContent =
+      'BEGIN:VCALENDAR\n' +
+      'VERSION:2.0\n' +
+      'PRODID:-//YourApp//BookingSystem//DE\n' +
+      'CALSCALE:GREGORIAN\n' +
+      'BEGIN:VEVENT\n' +
+      `UID:${uid}\n` +
+      `DTSTAMP:${dtStamp}\n` +
+      `DTSTART:${dtStart}\n` +
+      `DTEND:${dtEnd}\n` +
+      `SUMMARY:${booking.title}\n` +
+      `LOCATION:${booking.room_name}\n` +
+      `DESCRIPTION:${description}\n` +
+      'END:VEVENT\n' +
+      'END:VCALENDAR';
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `booking_${booking.id}.ics`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  }
+
 
 }
