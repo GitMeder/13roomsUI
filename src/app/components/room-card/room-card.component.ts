@@ -6,7 +6,6 @@ import {
   inject,
   computed,
   signal,
-  effect,
 } from '@angular/core';
 import { NgClass, SlicePipe, DecimalPipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -23,6 +22,7 @@ import { Room } from '../../models/room.model';
 import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation-dialog.component';
 import { timer } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { formatToHHMM, calculateMinutesBetweenTimes } from '../../utils/date-time.utils';
 
 /**
  * RoomCardComponent - Premium room card with real-time status tracking
@@ -107,20 +107,27 @@ export class RoomCardComponent {
     return Math.max(Math.floor(remaining / 60000), 0);
   });
 
-  // Computed signal for time until next booking
+  // Computed signal for time until next booking (timezone-safe calculation)
   readonly minutesUntilNextBooking = computed(() => {
     const room = this.room();
     const status = this.statusInfo();
 
-    if (status.cssClass !== 'available-soon' || !room.nextBooking) {
+    if (status.cssClass !== 'available-soon') {
       return null;
     }
 
+    // Get current time as HH:mm using timezone-safe formatting
     const now = this.currentTime();
-    const nextStart = new Date(room.nextBooking.start_time);
-    const timeUntil = nextStart.getTime() - now.getTime();
+    const currentTimeStr = formatToHHMM(now.toISOString());
 
-    return Math.max(Math.floor(timeUntil / 60000), 0);
+    // If there's a next booking, calculate time until it starts
+    if (room.nextBooking) {
+      const nextStartStr = formatToHHMM(room.nextBooking.start_time);
+      return calculateMinutesBetweenTimes(currentTimeStr, nextStartStr);
+    }
+
+    // If no next booking, calculate time until end of business hours (20:00)
+    return calculateMinutesBetweenTimes(currentTimeStr, '20:00');
   });
 
   // Computed signal for status icon

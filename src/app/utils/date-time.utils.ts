@@ -240,3 +240,20 @@ export function getRelativeTime(timestamp: string | undefined | null): string {
   const diffInDays = Math.floor(diffInHours / 24);
   return `vor ${diffInDays} ${diffInDays === 1 ? 'Tag' : 'Tagen'}`;
 }
+
+/**
+ * Calculates the difference in minutes between two "HH:mm" time strings.
+ * Uses pure integer math to remain timezone-immune.
+ * Assumes both times are on the same day (time2 should be later than time1).
+ *
+ * @param time1 - Start time in HH:mm format (e.g., "14:30")
+ * @param time2 - End time in HH:mm format (e.g., "16:45")
+ * @returns Difference in minutes (always positive via Math.abs)
+ */
+export function calculateMinutesBetweenTimes(time1: string, time2: string): number {
+  const [h1, m1] = time1.split(':').map(Number);
+  const [h2, m2] = time2.split(':').map(Number);
+  const totalMinutes1 = h1 * 60 + m1;
+  const totalMinutes2 = h2 * 60 + m2;
+  return Math.abs(totalMinutes2 - totalMinutes1);
+}
