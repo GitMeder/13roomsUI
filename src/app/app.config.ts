@@ -5,6 +5,8 @@ import { provideRouter } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { MatPaginatorIntl } from '@angular/material/paginator';
+import { CustomMatPaginatorIntl } from './utils/custom-paginator-intl';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './services/auth.interceptor';
@@ -20,6 +22,7 @@ export const appConfig: ApplicationConfig = {
     // Set German as the default locale for the entire application
     { provide: LOCALE_ID, useValue: 'de-DE' },
     // Set German locale specifically for Material DatePicker
-    { provide: MAT_DATE_LOCALE, useValue: 'de-DE' }
+    { provide: MAT_DATE_LOCALE, useValue: 'de-DE' },
+    { provide: MatPaginatorIntl, useFactory: CustomMatPaginatorIntl }
   ]
 };
