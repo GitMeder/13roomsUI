@@ -45,8 +45,9 @@ export class AdminRoomsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly csvExportService = inject(CsvExportService);
 
-  @ViewChild(MatSort) sort!: MatSort;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  // DataSource einmalig instanziieren
+  dataSource = new MatTableDataSource<Room>([]);
+  displayedColumns = ['icon', 'name', 'capacity', 'location', 'status', 'actions'];
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -74,8 +75,17 @@ export class AdminRoomsComponent implements OnInit {
     });
   });
 
-  dataSource = new MatTableDataSource<Room>([]);
-  displayedColumns = ['icon', 'name', 'capacity', 'location', 'status', 'actions'];
+  // Setter binden sofort, wenn ViewChild verfügbar ist
+  @ViewChild(MatPaginator) set matPaginator(p: MatPaginator) {
+    if (p) {
+      this.dataSource.paginator = p;
+    }
+  }
+  @ViewChild(MatSort) set matSort(s: MatSort) {
+    if (s) {
+      this.dataSource.sort = s;
+    }
+  }
 
   constructor() {
     // Update dataSource whenever filteredRooms changes
@@ -86,11 +96,15 @@ export class AdminRoomsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadRooms();
-  }
-
-  ngAfterViewInit(): void {
-    this.dataSource.sort = this.sort;
-    this.dataSource.paginator = this.paginator;
+    // optional: eigenes Filterverhalten
+    this.dataSource.filterPredicate = (data: Room, filter: string) => {
+      const f = filter.trim().toLowerCase();
+      return (
+        data.name.toLowerCase().includes(f) ||
+        (data.location || '').toLowerCase().includes(f) ||
+        this.getStatusLabel(data.status).toLowerCase().includes(f)
+      );
+    };
   }
 
   loadRooms(): void {
@@ -99,7 +113,7 @@ export class AdminRoomsComponent implements OnInit {
 
     this.apiService.getRooms().subscribe({
       next: (rooms) => {
-        this.allRooms.set(rooms);
+        this.allRooms.set(rooms); // keine neue Instanz erzeugen
         this.loading.set(false);
       },
       error: (err) => {
@@ -113,17 +127,13 @@ export class AdminRoomsComponent implements OnInit {
     const filterValue = (event.target as HTMLInputElement).value;
     this.textFilter.set(filterValue.trim());
 
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
+    this.dataSource.paginator?.firstPage();
   }
 
   clearFilters(): void {
     this.textFilter.set('');
 
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
+    this.dataSource.paginator?.firstPage();
   }
 
   onEdit(room: Room): void {
@@ -206,6 +216,6 @@ export class AdminRoomsComponent implements OnInit {
     ]);
 
     const headers = ['Name', 'Kapazität', 'Standort', 'Status'];
-    this.csvExportService.exportToCsv(rows, 'raeume-export', headers);
+    this.csvExportService.exportToCsv(rows, 'rooms', headers);
   }
 }

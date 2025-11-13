@@ -109,6 +109,13 @@
                   </button>
                   <button
                     mat-icon-button
+                    matTooltip="Als ICS herunterladen"
+                    (click)="onDownloadICS(booking)"
+                    [disabled]="deletingBookingId() === booking.id">
+                    <mat-icon>calendar_today</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
                     color="warn"
                     matTooltip="Löschen"
                     (click)="onDeleteBooking(booking)"

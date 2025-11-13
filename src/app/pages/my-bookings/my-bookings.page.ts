@@ -15,6 +15,7 @@ import { ConfirmationDialogComponent } from '../../components/confirmation-dialo
 import { RenameBookingDialogComponent } from '../../components/rename-booking-dialog/rename-booking-dialog.component';
 import { FormMode, BookingFormState } from '../../models/booking-form-state.model';
 import { BookingWithRoomInfo } from '../../models/api-responses.model';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-my-bookings-page',
@@ -39,6 +40,8 @@ export class MyBookingsPageComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly errorHandler = inject(ErrorHandlingService);
+  private readonly location = inject(Location);
+
 
   readonly loading = signal<boolean>(true);
   readonly error = signal<string | null>(null);
@@ -168,6 +171,44 @@ export class MyBookingsPageComponent implements OnInit {
    * Navigates back to dashboard
    */
   goBack(): void {
-    this.router.navigate(['/']);
+    this.location.back();
   }
+
+  /**
+   * Erstellt eine ICS-Datei und startet den Download
+   */
+  onDownloadICS(booking: BookingWithRoomInfo): void {
+    const start = new Date(booking.start_time).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const end = new Date(booking.end_time).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const uid = `${booking.id}@myapp.local`;
+    const title = booking.title || 'Buchung';
+    const description = booking.comment ? booking.comment.replace(/\n/g, '\\n') : '';
+    const location = booking.room_name;
+
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//MyApp//Bookings//DE',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `DTSTART:${start}`,
+      `DTEND:${end}`,
+      `SUMMARY:${title}`,
+      `DESCRIPTION:${description}`,
+      `LOCATION:${location}`,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${booking.title || 'buchung'}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
 }

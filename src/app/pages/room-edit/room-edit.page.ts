@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, switchMap, takeUntil } from 'rxjs';
 import { ApiService, UpdateRoomPayload } from '../../services/api.service';
 import { Room } from '../../models/room.model';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-room-edit-page',
@@ -42,6 +43,7 @@ export class RoomEditPageComponent implements OnInit, OnDestroy {
   private readonly apiService = inject(ApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroy$ = new Subject<void>();
+  private readonly location = inject(Location);
 
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
@@ -178,7 +180,7 @@ export class RoomEditPageComponent implements OnInit, OnDestroy {
       next: () => {
         this.isSaving.set(false);
         this.snackBar.open('Raum wurde aktualisiert.', 'OK', { duration: 2500 });
-        void this.router.navigate(['/']);
+        this.location.back();
       },
       error: error => {
         this.isSaving.set(false);

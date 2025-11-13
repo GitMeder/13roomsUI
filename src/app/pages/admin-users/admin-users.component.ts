@@ -47,9 +47,6 @@ export class AdminUsersComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly csvExportService = inject(CsvExportService);
 
-  @ViewChild(MatSort) sort!: MatSort;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly deletingId = signal<number | null>(null);
@@ -80,6 +77,14 @@ export class AdminUsersComponent implements OnInit {
   dataSource = new MatTableDataSource<AdminUser>([]);
   displayedColumns = ['fullName', 'email', 'role', 'is_active', 'actions'];
 
+  // Fix: Paginator & Sort als Setter, damit DataSource-Verknüpfung sicher nach Rendern erfolgt
+  @ViewChild(MatPaginator) set matPaginator(p: MatPaginator) {
+    if (p) this.dataSource.paginator = p;
+  }
+  @ViewChild(MatSort) set matSort(s: MatSort) {
+    if (s) this.dataSource.sort = s;
+  }
+
   constructor() {
     // Update dataSource whenever filteredUsers changes
     effect(() => {
@@ -89,11 +94,16 @@ export class AdminUsersComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadUsers();
-  }
 
-  ngAfterViewInit(): void {
-    this.dataSource.sort = this.sort;
-    this.dataSource.paginator = this.paginator;
+    // Custom Filter: sucht über Name, Email und Rolle
+    this.dataSource.filterPredicate = (data: AdminUser, filter: string) => {
+      const f = filter.trim().toLowerCase();
+      return (
+        data.fullName.toLowerCase().includes(f) ||
+        data.email.toLowerCase().includes(f) ||
+        this.getRoleLabel(data.role).toLowerCase().includes(f)
+      );
+    };
   }
 
   loadUsers(): void {
@@ -102,11 +112,10 @@ export class AdminUsersComponent implements OnInit {
 
     this.apiService.getAllUsers().subscribe({
       next: (users) => {
-        const formatted = users.map(u => ({
+        this.dataSource.data = users.map(u => ({
           ...u,
           fullName: `${u.firstname} ${u.surname}`
         }));
-        this.allUsers.set(formatted);
         this.loading.set(false);
       },
       error: (err) => {
@@ -120,9 +129,7 @@ export class AdminUsersComponent implements OnInit {
     const filterValue = (event.target as HTMLInputElement).value;
     this.textFilter.set(filterValue.trim());
 
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
+    this.dataSource.paginator?.firstPage();
   }
 
   clearFilters(): void {
@@ -160,9 +167,7 @@ export class AdminUsersComponent implements OnInit {
     });
 
     dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.updateUser(user.id, result);
-      }
+      if (result) this.updateUser(user.id, result);
     });
   }
 
@@ -266,6 +271,6 @@ export class AdminUsersComponent implements OnInit {
     ]);
 
     const headers = ['Name', 'E-Mail', 'Rolle', 'Status'];
-    this.csvExportService.exportToCsv(rows, 'benutzer-export', headers);
+    this.csvExportService.exportToCsv(rows, 'users', headers);
   }
 }
