@@ -12,7 +12,8 @@ import {
   formatToHHMM,
   formatToYYYYMMDD,
   formatToVerboseGermanDate,
-  getTimeDifferenceInSeconds,
+  getCurrentNaiveDateTimeString,
+  calculateSecondsBetweenNaive,
 } from '../../utils/date-time.utils';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -146,17 +147,18 @@ export class DashboardPageComponent implements OnInit {
   readonly upcomingBookingCounts = computed(() => {
     const tick = this.heartbeat(); // Create reactive dependency on heartbeat
     const allRooms = this.rooms(); // Create reactive dependency on rooms list
+    const nowString = getCurrentNaiveDateTimeString();
 
     // Create a Map to hold the upcoming booking count for each room ID
     const counts = new Map<number, number>();
 
     for (const room of allRooms) {
-      // Count only bookings where end_time is in the future (positive difference)
+      // Count only bookings where end_time is in the future (pure string comparison)
       let upcomingCount = 0;
 
       if (room.allBookingsToday && Array.isArray(room.allBookingsToday)) {
         upcomingCount = room.allBookingsToday.filter(booking => {
-          return getTimeDifferenceInSeconds(booking.end_time) > 0;
+          return booking.end_time > nowString;
         }).length;
       }
 
@@ -280,14 +282,11 @@ export class DashboardPageComponent implements OnInit {
     const bookings = this.roomBookings();
     if (!bookings?.length) return [];
 
-    const sorted = [...bookings].sort(
-      (a, b) =>
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-    );
+    // Sort using pure string comparison (timezone-safe)
+    const sorted = [...bookings].sort((a, b) => a.start_time.localeCompare(b.start_time));
 
     const groupsMap = new Map<string, Booking[]>();
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const nowString = getCurrentNaiveDateTimeString();
 
     for (const booking of sorted) {
       const key = this.getDateKey(booking.start_time);
@@ -301,14 +300,14 @@ export class DashboardPageComponent implements OnInit {
       .map(([dateKey, items]) => {
         const firstDate = new Date(items[0].start_time);
         const isToday = dateKey === this.todayKey;
-        const isPast = firstDate.getTime() < startOfToday.getTime();
+        // Check if booking is past using pure string comparison
+        const isPast = items[0].start_time < nowString;
         const label = isToday
           ? 'Heute'
           : formatToVerboseGermanDate(firstDate);
 
         return {
           dateKey,
-          dateValue: firstDate.getTime(),
           dateLabel: label,
           isToday,
           isPast,
@@ -319,7 +318,8 @@ export class DashboardPageComponent implements OnInit {
         if (a.isToday) return -1;
         if (b.isToday) return 1;
         if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
-        return a.isPast ? b.dateValue - a.dateValue : a.dateValue - b.dateValue;
+        // Use pure string comparison for sorting dates (YYYY-MM-DD format sorts correctly)
+        return a.isPast ? b.dateKey.localeCompare(a.dateKey) : a.dateKey.localeCompare(b.dateKey);
       });
   });
 
@@ -413,13 +413,14 @@ export class DashboardPageComponent implements OnInit {
    * ════════════════════════════════════════════════════════════════════════════
    *
    * This method is the ONLY place where time-based UI calculations happen.
-   * It uses ONLY getTimeDifferenceInSeconds from date-time.utils.ts.
+   * It uses ONLY pure string comparison and calculateSecondsBetweenNaive for durations.
    * Returns complete RoomStatusInfo with ALL display data pre-calculated.
    *
    * @param room - Room object with current/next booking data
    * @returns Complete RoomStatusInfo with text, CSS class, button text, progress, etc.
    */
   calculateRoomStatusInfo(room: Room): RoomStatusInfo {
+    const nowString = getCurrentNaiveDateTimeString();
     const rawStatus = room.statusRaw ?? room.status?.toString().toLowerCase();
 
     // ═══════════════════════════════════════════════════════════════════
@@ -442,17 +443,14 @@ export class DashboardPageComponent implements OnInit {
     // ═══════════════════════════════════════════════════════════════════
     // STEP 2: Find CURRENT booking dynamically from allBookingsToday
     // This fixes edge case where backend data is stale and booking just started
+    // Uses PURE STRING COMPARISON (timezone-safe)
     // ═══════════════════════════════════════════════════════════════════
     const currentBooking = room.allBookingsToday?.find(b => {
-      const startsIn = getTimeDifferenceInSeconds(b.start_time);
-      const endsIn = getTimeDifferenceInSeconds(b.end_time);
-      // FIXED: Changed < to <= to correctly identify bookings starting exactly now
-      return startsIn <= 0 && endsIn > 0;
+      // Pure string comparison: booking has started and hasn't ended yet
+      return b.start_time <= nowString && b.end_time > nowString;
     });
 
     if (currentBooking) {
-      const endDiff = getTimeDifferenceInSeconds(currentBooking.end_time);
-
       // Find the end of consecutive booking block
       const blockEndTimeStr = this.findBlockEndTimeString(
         currentBooking,
@@ -475,36 +473,39 @@ export class DashboardPageComponent implements OnInit {
         };
       }
 
-      // Calculate progress (0-100)
-      const startDiff = getTimeDifferenceInSeconds(currentBooking.start_time);
-      const totalDuration = Math.abs(startDiff) + endDiff; // Total booking duration
-      const elapsed = Math.abs(startDiff); // Time since start
+      // Calculate progress (0-100) using timezone-safe duration calculation
+      const totalDuration = calculateSecondsBetweenNaive(currentBooking.start_time, currentBooking.end_time);
+      const elapsed = calculateSecondsBetweenNaive(currentBooking.start_time, nowString);
       const progressValue = totalDuration > 0
         ? Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100)
         : 0;
+
+      // Calculate remaining seconds
+      const remainingSeconds = calculateSecondsBetweenNaive(nowString, currentBooking.end_time);
 
       return {
         text: `Besetzt bis ${formattedEndTime} Uhr`,
         cssClass: 'booked',
         buttonText: 'Besetzt',
         progressValue,
-        remainingSeconds: Math.max(endDiff, 0),
+        remainingSeconds: Math.max(remainingSeconds, 0),
       };
     }
 
     // ═══════════════════════════════════════════════════════════════════
     // STEP 3: Find NEXT booking dynamically from allBookingsToday
     // Room is available now, check when it becomes unavailable
+    // Uses PURE STRING COMPARISON (timezone-safe)
     // ═══════════════════════════════════════════════════════════════════
     const nextBooking = room.allBookingsToday?.find(b => {
-      const startsIn = getTimeDifferenceInSeconds(b.start_time);
-      return startsIn > 0; // Booking starts in the future
+      // Pure string comparison: booking starts in the future
+      return b.start_time > nowString;
     });
 
     if (nextBooking) {
-      const nextStartDiff = getTimeDifferenceInSeconds(nextBooking.start_time);
       const formattedTime = formatToHHMM(nextBooking.start_time);
-      const minutesUntilNext = Math.floor(nextStartDiff / 60);
+      const secondsUntilNext = calculateSecondsBetweenNaive(nowString, nextBooking.start_time);
+      const minutesUntilNext = Math.floor(secondsUntilNext / 60);
       const buttonText = this.formatAvailabilityButton(minutesUntilNext);
 
       return {

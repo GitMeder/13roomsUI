@@ -259,40 +259,64 @@ export function calculateMinutesBetweenTimes(time1: string, time2: string): numb
 }
 
 /**
- * SINGLE SOURCE OF TRUTH FOR TIME DIFFERENCE CALCULATIONS
+ * SINGLE SOURCE OF TRUTH FOR CURRENT TIME IN COMPARISONS
  *
- * Calculates difference in seconds between now and a future/past timezone-naive datetime string.
- * This is the ONLY function that should be used for all time-based status and duration logic.
+ * Returns the current date and time as a timezone-naive 'YYYY-MM-DD HH:mm:ss' string.
+ * This is the ONLY approved method for getting the current time for comparisons.
  *
- * Returns a POSITIVE number if the string represents a time in the FUTURE.
- * Returns a NEGATIVE number if the string represents a time in the PAST.
- * Returns 0 if the input is null/undefined or invalid.
+ * All time comparisons in the application MUST use pure string comparison between
+ * this function's output and booking datetime strings. Never use new Date() for comparisons.
  *
- * CRUCIALLY: Both 'now' and the parsed string are interpreted in the user's local timezone.
- * This ensures "What You See Is What You Get" - no timezone conversions.
- *
- * @param naiveDateTimeString - Timezone-naive datetime string in format "YYYY-MM-DD HH:mm:ss"
- * @returns Difference in seconds (positive = future, negative = past)
+ * @returns Current time in 'YYYY-MM-DD HH:mm:ss' format (e.g., "2025-11-13 14:30:45")
  *
  * @example
- * // If current time is 14:00:00
- * getTimeDifferenceInSeconds("2025-11-13 14:35:00") // Returns 2100 (35 minutes = 2100 seconds in the future)
- * getTimeDifferenceInSeconds("2025-11-13 13:30:00") // Returns -1800 (30 minutes = -1800 seconds in the past)
+ * const nowString = getCurrentNaiveDateTimeString();
+ * const booking = { end_time: "2025-11-13 15:00:00" };
+ * if (booking.end_time > nowString) {
+ *   // Booking is in the future (uses pure string comparison)
+ * }
  */
-export function getTimeDifferenceInSeconds(naiveDateTimeString: string | undefined | null): number {
-  if (!naiveDateTimeString) {
-    return 0;
-  }
-
-  // Create Date objects. CRUCIALLY, both 'now' and the parsed string are in the user's local timezone.
-  // Since the backend sends timezone-naive strings (e.g., "2025-11-13 14:35:00"),
-  // the Date constructor interprets them as local time, not UTC.
-  const eventTime = new Date(naiveDateTimeString);
+export function getCurrentNaiveDateTimeString(): string {
   const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 
-  // Calculate difference in milliseconds, then convert to seconds
-  // Positive = event is in the future, Negative = event is in the past
-  return (eventTime.getTime() - now.getTime()) / 1000;
+/**
+ * TIMEZONE-SAFE DURATION CALCULATION
+ *
+ * Calculates the difference in seconds between two timezone-naive datetime strings.
+ * Returns POSITIVE if datetime2 is LATER than datetime1.
+ * Returns NEGATIVE if datetime2 is EARLIER than datetime1.
+ *
+ * Uses pure string parsing and math - never uses new Date() to avoid timezone bugs.
+ * Safe for calculating durations, progress, and remaining time.
+ *
+ * @param datetime1 - Start time in 'YYYY-MM-DD HH:mm:ss' format
+ * @param datetime2 - End time in 'YYYY-MM-DD HH:mm:ss' format
+ * @returns Difference in seconds (datetime2 - datetime1)
+ *
+ * @example
+ * calculateSecondsBetweenNaive("2025-11-13 14:00:00", "2025-11-13 15:30:00") // Returns 5400 (90 minutes)
+ * calculateSecondsBetweenNaive("2025-11-13 15:00:00", "2025-11-13 14:00:00") // Returns -3600 (-60 minutes)
+ */
+export function calculateSecondsBetweenNaive(datetime1: string, datetime2: string): number {
+  const parseDateTime = (str: string): number => {
+    const [datePart, timePart] = str.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes, seconds = 0] = timePart.split(':').map(Number);
+
+    // Convert to timestamp using Date.UTC (always treats input as UTC, no timezone conversion)
+    // This is safe because we're using the numeric components directly
+    return Date.UTC(year, month - 1, day, hours, minutes, seconds) / 1000;
+  };
+
+  return parseDateTime(datetime2) - parseDateTime(datetime1);
 }
 
 /**

@@ -6,7 +6,7 @@ import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
 import { FormMode, BookingFormState, BookingFormData } from '../../models/booking-form-state.model';
-import { formatToHHMM, findLastBusySlotEnd } from '../../utils/date-time.utils';
+import { formatToHHMM, findLastBusySlotEnd, getCurrentNaiveDateTimeString, calculateSecondsBetweenNaive, formatToYYYYMMDD } from '../../utils/date-time.utils';
 import { ErrorHandlingService } from '../../core/services/error-handling.service';
 
 // Other necessary imports for Angular Material
@@ -376,10 +376,23 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    const defaultDurationMinutes = 30;
-    const slotEnd = new Date(slotStart.getTime() + defaultDurationMinutes * 60000);
+    // Build timezone-naive datetime string for this slot
+    const dateKey = formatToYYYYMMDD(slotStart);
+    const slotHourStr = String(slotHour).padStart(2, '0');
+    const slotMinStr = String(slotStart.getMinutes()).padStart(2, '0');
+    const slotStartStr = `${dateKey} ${slotHourStr}:${slotMinStr}:00`;
 
-    if (slotEnd.getTime() <= new Date().getTime()) {
+    // Calculate slot end time (add 30 minutes) using pure string math
+    const defaultDurationMinutes = 30;
+    const totalMinutes = slotHour * 60 + slotStart.getMinutes() + defaultDurationMinutes;
+    const endHour = Math.floor(totalMinutes / 60);
+    const endMin = totalMinutes % 60;
+    const slotEndStr = `${dateKey} ${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
+
+    const nowString = getCurrentNaiveDateTimeString();
+
+    // Check if slot end is in the past using pure string comparison
+    if (slotEndStr <= nowString) {
       return false;
     }
 
@@ -388,24 +401,21 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
   private isTimeBlocked(time: string, bookings: Booking[], date: Date): boolean {
     const [hours, minutes] = time.split(':').map(Number);
+    const dateKey = formatToYYYYMMDD(date);
 
-    const slotStart = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      hours,
-      minutes,
-      0,
-      0
-    );
+    // Build timezone-naive datetime strings
+    const slotStartStr = `${dateKey} ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 
     const defaultDuration = 30;
-    const slotEnd = new Date(slotStart.getTime() + defaultDuration * 60000);
+    const totalMinutes = hours * 60 + minutes + defaultDuration;
+    const endHour = Math.floor(totalMinutes / 60);
+    const endMin = totalMinutes % 60;
+    const slotEndStr = `${dateKey} ${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
 
+    // Check overlap using pure string comparison
     return bookings.some(booking => {
-      const bookingStart = new Date(booking.start_time);
-      const bookingEnd = new Date(booking.end_time);
-      return slotStart.getTime() < bookingEnd.getTime() && slotEnd.getTime() > bookingStart.getTime();
+      // Two ranges overlap if: slotStart < bookingEnd AND slotEnd > bookingStart
+      return slotStartStr < booking.end_time && slotEndStr > booking.start_time;
     });
   }
 
@@ -778,21 +788,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       dateObj = new Date(dateStr + 'T00:00:00');
     }
 
-    const [endHours, endMinutes] = endTime24.split(':').map(Number);
+    // Build timezone-naive datetime string for end time
+    const endDateTimeStr = `${dateStr} ${endTime24}:00`;
+    const nowString = getCurrentNaiveDateTimeString();
 
-    const endDateTime = new Date(
-      dateObj.getFullYear(),
-      dateObj.getMonth(),
-      dateObj.getDate(),
-      endHours,
-      endMinutes,
-      0,
-      0
-    );
-
-    const now = new Date();
-
-    if (endDateTime.getTime() <= now.getTime()) {
+    // Check if end time is in the past using pure string comparison
+    if (endDateTimeStr <= nowString) {
       this.snackBar.open(
         'Fehler: Ein Meeting kann nicht vollständig in der Vergangenheit gebucht werden.',
         'OK',
@@ -854,18 +855,16 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private findBookingBlock(currentBooking: Booking, allBookings: Booking[]): Booking[] {
     const blockBookings: Booking[] = [currentBooking];
     let foundConsecutive = true;
-    let currentEnd = new Date(currentBooking.end_time);
+    let currentEndStr = currentBooking.end_time;
 
     while (foundConsecutive) {
       foundConsecutive = false;
 
       for (const booking of allBookings) {
-        const bookingStart = new Date(booking.start_time);
-        const bookingEnd = new Date(booking.end_time);
-
-        if (bookingStart.getTime() === currentEnd.getTime()) {
+        // Check if booking starts exactly when current block ends (pure string comparison)
+        if (booking.start_time === currentEndStr) {
           blockBookings.push(booking);
-          currentEnd = bookingEnd;
+          currentEndStr = booking.end_time;
           foundConsecutive = true;
           break;
         }
@@ -884,9 +883,10 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const now = new Date();
-    const selectedDate = new Date(date);
-    const isToday = selectedDate.toDateString() === now.toDateString();
+    // Check if selected date is today using pure date comparison
+    const todayKey = formatToYYYYMMDD(new Date());
+    const selectedDateKey = formatToYYYYMMDD(date);
+    const isToday = selectedDateKey === todayKey;
 
     if (!isToday) {
       this.liveStatus.set({ type: null });
@@ -895,23 +895,25 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
 
     const bookings = this.dayBookings();
+    const nowString = getCurrentNaiveDateTimeString();
 
+    // Find current booking using pure string comparison
     const currentBooking = bookings.find(booking => {
-      const start = new Date(booking.start_time);
-      const end = new Date(booking.end_time);
-      return start.getTime() <= now.getTime() && end.getTime() > now.getTime();
+      return booking.start_time <= nowString && booking.end_time > nowString;
     });
 
     if (currentBooking) {
       const blockBookings = this.findBookingBlock(currentBooking, bookings);
-      const blockStartTime = new Date(blockBookings[0].start_time);
-      const blockEndTime = new Date(blockBookings[blockBookings.length - 1].end_time);
-      const totalBlockMinutes = Math.floor((blockEndTime.getTime() - blockStartTime.getTime()) / 60000);
+      const blockStartTimeStr = blockBookings[0].start_time;
+      const blockEndTimeStr = blockBookings[blockBookings.length - 1].end_time;
+      const totalBlockSeconds = calculateSecondsBetweenNaive(blockStartTimeStr, blockEndTimeStr);
+      const totalBlockMinutes = Math.floor(totalBlockSeconds / 60);
 
       const timelineSegments: TimelineSegment[] = blockBookings.map(booking => {
         const start = new Date(booking.start_time);
         const end = new Date(booking.end_time);
-        const durationMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+        const durationSeconds = calculateSecondsBetweenNaive(booking.start_time, booking.end_time);
+        const durationMinutes = Math.floor(durationSeconds / 60);
         const widthPercent = (durationMinutes / totalBlockMinutes) * 100;
 
         return {
@@ -923,28 +925,30 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         };
       });
 
-      const currentSegmentIndex = timelineSegments.findIndex(segment => {
-        return now.getTime() >= segment.startTime.getTime() && now.getTime() < segment.endTime.getTime();
+      // Find current segment using string comparison
+      const currentSegmentIndex = blockBookings.findIndex(booking => {
+        return booking.start_time <= nowString && booking.end_time > nowString;
       });
 
       let currentSegmentProgress = 0;
       if (currentSegmentIndex >= 0) {
-        const currentSegment = timelineSegments[currentSegmentIndex];
-        const segmentDurationMs = currentSegment.endTime.getTime() - currentSegment.startTime.getTime();
-        const elapsedMs = now.getTime() - currentSegment.startTime.getTime();
-        currentSegmentProgress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
+        const currentSegment = blockBookings[currentSegmentIndex];
+        const segmentDurationSeconds = calculateSecondsBetweenNaive(currentSegment.start_time, currentSegment.end_time);
+        const elapsedSeconds = calculateSecondsBetweenNaive(currentSegment.start_time, nowString);
+        currentSegmentProgress = Math.min(100, Math.max(0, (elapsedSeconds / segmentDurationSeconds) * 100));
       }
 
+      // Find next booking using pure string comparison and sorting
       const nextBooking = bookings
-        .filter(b => new Date(b.start_time).getTime() >= blockEndTime.getTime())
-        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
+        .filter(b => b.start_time >= blockEndTimeStr)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time))[0];
 
       const status: RoomLiveStatus = {
         type: 'currently-booked',
         timelineSegments,
         currentSegmentIndex,
         currentSegmentProgress,
-        blockEndTime,
+        blockEndTime: new Date(blockEndTimeStr),
         nextTitle: nextBooking?.title,
         nextBookingStartTime: nextBooking ? new Date(nextBooking.start_time) : undefined
       };
@@ -983,14 +987,20 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
 
     const currentSegment = status.timelineSegments[status.currentSegmentIndex];
-    const now = new Date();
+    const nowString = getCurrentNaiveDateTimeString();
 
-    if (now.getTime() >= currentSegment.endTime.getTime()) {
+    // Convert segment end time to naive string for comparison
+    const segmentEndStr = formatToYYYYMMDD(currentSegment.endTime) + ' ' + formatToHHMM(currentSegment.endTime) + ':00';
+
+    // Check if we've passed the segment end using pure string comparison
+    if (nowString >= segmentEndStr) {
       this.calculateLiveStatus();
       return;
     }
 
-    const remainingMs = currentSegment.endTime.getTime() - now.getTime();
+    // Calculate remaining time using timezone-safe function
+    const remainingSeconds = calculateSecondsBetweenNaive(nowString, segmentEndStr);
+    const remainingMs = remainingSeconds * 1000;
     const totalSeconds = Math.floor(remainingMs / 1000);
 
     const hours = Math.floor(totalSeconds / 3600);
@@ -1001,9 +1011,13 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     this.countdownText.set(formattedTime);
 
-    const segmentDurationMs = currentSegment.endTime.getTime() - currentSegment.startTime.getTime();
-    const elapsedMs = now.getTime() - currentSegment.startTime.getTime();
-    const progress = Math.min(100, Math.max(0, (elapsedMs / segmentDurationMs) * 100));
+    // Calculate progress using timezone-safe string-based duration calculation
+    const segmentStartStr = formatToYYYYMMDD(currentSegment.startTime) + ' ' + formatToHHMM(currentSegment.startTime) + ':00';
+    const segmentDurationSeconds = calculateSecondsBetweenNaive(segmentStartStr, segmentEndStr);
+    const elapsedSeconds = calculateSecondsBetweenNaive(segmentStartStr, nowString);
+    const progress = (segmentDurationSeconds > 0)
+      ? Math.min(100, Math.max(0, (elapsedSeconds / segmentDurationSeconds) * 100))
+      : 0;
 
     const updatedStatus: RoomLiveStatus = {
       ...status,

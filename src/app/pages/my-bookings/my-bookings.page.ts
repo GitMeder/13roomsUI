@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@ang
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
-import { formatDateTime, formatTimeRange, formatToYYYYMMDD, formatToHHMM, getTimeDifferenceInSeconds } from '../../utils/date-time.utils';
+import { formatDateTime, formatTimeRange, formatToYYYYMMDD, formatToHHMM, getCurrentNaiveDateTimeString } from '../../utils/date-time.utils';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -71,13 +71,14 @@ export class MyBookingsPageComponent implements OnInit {
   }
 
   private groupBookings(bookings: BookingWithRoomInfo[]): void {
+    const nowString = getCurrentNaiveDateTimeString();
     const upcoming: BookingWithRoomInfo[] = [];
     const past: BookingWithRoomInfo[] = [];
 
     bookings.forEach(booking => {
-      // Use centralized time comparison utility (single source of truth)
-      // Positive = future, Negative/Zero = past
-      if (getTimeDifferenceInSeconds(booking.end_time) > 0) {
+      // Pure string comparison is timezone-safe and correct
+      // If end_time is greater than current time string, booking is still active/upcoming
+      if (booking.end_time > nowString) {
         upcoming.push(booking);
       } else {
         past.push(booking);
