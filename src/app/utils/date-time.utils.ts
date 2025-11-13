@@ -129,3 +129,78 @@ export function formatToVerboseGermanDate(date: Date | string): string {
 
   return `${day}. ${month} ${year}`;
 }
+
+/**
+ * Extracts the time part (HH:mm:ss) from an ISO-like timestamp string in a timezone-safe way.
+ * This is used for full timestamp displays including seconds.
+ * Example: "2025-11-13T14:30:45.000Z" -> "14:30:45"
+ *
+ * @param timestamp - ISO string or SQL datetime string
+ * @returns Time in HH:mm:ss format (e.g., "14:30:45")
+ */
+export function formatToHHMMSS(timestamp: string | undefined | null): string {
+  if (!timestamp || !timestamp.includes('T')) {
+    return '';
+  }
+  const timePart = timestamp.split('T')[1];
+  if (!timePart) {
+    return '';
+  }
+  // Extract HH:mm:ss (first 8 characters of time part)
+  return timePart.substring(0, 8);
+}
+
+/**
+ * Formats a full timestamp to German format without timezone conversion.
+ * Uses pure string manipulation to extract date and time parts.
+ * Example: "2025-11-13T14:30:45.000Z" -> "13. November 2025, 14:30:45"
+ *
+ * @param timestamp - ISO string or SQL datetime string
+ * @returns Formatted timestamp string (e.g., "13. November 2025, 14:30:45")
+ */
+export function formatFullTimestamp(timestamp: string | undefined | null): string {
+  if (!timestamp) {
+    return '';
+  }
+
+  // Extract date part using Date object (safe for date only, not time)
+  const date = new Date(timestamp);
+  const monthNames = [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+  ];
+
+  const day = date.getDate();
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+
+  // Extract time using pure string manipulation (timezone-safe)
+  const time = formatToHHMMSS(timestamp);
+
+  return `${day}. ${month} ${year}, ${time}`;
+}
+
+/**
+ * Formats a timestamp to DD.MM.YYYY HH:mm:ss format without timezone conversion.
+ * Uses pure string manipulation for the time part to avoid timezone bugs.
+ * Example: "2025-11-13T14:30:45.000Z" -> "13.11.2025, 14:30:45"
+ *
+ * @param timestamp - ISO string or SQL datetime string
+ * @returns Formatted timestamp string (e.g., "13.11.2025, 14:30:45")
+ */
+export function formatTimestampShort(timestamp: string | undefined | null): string {
+  if (!timestamp) {
+    return '';
+  }
+
+  // Extract date part using Date object
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  // Extract time using pure string manipulation (timezone-safe)
+  const time = formatToHHMMSS(timestamp);
+
+  return `${day}.${month}.${year}, ${time}`;
+}

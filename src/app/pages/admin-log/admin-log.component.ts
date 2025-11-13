@@ -10,6 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ApiService, ActivityLog } from '../../services/api.service';
 import { CsvExportService } from '../../utils/csv-export.service';
+import { formatFullTimestamp, formatTimestampShort } from '../../utils/date-time.utils';
 
 // Define the response type for clarity
 type ActivityLogResponse = {
@@ -213,25 +214,12 @@ export class AdminLogComponent implements OnInit {
     } else if (diffDay < 7) {
       return `vor ${diffDay} ${diffDay === 1 ? 'Tag' : 'Tagen'}`;
     } else {
-      return new Intl.DateTimeFormat('de-DE', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(logTime);
+      return formatTimestampShort(timestamp);
     }
   }
 
   formatTimestamp(timestamp: string): string {
-    return new Intl.DateTimeFormat('de-DE', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }).format(new Date(timestamp));
+    return formatFullTimestamp(timestamp);
   }
 
   hasDetails(log: ActivityLog): boolean {
@@ -281,17 +269,10 @@ export class AdminLogComponent implements OnInit {
 
   /**
    * Formats a log entry for text-only view.
-   * Format: [YYYY-MM-DD HH:mm:ss] USER 'Name' ACTION ENTITY_TYPE (ID: X)
+   * Format: [DD.MM.YYYY, HH:mm:ss] USER 'Name' ACTION ENTITY_TYPE (ID: X)
    */
   formatLogAsText(log: ActivityLog): string {
-    const timestamp = new Intl.DateTimeFormat('de-DE', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }).format(new Date(log.timestamp));
+    const timestamp = formatTimestampShort(log.timestamp);
 
     const userName = log.user
       ? `${log.user.firstname} ${log.user.surname}`
