@@ -8,7 +8,12 @@ import {
   DestroyRef,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { formatToHHMM, formatToYYYYMMDD, formatToVerboseGermanDate } from '../../utils/date-time.utils';
+import {
+  formatToHHMM,
+  formatToYYYYMMDD,
+  formatToVerboseGermanDate,
+  getTimeDifferenceInSeconds,
+} from '../../utils/date-time.utils';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -19,7 +24,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking } from '../../models/booking.model';
-import { RoomCardComponent } from '../../components/room-card/room-card.component';
+import { RoomCardComponent, RoomStatusInfo } from '../../components/room-card/room-card.component';
 import { Router, RouterLink, NavigationEnd } from '@angular/router';
 import { timer } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -106,17 +111,33 @@ export class DashboardPageComponent implements OnInit {
   readonly currentUserId = computed(() => this.currentUser()?.id ?? null);
 
   // Central room statuses - computed Map that updates with heartbeat
+  // THIS IS THE SINGLE SOURCE OF TRUTH FOR ALL TIME-BASED UI LOGIC
   readonly roomStatuses = computed(() => {
     const tick = this.heartbeat(); // Create reactive dependency on heartbeat
     const allRooms = this.rooms(); // Create reactive dependency on rooms list
 
-    // Create a Map to hold the status for each room ID
-    const statuses = new Map<number, { text: string; cssClass: string }>();
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('[DASHBOARD - roomStatuses] Computing room statuses (CENTRALIZED TIME LOGIC)...');
+    console.log('[DASHBOARD - roomStatuses] Heartbeat tick:', tick);
+    console.log('[DASHBOARD - roomStatuses] Total rooms:', allRooms.length);
+    console.log('═══════════════════════════════════════════════════════════════');
+
+    // Create a Map to hold the COMPLETE status info for each room ID
+    const statuses = new Map<number, RoomStatusInfo>();
 
     for (const room of allRooms) {
-      // Calculate and store the status for each room
-      statuses.set(room.id, this.getRoomStatus(room));
+      console.log(`\n[DASHBOARD ${room.name} (ID: ${room.id})]`);
+      console.log(`  Room status raw:`, room.statusRaw ?? room.status);
+
+      // Calculate and store the COMPLETE status info for each room
+      const statusInfo = this.calculateRoomStatusInfo(room);
+      console.log(`  → Computed status info:`, statusInfo);
+      statuses.set(room.id, statusInfo);
     }
+
+    console.log('\n═══════════════════════════════════════════════════════════════');
+    console.log('[DASHBOARD - roomStatuses] Computation complete');
+    console.log('═══════════════════════════════════════════════════════════════\n');
 
     return statuses;
   });
@@ -125,19 +146,17 @@ export class DashboardPageComponent implements OnInit {
   readonly upcomingBookingCounts = computed(() => {
     const tick = this.heartbeat(); // Create reactive dependency on heartbeat
     const allRooms = this.rooms(); // Create reactive dependency on rooms list
-    const now = new Date();
 
     // Create a Map to hold the upcoming booking count for each room ID
     const counts = new Map<number, number>();
 
     for (const room of allRooms) {
-      // Count only bookings where end_time is in the future
+      // Count only bookings where end_time is in the future (positive difference)
       let upcomingCount = 0;
 
       if (room.allBookingsToday && Array.isArray(room.allBookingsToday)) {
         upcomingCount = room.allBookingsToday.filter(booking => {
-          const endTime = new Date(booking.end_time);
-          return endTime.getTime() > now.getTime();
+          return getTimeDifferenceInSeconds(booking.end_time) > 0;
         }).length;
       }
 
@@ -389,35 +408,52 @@ export class DashboardPageComponent implements OnInit {
   }
 
   /**
-   * Enhanced getRoomStatus with cleaner logic using modern ES6 features
-   * Pure function that calculates room status based on current time and room data
+   * ════════════════════════════════════════════════════════════════════════════
+   * CENTRALIZED TIME LOGIC - SINGLE SOURCE OF TRUTH
+   * ════════════════════════════════════════════════════════════════════════════
+   *
+   * This method is the ONLY place where time-based UI calculations happen.
+   * It uses ONLY getTimeDifferenceInSeconds from date-time.utils.ts.
+   * Returns complete RoomStatusInfo with ALL display data pre-calculated.
+   *
+   * @param room - Room object with current/next booking data
+   * @returns Complete RoomStatusInfo with text, CSS class, button text, progress, etc.
    */
-  getRoomStatus(room: Room): { text: string; cssClass: string } {
+  calculateRoomStatusInfo(room: Room): RoomStatusInfo {
     const rawStatus = room.statusRaw ?? room.status?.toString().toLowerCase();
 
-    // Handle special states first
-    const specialStates: { [key: string]: { text: string; cssClass: string } } = {
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 1: Handle special states (night rest, maintenance, inactive)
+    // ═══════════════════════════════════════════════════════════════════
+    const specialStates: { [key: string]: Omit<RoomStatusInfo, 'buttonText' | 'progressValue'> } = {
       night_rest: { text: 'NACHTRUHE', cssClass: 'night-rest-state' },
       maintenance: { text: 'IN WARTUNG', cssClass: 'maintenance-state' },
       inactive: { text: 'NICHT VERFÜGBAR', cssClass: 'inactive-state' },
     };
 
     if (rawStatus && specialStates[rawStatus]) {
-      return specialStates[rawStatus];
+      return {
+        ...specialStates[rawStatus],
+        buttonText: 'Nicht verfügbar',
+        progressValue: 0,
+      };
     }
 
-    const now = new Date();
-
-    // Check current booking
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 2: Check if room is currently booked
+    // Uses getTimeDifferenceInSeconds - positive = future, negative = past
+    // ═══════════════════════════════════════════════════════════════════
     if (room.currentBooking) {
-      const endTime = new Date(room.currentBooking.end_time);
+      const endDiff = getTimeDifferenceInSeconds(room.currentBooking.end_time);
 
-      if (endTime.getTime() > now.getTime()) {
-        const blockEndTime = this.findBlockEndTime(
+      // If end time is in the future (positive diff), room is still occupied
+      if (endDiff > 0) {
+        // Find the end of consecutive booking block
+        const blockEndTimeStr = this.findBlockEndTimeString(
           room.currentBooking,
           room.allBookingsToday ?? []
         );
-        const formattedEndTime = this.formatTime(blockEndTime);
+        const formattedEndTime = formatToHHMM(blockEndTimeStr);
 
         // Check if heavily booked
         const totalBookings = room.totalBookingsToday ?? 0;
@@ -426,59 +462,110 @@ export class DashboardPageComponent implements OnInit {
         const bookedPercentage = (totalMinutes / businessHoursMinutes) * 100;
 
         if (totalBookings >= 3 || bookedPercentage > 66) {
-          return { text: 'HEUTE AUSGEBUCHT', cssClass: 'booked' };
+          return {
+            text: 'HEUTE AUSGEBUCHT',
+            cssClass: 'booked',
+            buttonText: 'Besetzt',
+            progressValue: 0,
+          };
         }
+
+        // Calculate progress (0-100)
+        const startDiff = getTimeDifferenceInSeconds(room.currentBooking.start_time);
+        const totalDuration = Math.abs(startDiff) + endDiff; // Total booking duration
+        const elapsed = Math.abs(startDiff); // Time since start
+        const progressValue = totalDuration > 0
+          ? Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100)
+          : 0;
 
         return {
           text: `Besetzt bis ${formattedEndTime} Uhr`,
           cssClass: 'booked',
+          buttonText: 'Besetzt',
+          progressValue,
+          remainingSeconds: Math.max(endDiff, 0),
         };
       }
     }
 
-    // Check for upcoming bookings
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 3: Check for upcoming bookings (room is available now)
+    // ═══════════════════════════════════════════════════════════════════
     if (room.nextBooking) {
-      const nextStart = new Date(room.nextBooking.start_time);
-      const formattedTime = this.formatTime(nextStart);
-      return {
-        text: `Verfügbar bis ${formattedTime} Uhr`,
-        cssClass: 'available-soon',
-      };
+      const nextStartDiff = getTimeDifferenceInSeconds(room.nextBooking.start_time);
+
+      // If next booking starts in the future (positive diff)
+      if (nextStartDiff > 0) {
+        const formattedTime = formatToHHMM(room.nextBooking.start_time);
+        const minutesUntilNext = Math.floor(nextStartDiff / 60);
+        const buttonText = this.formatAvailabilityButton(minutesUntilNext);
+
+        return {
+          text: `Verfügbar bis ${formattedTime} Uhr`,
+          cssClass: 'available-soon',
+          buttonText,
+          progressValue: 0,
+          minutesUntilNext,
+        };
+      }
     }
 
-    // Room is completely free
-    return { text: 'GANZEN TAG VERFÜGBAR', cssClass: 'available' };
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 4: Room is completely free for the day
+    // ═══════════════════════════════════════════════════════════════════
+    return {
+      text: 'GANZEN TAG VERFÜGBAR',
+      cssClass: 'available',
+      buttonText: 'Jetzt buchen',
+      progressValue: 0,
+    };
   }
 
   /**
-   * Find the end time of a booking block (consecutive bookings)
+   * Find the end time string of a booking block (consecutive bookings).
+   * Uses string comparisons to avoid timezone issues.
    */
-  private findBlockEndTime(
+  private findBlockEndTimeString(
     currentBooking: Booking,
     allBookings: Booking[]
-  ): Date {
-    let blockEndTime = new Date(currentBooking.end_time);
-    let currentEnd = blockEndTime.getTime();
+  ): string {
+    let blockEndTimeStr = currentBooking.end_time;
     let foundConsecutive = true;
 
     while (foundConsecutive) {
       foundConsecutive = false;
 
       for (const booking of allBookings) {
-        const bookingStart = new Date(booking.start_time).getTime();
-
-        if (bookingStart === currentEnd) {
-          const bookingEnd = new Date(booking.end_time);
-          currentEnd = bookingEnd.getTime();
-          blockEndTime = bookingEnd;
+        // Check if booking starts exactly when current block ends
+        if (booking.start_time === blockEndTimeStr) {
+          blockEndTimeStr = booking.end_time;
           foundConsecutive = true;
           break;
         }
       }
     }
 
-    return blockEndTime;
+    return blockEndTimeStr;
   }
+
+  /**
+   * Format button text for available rooms showing remaining time
+   */
+  private formatAvailabilityButton(minutes: number): string {
+    if (minutes < 60) {
+      return `Buchen (${minutes} Min frei)`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+
+    if (mins === 0) {
+      return `Buchen (${hours} Std frei)`;
+    }
+
+    return `Buchen (${hours} Std ${mins} Min frei)`;
+  }
+
 
   // Event handlers
   onDeleteRoom(roomId: number): void {

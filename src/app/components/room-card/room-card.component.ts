@@ -5,7 +5,6 @@ import {
   output,
   inject,
   computed,
-  signal,
 } from '@angular/core';
 import { NgClass, SlicePipe, DecimalPipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -20,16 +19,39 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { Router } from '@angular/router';
 import { Room } from '../../models/room.model';
 import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation-dialog.component';
-import { timer } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { formatToHHMM, calculateMinutesBetweenTimes } from '../../utils/date-time.utils';
 
 /**
- * RoomCardComponent - Premium room card with real-time status tracking
+ * Comprehensive room status information interface.
+ * All time-based calculations and display data are computed by the parent (dashboard)
+ * and passed down to the "dumb" room card component.
+ */
+export interface RoomStatusInfo {
+  /** Display text for the room status (e.g., "Verfügbar bis 14:35") */
+  text: string;
+
+  /** CSS class for styling (e.g., "available-soon", "booked") */
+  cssClass: string;
+
+  /** Text for the booking button (e.g., "Buchen (41 Min frei)") */
+  buttonText: string;
+
+  /** Progress bar value (0-100) for booked rooms */
+  progressValue: number;
+
+  /** Remaining seconds for countdown (optional, used for real-time updates) */
+  remainingSeconds?: number;
+
+  /** Minutes until next booking (for available-soon status) */
+  minutesUntilNext?: number;
+}
+
+/**
+ * RoomCardComponent - Pure presentational room card component
  *
  * Design Philosophy:
+ * - DUMB COMPONENT: No time calculations, no business logic
+ * - All display data comes from parent via @Input()
  * - Visual hierarchy: Status is the primary information, shown through colors and progress
- * - Real-time updates: Live countdown and progress bars for occupied rooms
  * - Micro-interactions: Smooth hover effects and state transitions
  * - Accessibility: Clear visual indicators and ARIA labels
  */
@@ -55,82 +77,25 @@ import { formatToHHMM, calculateMinutesBetweenTimes } from '../../utils/date-tim
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomCardComponent {
+  // ===== INPUTS (Data from parent) =====
   readonly room = input.required<Room>();
-  readonly statusInfo = input.required<{ text: string; cssClass: string }>();
+  readonly statusInfo = input.required<RoomStatusInfo>();
   readonly upcomingBookingCount = input<number>(0);
   readonly canDelete = input(false);
   readonly isHighlighted = input(false);
 
+  // ===== OUTPUTS (Events to parent) =====
   readonly deleteRoomEvent = output<number>();
   readonly cardClick = output<number>();
   readonly showBookings = output<number>();
 
+  // ===== SERVICES =====
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
 
-  // Real-time tracking for occupied rooms
-  private readonly currentTime = signal(new Date());
+  // ===== COMPUTED PROPERTIES (Derived from inputs, NO time calculations) =====
 
-  // Computed signal for booking progress (0-100)
-  readonly bookingProgress = computed(() => {
-    const room = this.room();
-    const status = this.statusInfo();
-
-    if (status.cssClass !== 'booked' || !room.currentBooking) {
-      return 0;
-    }
-
-    const now = this.currentTime();
-    const startTime = new Date(room.currentBooking.start_time);
-    const endTime = new Date(room.currentBooking.end_time);
-
-    const totalDuration = endTime.getTime() - startTime.getTime();
-    const elapsed = now.getTime() - startTime.getTime();
-
-    const progress = (elapsed / totalDuration) * 100;
-    return Math.min(Math.max(progress, 0), 100);
-  });
-
-  // Computed signal for remaining time in minutes
-  readonly remainingMinutes = computed(() => {
-    const room = this.room();
-    const status = this.statusInfo();
-
-    if (status.cssClass !== 'booked' || !room.currentBooking) {
-      return null;
-    }
-
-    const now = this.currentTime();
-    const endTime = new Date(room.currentBooking.end_time);
-    const remaining = endTime.getTime() - now.getTime();
-
-    return Math.max(Math.floor(remaining / 60000), 0);
-  });
-
-  // Computed signal for time until next booking (timezone-safe calculation)
-  readonly minutesUntilNextBooking = computed(() => {
-    const room = this.room();
-    const status = this.statusInfo();
-
-    if (status.cssClass !== 'available-soon') {
-      return null;
-    }
-
-    // Get current time as HH:mm using timezone-safe formatting
-    const now = this.currentTime();
-    const currentTimeStr = formatToHHMM(now.toISOString());
-
-    // If there's a next booking, calculate time until it starts
-    if (room.nextBooking) {
-      const nextStartStr = formatToHHMM(room.nextBooking.start_time);
-      return calculateMinutesBetweenTimes(currentTimeStr, nextStartStr);
-    }
-
-    // If no next booking, calculate time until end of business hours (20:00)
-    return calculateMinutesBetweenTimes(currentTimeStr, '20:00');
-  });
-
-  // Computed signal for status icon
+  // Status icon based on CSS class
   readonly statusIcon = computed(() => {
     const status = this.statusInfo().cssClass;
 
@@ -146,7 +111,7 @@ export class RoomCardComponent {
     return iconMap[status] || 'help_outline';
   });
 
-  // Computed signal for interactive state
+  // Interactive state based on CSS class
   readonly isInteractive = computed(() => {
     const status = this.statusInfo().cssClass;
     return ![
@@ -155,15 +120,6 @@ export class RoomCardComponent {
       'inactive-state',
     ].includes(status);
   });
-
-  constructor() {
-    // Update current time every second for real-time progress
-    timer(0, 1000)
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => {
-        this.currentTime.set(new Date());
-      });
-  }
 
   onDelete(event: Event): void {
     event.stopPropagation();
@@ -221,22 +177,5 @@ export class RoomCardComponent {
     if (room?.id && this.isInteractive()) {
       this.router.navigate(['/bookings', room.id]);
     }
-  }
-
-  formatRemainingTime(minutes: number | null): string {
-    if (minutes === null) return '';
-
-    if (minutes < 60) {
-      return `${minutes} Min`;
-    }
-
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-
-    if (mins === 0) {
-      return `${hours} Std`;
-    }
-
-    return `${hours} Std ${mins} Min`;
   }
 }

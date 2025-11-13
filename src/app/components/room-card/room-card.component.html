@@ -25,21 +25,23 @@
     </div>
 
     <!-- Progress Bar for Occupied Rooms -->
-    @if (statusInfo().cssClass === 'booked' && bookingProgress() > 0) {
+    @if (statusInfo().cssClass === 'booked' && statusInfo().progressValue > 0) {
     <div class="room-card__progress-container">
       <mat-progress-bar
         mode="determinate"
-        [value]="bookingProgress()"
+        [value]="statusInfo().progressValue"
         class="room-card__progress-bar"
       >
       </mat-progress-bar>
       <div class="room-card__progress-label">
         <span class="room-card__progress-text"
-          >{{ bookingProgress() | number : "1.0-0" }}%</span
+          >{{ statusInfo().progressValue | number : "1.0-0" }}%</span
         >
+        @if (statusInfo().remainingSeconds !== undefined && statusInfo().remainingSeconds! > 0) {
         <span class="room-card__time-remaining">
-          {{ formatRemainingTime(remainingMinutes()) }} verbleibend
+          {{ (statusInfo().remainingSeconds! / 60) | number : "1.0-0" }} Min verbleibend
         </span>
+        }
       </div>
     </div>
     }
@@ -125,7 +127,7 @@
       (click)="onBookRoom($event)"
     >
       <mat-icon>add_circle</mat-icon>
-      Jetzt buchen
+      {{ statusInfo().buttonText }}
     </button>
     } @else if (statusInfo().cssClass === 'available-soon') {
     <button
@@ -135,7 +137,7 @@
       (click)="onBookRoom($event)"
     >
       <mat-icon>schedule</mat-icon>
-      Buchen ({{ formatRemainingTime(minutesUntilNextBooking()) }} frei)
+      {{ statusInfo().buttonText }}
     </button>
     } @else if (statusInfo().cssClass === 'booked') {
     <button

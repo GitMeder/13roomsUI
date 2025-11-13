@@ -257,3 +257,40 @@ export function calculateMinutesBetweenTimes(time1: string, time2: string): numb
   const totalMinutes2 = h2 * 60 + m2;
   return Math.abs(totalMinutes2 - totalMinutes1);
 }
+
+/**
+ * SINGLE SOURCE OF TRUTH FOR TIME DIFFERENCE CALCULATIONS
+ *
+ * Calculates difference in seconds between now and a future/past timezone-naive datetime string.
+ * This is the ONLY function that should be used for all time-based status and duration logic.
+ *
+ * Returns a POSITIVE number if the string represents a time in the FUTURE.
+ * Returns a NEGATIVE number if the string represents a time in the PAST.
+ * Returns 0 if the input is null/undefined or invalid.
+ *
+ * CRUCIALLY: Both 'now' and the parsed string are interpreted in the user's local timezone.
+ * This ensures "What You See Is What You Get" - no timezone conversions.
+ *
+ * @param naiveDateTimeString - Timezone-naive datetime string in format "YYYY-MM-DD HH:mm:ss"
+ * @returns Difference in seconds (positive = future, negative = past)
+ *
+ * @example
+ * // If current time is 14:00:00
+ * getTimeDifferenceInSeconds("2025-11-13 14:35:00") // Returns 2100 (35 minutes = 2100 seconds in the future)
+ * getTimeDifferenceInSeconds("2025-11-13 13:30:00") // Returns -1800 (30 minutes = -1800 seconds in the past)
+ */
+export function getTimeDifferenceInSeconds(naiveDateTimeString: string | undefined | null): number {
+  if (!naiveDateTimeString) {
+    return 0;
+  }
+
+  // Create Date objects. CRUCIALLY, both 'now' and the parsed string are in the user's local timezone.
+  // Since the backend sends timezone-naive strings (e.g., "2025-11-13 14:35:00"),
+  // the Date constructor interprets them as local time, not UTC.
+  const eventTime = new Date(naiveDateTimeString);
+  const now = new Date();
+
+  // Calculate difference in milliseconds, then convert to seconds
+  // Positive = event is in the future, Negative = event is in the past
+  return (eventTime.getTime() - now.getTime()) / 1000;
+}
