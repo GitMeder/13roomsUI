@@ -412,13 +412,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
   private autoFillEndTime(startTime: string): void {
     if (!startTime) return;
 
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-
-    const endDate = new Date(startDate.getTime() + 30 * 60000); // Add 30 minutes
-
-    const endTimeStr = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+    const endTimeStr = this.addMinutesToStringTime(startTime, 30);
 
     this.form.patchValue({ endTime: endTimeStr }, { emitEvent: false });
   }
@@ -429,13 +423,12 @@ export class BookingFormComponent implements OnInit, OnDestroy {
 
     let startSearchFrom: string;
     if (isToday) {
+      const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const minutes = now.getMinutes();
       const interval = 15;
       const remainder = minutes % interval;
       const minutesToAdd = remainder === 0 ? 0 : interval - remainder;
-      const nextSlotTime = new Date(now.getTime() + minutesToAdd * 60000);
-      nextSlotTime.setSeconds(0, 0);
-      startSearchFrom = `${nextSlotTime.getHours().toString().padStart(2, '0')}:${nextSlotTime.getMinutes().toString().padStart(2, '0')}`;
+      startSearchFrom = this.addMinutesToStringTime(currentTimeStr, minutesToAdd);
     } else {
       startSearchFrom = '00:00';
     }
@@ -446,20 +439,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const duration = 30;
 
     const suggestions = relevantSlots.slice(0, maxSuggestions).map(startTime => {
-      const [hours, minutes] = startTime.split(':').map(Number);
-
-      const startDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        hours,
-        minutes,
-        0,
-        0
-      );
-
-      const endDate = new Date(startDate.getTime() + duration * 60000);
-      const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+      const endTime = this.addMinutesToStringTime(startTime, duration);
 
       return {
         startTime: startTime,
@@ -701,6 +681,30 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const formValue = this.form.getRawValue();
     const title = formValue.title?.trim() ?? '';
     return !formValue.roomId || !formValue.startTime || !formValue.endTime || title.length < 2;
+  }
+
+  /**
+   * Adds minutes to a time string in "HH:mm" format using pure string arithmetic.
+   * This method NEVER creates Date objects for time calculations, preventing timezone bugs.
+   * @param timeString - Time in "HH:mm" format
+   * @param minutesToAdd - Number of minutes to add (can be negative)
+   * @returns New time string in "HH:mm" format
+   */
+  private addMinutesToStringTime(timeString: string, minutesToAdd: number): string {
+    if (!timeString || !timeString.includes(':')) {
+      return '00:00';
+    }
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const totalMinutes = (hours * 60) + minutes;
+    const newTotalMinutes = totalMinutes + minutesToAdd;
+
+    const newHours = Math.floor(newTotalMinutes / 60) % 24;
+    const newMinutes = newTotalMinutes % 60;
+
+    const formattedHours = String(newHours).padStart(2, '0');
+    const formattedMinutes = String(newMinutes).padStart(2, '0');
+
+    return `${formattedHours}:${formattedMinutes}`;
   }
 
   private normalizeTimeFormat(time: string): string {
