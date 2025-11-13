@@ -440,74 +440,80 @@ export class DashboardPageComponent implements OnInit {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 2: Check if room is currently booked
-    // Uses getTimeDifferenceInSeconds - positive = future, negative = past
+    // STEP 2: Find CURRENT booking dynamically from allBookingsToday
+    // This fixes edge case where backend data is stale and booking just started
     // ═══════════════════════════════════════════════════════════════════
-    if (room.currentBooking) {
-      const endDiff = getTimeDifferenceInSeconds(room.currentBooking.end_time);
+    const currentBooking = room.allBookingsToday?.find(b => {
+      const startsIn = getTimeDifferenceInSeconds(b.start_time);
+      const endsIn = getTimeDifferenceInSeconds(b.end_time);
+      // FIXED: Changed < to <= to correctly identify bookings starting exactly now
+      return startsIn <= 0 && endsIn > 0;
+    });
 
-      // If end time is in the future (positive diff), room is still occupied
-      if (endDiff > 0) {
-        // Find the end of consecutive booking block
-        const blockEndTimeStr = this.findBlockEndTimeString(
-          room.currentBooking,
-          room.allBookingsToday ?? []
-        );
-        const formattedEndTime = formatToHHMM(blockEndTimeStr);
+    if (currentBooking) {
+      const endDiff = getTimeDifferenceInSeconds(currentBooking.end_time);
 
-        // Check if heavily booked
-        const totalBookings = room.totalBookingsToday ?? 0;
-        const totalMinutes = room.totalBookedMinutesToday ?? 0;
-        const businessHoursMinutes = 720; // 12 hours
-        const bookedPercentage = (totalMinutes / businessHoursMinutes) * 100;
+      // Find the end of consecutive booking block
+      const blockEndTimeStr = this.findBlockEndTimeString(
+        currentBooking,
+        room.allBookingsToday ?? []
+      );
+      const formattedEndTime = formatToHHMM(blockEndTimeStr);
 
-        if (totalBookings >= 3 || bookedPercentage > 66) {
-          return {
-            text: 'HEUTE AUSGEBUCHT',
-            cssClass: 'booked',
-            buttonText: 'Besetzt',
-            progressValue: 0,
-          };
-        }
+      // Check if heavily booked
+      const totalBookings = room.totalBookingsToday ?? 0;
+      const totalMinutes = room.totalBookedMinutesToday ?? 0;
+      const businessHoursMinutes = 720; // 12 hours
+      const bookedPercentage = (totalMinutes / businessHoursMinutes) * 100;
 
-        // Calculate progress (0-100)
-        const startDiff = getTimeDifferenceInSeconds(room.currentBooking.start_time);
-        const totalDuration = Math.abs(startDiff) + endDiff; // Total booking duration
-        const elapsed = Math.abs(startDiff); // Time since start
-        const progressValue = totalDuration > 0
-          ? Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100)
-          : 0;
-
+      if (totalBookings >= 3 || bookedPercentage > 66) {
         return {
-          text: `Besetzt bis ${formattedEndTime} Uhr`,
+          text: 'HEUTE AUSGEBUCHT',
           cssClass: 'booked',
           buttonText: 'Besetzt',
-          progressValue,
-          remainingSeconds: Math.max(endDiff, 0),
+          progressValue: 0,
         };
       }
+
+      // Calculate progress (0-100)
+      const startDiff = getTimeDifferenceInSeconds(currentBooking.start_time);
+      const totalDuration = Math.abs(startDiff) + endDiff; // Total booking duration
+      const elapsed = Math.abs(startDiff); // Time since start
+      const progressValue = totalDuration > 0
+        ? Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100)
+        : 0;
+
+      return {
+        text: `Besetzt bis ${formattedEndTime} Uhr`,
+        cssClass: 'booked',
+        buttonText: 'Besetzt',
+        progressValue,
+        remainingSeconds: Math.max(endDiff, 0),
+      };
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 3: Check for upcoming bookings (room is available now)
+    // STEP 3: Find NEXT booking dynamically from allBookingsToday
+    // Room is available now, check when it becomes unavailable
     // ═══════════════════════════════════════════════════════════════════
-    if (room.nextBooking) {
-      const nextStartDiff = getTimeDifferenceInSeconds(room.nextBooking.start_time);
+    const nextBooking = room.allBookingsToday?.find(b => {
+      const startsIn = getTimeDifferenceInSeconds(b.start_time);
+      return startsIn > 0; // Booking starts in the future
+    });
 
-      // If next booking starts in the future (positive diff)
-      if (nextStartDiff > 0) {
-        const formattedTime = formatToHHMM(room.nextBooking.start_time);
-        const minutesUntilNext = Math.floor(nextStartDiff / 60);
-        const buttonText = this.formatAvailabilityButton(minutesUntilNext);
+    if (nextBooking) {
+      const nextStartDiff = getTimeDifferenceInSeconds(nextBooking.start_time);
+      const formattedTime = formatToHHMM(nextBooking.start_time);
+      const minutesUntilNext = Math.floor(nextStartDiff / 60);
+      const buttonText = this.formatAvailabilityButton(minutesUntilNext);
 
-        return {
-          text: `Verfügbar bis ${formattedTime} Uhr`,
-          cssClass: 'available-soon',
-          buttonText,
-          progressValue: 0,
-          minutesUntilNext,
-        };
-      }
+      return {
+        text: `Verfügbar bis ${formattedTime} Uhr`,
+        cssClass: 'available-soon',
+        buttonText,
+        progressValue: 0,
+        minutesUntilNext,
+      };
     }
 
     // ═══════════════════════════════════════════════════════════════════
