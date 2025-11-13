@@ -19,7 +19,7 @@ import { Booking } from '../../models/booking.model';
 import { Room } from '../../models/room.model';
 import { ErrorHandlingService } from '../../core/services/error-handling.service';
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
-import { BookingWithRoomInfo, ApiUser } from '../../models/api-responses.model';
+import { BookingWithRoomInfo, ApiUser, RawBookingResponse } from '../../models/api-responses.model';
 import { CsvExportService } from '../../utils/csv-export.service';
 
 /**
@@ -186,11 +186,13 @@ export class AdminBookingsComponent implements OnInit {
     const formattedDate = formatToGermanDate(startDate);
     const formattedTime = `${this.formatTime(startDate)} – ${this.formatTime(endDate)}`;
 
+    const rawBooking = booking as RawBookingResponse // Workaround for accessing raw fields
+
     // Use normalized data from ApiService (createdByName, guestName)
-    const bookedBy = booking.createdByName
-      ? booking.createdByName
-      : booking.guestName
-        ? `Gast: ${booking.guestName}`
+    const bookedBy = rawBooking.creator_firstname + ' ' + rawBooking.creator_surname
+      ? rawBooking.creator_firstname + ' ' + rawBooking.creator_surname 
+      : rawBooking.guest_name
+        ? `Gast: ${rawBooking.guest_name}` // does not work properly yet
         : 'Unbekannt';
 
     return {
