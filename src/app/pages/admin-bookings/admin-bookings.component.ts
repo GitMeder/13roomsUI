@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { formatToHHMM, formatToGermanDate } from '../../utils/date-time.utils';
+import { formatToHHMM, formatToVerboseGermanDate } from '../../utils/date-time.utils';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
@@ -180,11 +180,10 @@ export class AdminBookingsComponent implements OnInit {
    * The ApiService handles all data normalization, this method only adds display formatting.
    */
   formatBooking(booking: BookingWithRoomInfo): AdminBooking {
-    const startDate = new Date(booking.start_time);
-    const endDate = new Date(booking.end_time);
-
-    const formattedDate = formatToGermanDate(startDate);
-    const formattedTime = `${this.formatTime(startDate)} – ${this.formatTime(endDate)}`;
+    // Extract date portion for German date formatting (YYYY-MM-DD from "YYYY-MM-DD HH:mm:ss")
+    const dateStr = booking.start_time.split(' ')[0];
+    const formattedDate = formatToVerboseGermanDate(new Date(dateStr));
+    const formattedTime = `${this.formatTime(booking.start_time)} – ${this.formatTime(booking.end_time)}`;
 
     // Use normalized data from ApiService (createdByName, guestName)
     const bookedBy = booking.createdByName
@@ -228,9 +227,9 @@ export class AdminBookingsComponent implements OnInit {
         prefillData: {
           title: booking.title,
           comment: booking.comment || '',
-          date: booking.start_time.split('T')[0],
-          startTime: this.formatTime(new Date(booking.start_time)),
-          endTime: this.formatTime(new Date(booking.end_time))
+          date: booking.start_time.split(' ')[0], // Extract YYYY-MM-DD from "YYYY-MM-DD HH:mm:ss"
+          startTime: this.formatTime(booking.start_time),
+          endTime: this.formatTime(booking.end_time)
         }
       }
     });

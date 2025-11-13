@@ -34,8 +34,8 @@ interface BookingFormControls {
 
 interface TimelineSegment {
   title: string;
-  startTime: Date;
-  endTime: Date;
+  startTime: string; // Timezone-naive datetime string
+  endTime: string;   // Timezone-naive datetime string
   durationMinutes: number;
   widthPercent: number;
 }
@@ -46,9 +46,9 @@ interface RoomLiveStatus {
   timelineSegments?: TimelineSegment[];
   currentSegmentIndex?: number;
   currentSegmentProgress?: number; // 0-100%
-  blockEndTime?: Date;
+  blockEndTime?: string; // Timezone-naive datetime string
   nextTitle?: string;
-  nextBookingStartTime?: Date;
+  nextBookingStartTime?: string; // Timezone-naive datetime string
 }
 
 @Component({
@@ -676,15 +676,17 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     }
 
     if (conflict) {
-      const conflictEndTime = new Date(conflict.end_time);
-      const availableLabel = this.formatTime(conflictEndTime);
+      // Format time for display using timezone-naive string
+      const availableLabel = this.formatTime(conflict.end_time);
       this.availabilityCountdown.set(
         availableLabel ? `Wieder verfügbar ab ${availableLabel} Uhr` : null
       );
 
+      // Use Date object ONLY for countdown timer calculations
+      const conflictEndTimeMs = new Date(conflict.end_time).getTime();
       this.countdownSubscription = timer(0, 1000).pipe(
         takeUntil(this.destroy$),
-        map(() => conflictEndTime.getTime() - Date.now()),
+        map(() => conflictEndTimeMs - Date.now()),
         takeWhile(diffMs => diffMs > 0, true)
       ).subscribe(diffMs => {
         if (diffMs <= 0) {
@@ -910,16 +912,14 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       const totalBlockMinutes = Math.floor(totalBlockSeconds / 60);
 
       const timelineSegments: TimelineSegment[] = blockBookings.map(booking => {
-        const start = new Date(booking.start_time);
-        const end = new Date(booking.end_time);
         const durationSeconds = calculateSecondsBetweenNaive(booking.start_time, booking.end_time);
         const durationMinutes = Math.floor(durationSeconds / 60);
         const widthPercent = (durationMinutes / totalBlockMinutes) * 100;
 
         return {
           title: booking.title,
-          startTime: start,
-          endTime: end,
+          startTime: booking.start_time,
+          endTime: booking.end_time,
           durationMinutes,
           widthPercent
         };
@@ -948,9 +948,9 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         timelineSegments,
         currentSegmentIndex,
         currentSegmentProgress,
-        blockEndTime: new Date(blockEndTimeStr),
+        blockEndTime: blockEndTimeStr,
         nextTitle: nextBooking?.title,
-        nextBookingStartTime: nextBooking ? new Date(nextBooking.start_time) : undefined
+        nextBookingStartTime: nextBooking?.start_time
       };
 
       this.liveStatus.set(status);
@@ -989,8 +989,8 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const currentSegment = status.timelineSegments[status.currentSegmentIndex];
     const nowString = getCurrentNaiveDateTimeString();
 
-    // Convert segment end time to naive string for comparison
-    const segmentEndStr = formatToYYYYMMDD(currentSegment.endTime) + ' ' + formatToHHMM(currentSegment.endTime) + ':00';
+    // Segment times are already timezone-naive datetime strings
+    const segmentEndStr = currentSegment.endTime;
 
     // Check if we've passed the segment end using pure string comparison
     if (nowString >= segmentEndStr) {
@@ -1012,7 +1012,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     this.countdownText.set(formattedTime);
 
     // Calculate progress using timezone-safe string-based duration calculation
-    const segmentStartStr = formatToYYYYMMDD(currentSegment.startTime) + ' ' + formatToHHMM(currentSegment.startTime) + ':00';
+    const segmentStartStr = currentSegment.startTime;
     const segmentDurationSeconds = calculateSecondsBetweenNaive(segmentStartStr, segmentEndStr);
     const elapsedSeconds = calculateSecondsBetweenNaive(segmentStartStr, nowString);
     const progress = (segmentDurationSeconds > 0)

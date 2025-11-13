@@ -6,26 +6,37 @@
  */
 
 /**
- * Formats a date/time string or Date object to HH:mm format.
- * Extracts time directly from ISO string without timezone conversion.
+ * TIMEZONE-NAIVE TIME FORMATTER
  *
- * @param dateString - ISO string, SQL datetime string, or Date object
+ * Formats a datetime string to HH:mm format.
+ * Extracts time directly from string without any Date object or timezone conversion.
+ *
+ * CRITICAL: This function ONLY accepts strings. Date objects are FORBIDDEN.
+ * This compile-time enforcement prevents timezone conversion bugs.
+ *
+ * @param timestamp - Datetime string in "YYYY-MM-DD HH:mm:ss" or ISO format
  * @returns Time in HH:mm format (e.g., "08:00")
+ *
+ * @example
+ * formatToHHMM("2025-11-13 14:30:00") // Returns "14:30"
+ * formatToHHMM("2025-11-13T14:30:00") // Returns "14:30"
  */
-export function formatToHHMM(dateString: string | Date | null | undefined): string {
-  if (!dateString) {
+export function formatToHHMM(timestamp: string | null | undefined): string {
+  if (!timestamp || typeof timestamp !== 'string') {
     return '';
   }
 
-  const isoString = (dateString instanceof Date) ? dateString.toISOString() : dateString;
-
-  if (isoString.includes('T')) {
-    const timePart = isoString.split('T')[1];
+  // Handle ISO format (YYYY-MM-DDTHH:mm:ss)
+  if (timestamp.includes('T')) {
+    const timePart = timestamp.split('T')[1];
     if (timePart) {
       return timePart.substring(0, 5);
     }
-  } else if (isoString.includes(' ')) {
-    const timePart = isoString.split(' ')[1];
+  }
+
+  // Handle SQL format (YYYY-MM-DD HH:mm:ss)
+  if (timestamp.includes(' ')) {
+    const timePart = timestamp.split(' ')[1];
     if (timePart) {
       return timePart.substring(0, 5);
     }
@@ -35,12 +46,19 @@ export function formatToHHMM(dateString: string | Date | null | undefined): stri
 }
 
 /**
- * Formats a Date object to YYYY-MM-DD format.
+ * FORMATTING FUNCTION: Date Object to YYYY-MM-DD String
+ *
+ * Formats a Date object to a timezone-naive 'YYYY-MM-DD' string.
+ * This is ONLY for formatting, NEVER for comparison.
  *
  * @param date - Date object to format
- * @returns Date in YYYY-MM-DD format (e.g., "2025-11-12")
+ * @returns Date in YYYY-MM-DD format (e.g., "2025-11-13")
+ *
+ * @example
+ * formatToYYYYMMDD(new Date(2025, 10, 13)) // Returns "2025-11-13"
  */
 export function formatToYYYYMMDD(date: Date): string {
+  if (!date) return '';
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -48,13 +66,21 @@ export function formatToYYYYMMDD(date: Date): string {
 }
 
 /**
- * Formats two time strings as a range with "Uhr" suffix.
+ * TIMEZONE-NAIVE TIME RANGE FORMATTER
  *
- * @param startTime - Start time in any format
- * @param endTime - End time in any format
+ * Formats two datetime strings as a time range with "Uhr" suffix.
+ * Pure string manipulation - no Date object creation.
+ *
+ * CRITICAL: This function ONLY accepts strings. Date objects are FORBIDDEN.
+ *
+ * @param startTime - Start datetime string in "YYYY-MM-DD HH:mm:ss" format
+ * @param endTime - End datetime string in "YYYY-MM-DD HH:mm:ss" format
  * @returns Formatted range (e.g., "08:00 - 09:30 Uhr")
+ *
+ * @example
+ * formatTimeRange("2025-11-13 08:00:00", "2025-11-13 09:30:00") // Returns "08:00 - 09:30 Uhr"
  */
-export function formatTimeRange(startTime: string | Date, endTime: string | Date): string {
+export function formatTimeRange(startTime: string, endTime: string): string {
   const start = formatToHHMM(startTime);
   const end = formatToHHMM(endTime);
   return `${start} - ${end} Uhr`;
@@ -111,21 +137,28 @@ export function formatToGermanDate(date: Date): string {
 }
 
 /**
- * Formats a date to a more verbose German format.
+ * FORMATTING FUNCTION: Date Object to Verbose German Date
  *
- * @param date - Date object or string to format
+ * Formats a Date object to verbose German format.
+ * This is ONLY for formatting, NEVER for comparison.
+ *
+ * @param date - Date object to format
  * @returns Formatted string (e.g., "12. November 2025")
+ *
+ * @example
+ * formatToVerboseGermanDate(new Date(2025, 10, 12)) // Returns "12. November 2025"
  */
-export function formatToVerboseGermanDate(date: Date | string): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+export function formatToVerboseGermanDate(date: Date): string {
+  if (!date) return '';
+
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
   ];
 
-  const day = dateObj.getDate();
-  const month = monthNames[dateObj.getMonth()];
-  const year = dateObj.getFullYear();
+  const day = date.getDate();
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
 
   return `${day}. ${month} ${year}`;
 }

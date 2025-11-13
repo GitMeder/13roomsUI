@@ -210,9 +210,16 @@ export class BookingsPageComponent implements OnInit {
     const endTime = new Date(startTime);
     endTime.setMinutes(startTime.getMinutes() + 30);
 
+    // Convert Date objects to HH:mm strings manually
+    const formatTimeFromDate = (date: Date): string => {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const mins = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${mins}`;
+    };
+
     return {
-      suggestedStartTime: this.formatTime(startTime),
-      suggestedEndTime: this.formatTime(endTime)
+      suggestedStartTime: formatTimeFromDate(startTime),
+      suggestedEndTime: formatTimeFromDate(endTime)
     };
   }
 

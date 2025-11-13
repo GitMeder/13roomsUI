@@ -298,13 +298,12 @@ export class DashboardPageComponent implements OnInit {
 
     return Array.from(groupsMap.entries())
       .map(([dateKey, items]) => {
-        const firstDate = new Date(items[0].start_time);
         const isToday = dateKey === this.todayKey;
         // Check if booking is past using pure string comparison
         const isPast = items[0].start_time < nowString;
         const label = isToday
           ? 'Heute'
-          : formatToVerboseGermanDate(firstDate);
+          : formatToVerboseGermanDate(new Date(items[0].start_time));
 
         return {
           dateKey,
@@ -709,8 +708,12 @@ export class DashboardPageComponent implements OnInit {
     return 'Unbekannt';
   }
 
-  private getDateKey(value: string | Date): string {
-    const date = value instanceof Date ? value : new Date(value);
-    return formatToYYYYMMDD(date);
+  /**
+   * Extracts YYYY-MM-DD from a datetime string for grouping.
+   * Pure string extraction - no Date object creation.
+   */
+  private getDateKey(datetimeString: string): string {
+    // Extract date portion from "YYYY-MM-DD HH:mm:ss" format
+    return datetimeString.split(' ')[0];
   }
 }

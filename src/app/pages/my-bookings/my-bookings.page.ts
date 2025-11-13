@@ -124,7 +124,7 @@ export class MyBookingsPageComponent implements OnInit {
       mode: FormMode.RESCHEDULE,
       roomId: booking.room_id,
       data: {
-        date: formatToYYYYMMDD(new Date(booking.start_time)),
+        date: booking.start_time.split(' ')[0], // Extract YYYY-MM-DD from "YYYY-MM-DD HH:mm:ss"
         startTime: formatToHHMM(booking.start_time),
         endTime: formatToHHMM(booking.end_time),
         title: booking.title,
@@ -176,11 +176,27 @@ export class MyBookingsPageComponent implements OnInit {
   }
 
   /**
+   * Converts a timezone-naive datetime string to ICS UTC format without Date object conversion.
+   * Input: "2025-11-13 14:30:00" → Output: "20251113T143000Z"
+   *
+   * CRITICAL: This uses pure string manipulation to avoid timezone conversion bugs.
+   * The 'Z' suffix indicates UTC, but we're NOT converting the time - we're treating
+   * the naive datetime as if it were already UTC for calendar compatibility.
+   */
+  private convertToICSFormat(naiveDatetime: string): string {
+    // Remove all non-digit characters: "2025-11-13 14:30:00" → "20251113143000"
+    const digitsOnly = naiveDatetime.replace(/\D/g, '');
+    // Insert 'T' after date part: "20251113143000" → "20251113T143000Z"
+    return digitsOnly.substring(0, 8) + 'T' + digitsOnly.substring(8) + 'Z';
+  }
+
+  /**
    * Erstellt eine ICS-Datei und startet den Download
    */
   onDownloadICS(booking: BookingWithRoomInfo): void {
-    const start = new Date(booking.start_time).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const end = new Date(booking.end_time).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const start = this.convertToICSFormat(booking.start_time);
+    const end = this.convertToICSFormat(booking.end_time);
+    const now = this.convertToICSFormat(getCurrentNaiveDateTimeString());
     const uid = `${booking.id}@myapp.local`;
     const title = booking.title || 'Buchung';
     const description = booking.comment ? booking.comment.replace(/\n/g, '\\n') : '';
@@ -193,7 +209,7 @@ export class MyBookingsPageComponent implements OnInit {
       'CALSCALE:GREGORIAN',
       'BEGIN:VEVENT',
       `UID:${uid}`,
-      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `DTSTAMP:${now}`,
       `DTSTART:${start}`,
       `DTEND:${end}`,
       `SUMMARY:${title}`,
