@@ -204,3 +204,39 @@ export function formatTimestampShort(timestamp: string | undefined | null): stri
 
   return `${day}.${month}.${year}, ${time}`;
 }
+
+/**
+ * Calculates relative time from a timestamp using UTC-based logic.
+ * This function is immune to browser timezone issues by performing all calculations in UTC.
+ * Example: "2025-11-13T14:30:45.000Z" -> "vor 5 Minuten"
+ *
+ * @param timestamp - ISO string or SQL datetime string
+ * @returns Relative time string in German (e.g., "vor 5 Minuten", "gerade eben")
+ */
+export function getRelativeTime(timestamp: string | undefined | null): string {
+  if (!timestamp) {
+    return '';
+  }
+
+  // Step 1: Create Date objects. The input string is UTC from the DB.
+  const eventTime = new Date(timestamp);
+  const now = new Date();
+
+  // Step 2: Get the UTC time in milliseconds for both. Crucially, this IGNORES the local timezone offset.
+  const diffInMs = now.getTime() - eventTime.getTime();
+  const diffInSeconds = Math.floor(diffInMs / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'gerade eben';
+  }
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `vor ${diffInMinutes} ${diffInMinutes === 1 ? 'Minute' : 'Minuten'}`;
+  }
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `vor ${diffInHours} ${diffInHours === 1 ? 'Stunde' : 'Stunden'}`;
+  }
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `vor ${diffInDays} ${diffInDays === 1 ? 'Tag' : 'Tagen'}`;
+}

@@ -10,7 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ApiService, ActivityLog } from '../../services/api.service';
 import { CsvExportService } from '../../utils/csv-export.service';
-import { formatFullTimestamp, formatTimestampShort } from '../../utils/date-time.utils';
+import { formatFullTimestamp, formatTimestampShort, getRelativeTime } from '../../utils/date-time.utils';
 
 // Define the response type for clarity
 type ActivityLogResponse = {
@@ -196,27 +196,8 @@ export class AdminLogComponent implements OnInit {
     }
   }
 
-  getRelativeTime(timestamp: string): string {
-    const now = new Date();
-    const logTime = new Date(timestamp);
-    const diffMs = now.getTime() - logTime.getTime();
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
-
-    if (diffSec < 60) {
-      return 'gerade eben';
-    } else if (diffMin < 60) {
-      return `vor ${diffMin} ${diffMin === 1 ? 'Minute' : 'Minuten'}`;
-    } else if (diffHour < 24) {
-      return `vor ${diffHour} ${diffHour === 1 ? 'Stunde' : 'Stunden'}`;
-    } else if (diffDay < 7) {
-      return `vor ${diffDay} ${diffDay === 1 ? 'Tag' : 'Tagen'}`;
-    } else {
-      return formatTimestampShort(timestamp);
-    }
-  }
+  // Make the utility function available in the template
+  public getRelativeTime = getRelativeTime;
 
   formatTimestamp(timestamp: string): string {
     return formatFullTimestamp(timestamp);
