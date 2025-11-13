@@ -154,7 +154,11 @@ export class ApiService {
   }
 
   getAllBookings(): Observable<BookingWithRoomInfo[]> {
-    return this.get<BookingWithRoomInfo[]>('bookings');
+    return this.get<BookingWithRoomInfo[]>('bookings').pipe(
+      map(bookings => bookings.map(b =>
+        this.normalizeBookingFields(b as any) as BookingWithRoomInfo
+      ))
+    );
   }
 
   updateRoom(id: number, payload: UpdateRoomPayload): Observable<Room> {
