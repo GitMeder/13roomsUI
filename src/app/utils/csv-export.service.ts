@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { ErrorHandlingService } from '../core/services/error-handling.service';
 
 /**
  * Centralized service for CSV export functionality.
@@ -18,6 +19,9 @@ import { Injectable } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class CsvExportService {
 
+  private readonly errorHandler = inject(ErrorHandlingService);
+  
+
   /**
    * Exports data to CSV file with UTF-8 BOM for proper character encoding.
    * Uses semicolon (;) as delimiter for Excel compatibility.
@@ -30,12 +34,14 @@ export class CsvExportService {
     // Validate data
     if (!data || data.length === 0) {
       console.warn('CSV Export: No data to export.');
+      this.errorHandler.showError('Keine Daten zum Exportieren vorhanden.');
       return;
     }
 
     // Validate headers
     if (!headers || headers.length === 0) {
       console.error('CSV Export: No headers provided.');
+      this.errorHandler.showError('Keine Spaltenüberschriften zum Exportieren vorhanden.');
       return;
     }
 
@@ -57,7 +63,7 @@ export class CsvExportService {
       this.downloadBlob(blob, `${filename}.csv`);
 
     } catch (error) {
-      console.error('CSV Export: Failed to generate CSV file.', error);
+      this.errorHandler.showError('Fehler beim Erstellen der CSV-Datei.');
     }
   }
 
@@ -104,9 +110,14 @@ export class CsvExportService {
       link.click();
       document.body.removeChild(link);
 
-    } finally {
+    } 
+    catch (error) {
+      this.errorHandler.showError('Fehler beim Herunterladen der CSV-Datei.');
+    }
+    finally {
       // Always revoke the object URL to free memory
       URL.revokeObjectURL(url);
     }
   }
 }
+
