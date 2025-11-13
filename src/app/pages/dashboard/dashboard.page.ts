@@ -117,28 +117,12 @@ export class DashboardPageComponent implements OnInit {
     const tick = this.heartbeat(); // Create reactive dependency on heartbeat
     const allRooms = this.rooms(); // Create reactive dependency on rooms list
 
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log('[DASHBOARD - roomStatuses] Computing room statuses (CENTRALIZED TIME LOGIC)...');
-    console.log('[DASHBOARD - roomStatuses] Heartbeat tick:', tick);
-    console.log('[DASHBOARD - roomStatuses] Total rooms:', allRooms.length);
-    console.log('═══════════════════════════════════════════════════════════════');
-
-    // Create a Map to hold the COMPLETE status info for each room ID
     const statuses = new Map<number, RoomStatusInfo>();
 
     for (const room of allRooms) {
-      console.log(`\n[DASHBOARD ${room.name} (ID: ${room.id})]`);
-      console.log(`  Room status raw:`, room.statusRaw ?? room.status);
-
-      // Calculate and store the COMPLETE status info for each room
       const statusInfo = this.calculateRoomStatusInfo(room);
-      console.log(`  → Computed status info:`, statusInfo);
       statuses.set(room.id, statusInfo);
     }
-
-    console.log('\n═══════════════════════════════════════════════════════════════');
-    console.log('[DASHBOARD - roomStatuses] Computation complete');
-    console.log('═══════════════════════════════════════════════════════════════\n');
 
     return statuses;
   });
