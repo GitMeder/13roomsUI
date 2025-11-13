@@ -23,6 +23,7 @@ import { AuthPromptDialogComponent, AuthPromptResult } from '../../components/au
 import { FormMode, BookingFormState } from '../../models/booking-form-state.model';
 import { BookingPageResolverData } from '../../models/api-responses.model';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-bookings-page',
@@ -41,6 +42,7 @@ export class BookingsPageComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly errorHandler = inject(ErrorHandlingService);
   private readonly bookingDataService = inject(BookingDataService);
+  private readonly location = inject(Location);
 
   readonly isSubmitting = signal<boolean>(false);
 
@@ -407,4 +409,9 @@ export class BookingsPageComponent implements OnInit {
   }
 
   private formatTime = formatToHHMM;
+
+  goBack(): void {
+  this.location.back();
+  }
+
 }
