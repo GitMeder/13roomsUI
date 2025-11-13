@@ -276,7 +276,7 @@ export class AdminLogComponent implements OnInit {
       log.details ? JSON.stringify(log.details) : ''
     ]);
 
-    this.csvExportService.exportToCsv(data, 'aktivitaetsprotokoll-export', headers);
+    this.csvExportService.exportToCsv(data, 'log', headers);
   }
 
   /**
