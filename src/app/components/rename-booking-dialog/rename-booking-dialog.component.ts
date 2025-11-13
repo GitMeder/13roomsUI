@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -30,7 +30,8 @@ export interface RenameBookingDialogResult {
     MatIconModule
   ],
   templateUrl: './rename-booking-dialog.component.html',
-  styleUrls: ['./rename-booking-dialog.component.css']
+  styleUrls: ['./rename-booking-dialog.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RenameBookingDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<RenameBookingDialogComponent>);

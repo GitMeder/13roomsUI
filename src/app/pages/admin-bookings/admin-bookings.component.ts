@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { formatToHHMM, formatToVerboseGermanDate } from '../../utils/date-time.utils';
@@ -52,6 +52,7 @@ interface AdminBooking extends Booking {
   ],
   templateUrl: './admin-bookings.component.html',
   styleUrls: ['./admin-bookings.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminBookingsComponent implements OnInit {
   private readonly apiService = inject(ApiService);

@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatListModule, MatSelectionListChange } from '@angular/material/list';
@@ -229,7 +229,8 @@ export interface RoomSelectionDialogData {
         gap: 1rem;
       }
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RoomSelectionDialogComponent {
   constructor(

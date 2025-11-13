@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -37,6 +37,7 @@ import { CsvExportService } from '../../utils/csv-export.service';
   ],
   templateUrl: './admin-rooms.component.html',
   styleUrl: './admin-rooms.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminRoomsComponent implements OnInit {
   private readonly apiService = inject(ApiService);

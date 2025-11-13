@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,7 +40,8 @@ type ActivityLogResponse = {
     MatInputModule
   ],
   templateUrl: './admin-log.component.html',
-  styleUrl: './admin-log.component.css'
+  styleUrl: './admin-log.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminLogComponent implements OnInit {
   private readonly apiService = inject(ApiService);

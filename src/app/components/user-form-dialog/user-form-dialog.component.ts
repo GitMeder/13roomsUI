@@ -1,4 +1,4 @@
-import { Component, Inject, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -34,6 +34,7 @@ export interface UserFormData {
   ],
   templateUrl: './user-form-dialog.component.html',
   styleUrl: './user-form-dialog.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class UserFormDialogComponent {
   private readonly fb = inject(FormBuilder);

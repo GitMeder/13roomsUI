@@ -13,23 +13,31 @@
       <mat-form-field appearance="outline">
         <mat-label>E-Mail</mat-label>
         <input matInput formControlName="email" type="email" placeholder="you@example.com" />
-        <mat-error *ngIf="form.controls.email.hasError('required')">
-          Bitte E-Mail-Adresse eingeben.
-        </mat-error>
-        <mat-error *ngIf="form.controls.email.hasError('email')">
-          Bitte eine gültige E-Mail-Adresse eingeben.
-        </mat-error>
+        @if (form.controls.email.hasError('required')) {
+          <mat-error>
+            Bitte E-Mail-Adresse eingeben.
+          </mat-error>
+        }
+        @if (form.controls.email.hasError('email')) {
+          <mat-error>
+            Bitte eine gültige E-Mail-Adresse eingeben.
+          </mat-error>
+        }
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Passwort</mat-label>
         <input matInput formControlName="password" type="password" />
-        <mat-error *ngIf="form.controls.password.hasError('required')">
-          Bitte Passwort eingeben.
-        </mat-error>
-        <mat-error *ngIf="form.controls.password.hasError('minlength')">
-          Mindestens 8 Zeichen.
-        </mat-error>
+        @if (form.controls.password.hasError('required')) {
+          <mat-error>
+            Bitte Passwort eingeben.
+          </mat-error>
+        }
+        @if (form.controls.password.hasError('minlength')) {
+          <mat-error>
+            Mindestens 8 Zeichen.
+          </mat-error>
+        }
       </mat-form-field>
 
       <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || submitting()">

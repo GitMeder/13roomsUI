@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, ViewChild, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSortModule, MatSort } from '@angular/material/sort';
@@ -40,6 +40,7 @@ interface AdminUser extends ApiUser {
   ],
   templateUrl: './admin-users.component.html',
   styleUrl: './admin-users.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminUsersComponent implements OnInit {
   private readonly apiService = inject(ApiService);
