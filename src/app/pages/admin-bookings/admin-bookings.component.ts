@@ -51,7 +51,7 @@ interface AdminBooking extends Booking {
     MatSelectModule
   ],
   templateUrl: './admin-bookings.component.html',
-  styleUrl: './admin-bookings.component.css',
+  styleUrls: ['./admin-bookings.component.css'],
 })
 export class AdminBookingsComponent implements OnInit {
   private readonly apiService = inject(ApiService);
@@ -60,8 +60,15 @@ export class AdminBookingsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly csvExportService = inject(CsvExportService);
 
-  @ViewChild(MatSort) sort!: MatSort;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  // Wichtig: Setter für paginator/sort — stellt sicher, dass sie nach dem Rendern korrekt gebunden werden
+  @ViewChild(MatPaginator) set matPaginator(p: MatPaginator) {
+    if (p) this.dataSource.paginator = p;
+  }
+
+  @ViewChild(MatSort) set matSort(s: MatSort) {
+    if (s) this.dataSource.sort = s;
+  }
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -112,11 +119,17 @@ export class AdminBookingsComponent implements OnInit {
     this.loadBookings();
     this.loadUsers();
     this.loadRooms();
-  }
 
-  ngAfterViewInit(): void {
-    this.dataSource.sort = this.sort;
-    this.dataSource.paginator = this.paginator;
+    // Benutzerfreundliches Filtern über mehrere Spalten
+    this.dataSource.filterPredicate = (data: AdminBooking, filter: string) => {
+      const f = filter.trim().toLowerCase();
+      return (
+        data.room_name.toLowerCase().includes(f) ||
+        data.title.toLowerCase().includes(f) ||
+        data.bookedBy.toLowerCase().includes(f) ||
+        data.formattedDate.includes(f)
+      );
+    };
   }
 
   loadBookings(): void {
@@ -194,9 +207,7 @@ export class AdminBookingsComponent implements OnInit {
     const filterValue = (event.target as HTMLInputElement).value;
     this.textFilter.set(filterValue.trim());
 
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
+    this.dataSource.paginator?.firstPage();
   }
 
   clearFilters(): void {
@@ -274,7 +285,7 @@ export class AdminBookingsComponent implements OnInit {
     ]);
 
     const headers = ['Raum', 'Titel', 'Datum', 'Zeit', 'Gebucht von', 'Kommentar'];
-    this.csvExportService.exportToCsv(rows, 'buchungen-export', headers);
+    this.csvExportService.exportToCsv(rows, 'bookings', headers);
   }
 
 }
