@@ -294,3 +294,57 @@ export function getTimeDifferenceInSeconds(naiveDateTimeString: string | undefin
   // Positive = event is in the future, Negative = event is in the past
   return (eventTime.getTime() - now.getTime()) / 1000;
 }
+
+/**
+ * SINGLE SOURCE OF TRUTH FOR FINDING LAST BUSY SLOT
+ *
+ * Finds the end time of the last continuous block of bookings for a given day.
+ * Sorts bookings and finds the latest end time across all bookings.
+ * Uses pure string comparisons to remain immune to timezone issues.
+ *
+ * This function is the authoritative source for determining when a room becomes
+ * available after all bookings on a given day. It is critical for correctly
+ * suggesting the next available time slot without creating artificial gaps.
+ *
+ * @param bookings - An array of booking objects for a single day
+ * @returns The end time of the last booking as an "HH:mm" string, or '00:00' if no bookings exist
+ *
+ * @example
+ * const bookings = [
+ *   { start_time: '2025-11-13 09:00:00', end_time: '2025-11-13 10:00:00' },
+ *   { start_time: '2025-11-13 14:00:00', end_time: '2025-11-13 15:30:00' }
+ * ];
+ * findLastBusySlotEnd(bookings) // Returns '15:30'
+ */
+export function findLastBusySlotEnd(bookings: { start_time: string; end_time: string }[]): string {
+  if (!bookings || bookings.length === 0) {
+    return '00:00';
+  }
+
+  // Sort bookings by start time to process them chronologically
+  const sortedBookings = [...bookings].sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+  let lastEndTime = '00:00';
+
+  for (const booking of sortedBookings) {
+    // Extract time part using string manipulation (timezone-safe)
+    let bookingEndTimeStr: string;
+
+    if (booking.end_time.includes('T')) {
+      // ISO format: "2025-11-13T14:30:00.000Z"
+      bookingEndTimeStr = booking.end_time.split('T')[1].substring(0, 5);
+    } else if (booking.end_time.includes(' ')) {
+      // SQL format: "2025-11-13 14:30:00"
+      bookingEndTimeStr = booking.end_time.split(' ')[1].substring(0, 5);
+    } else {
+      continue;
+    }
+
+    // Track the latest end time found
+    if (bookingEndTimeStr > lastEndTime) {
+      lastEndTime = bookingEndTimeStr;
+    }
+  }
+
+  return lastEndTime;
+}

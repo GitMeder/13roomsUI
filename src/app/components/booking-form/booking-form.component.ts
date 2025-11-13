@@ -6,7 +6,7 @@ import { ApiService } from '../../services/api.service';
 import { Room } from '../../models/room.model';
 import { Booking, BookingPayload } from '../../models/booking.model';
 import { FormMode, BookingFormState, BookingFormData } from '../../models/booking-form-state.model';
-import { formatToHHMM } from '../../utils/date-time.utils';
+import { formatToHHMM, findLastBusySlotEnd } from '../../utils/date-time.utils';
 import { ErrorHandlingService } from '../../core/services/error-handling.service';
 
 // Other necessary imports for Angular Material
@@ -421,18 +421,31 @@ export class BookingFormComponent implements OnInit, OnDestroy {
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
 
-    let startSearchFrom: string;
+    // === CENTRALIZED LOGIC: Single Source of Truth for Finding Next Available Slot ===
+
+    // 1. Find the end of the last busy slot using our centralized utility
+    const lastBusyEnd = findLastBusySlotEnd(bookings);
+
+    // 2. Determine the starting point for our search for the next available 15-min slot.
+    // This will be the later of either the current time (if it's today) or the end of the last booking.
+    let startSearchFrom = lastBusyEnd;
+
     if (isToday) {
       const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      const minutes = now.getMinutes();
-      const interval = 15;
-      const remainder = minutes % interval;
-      const minutesToAdd = remainder === 0 ? 0 : interval - remainder;
-      startSearchFrom = this.addMinutesToStringTime(currentTimeStr, minutesToAdd);
-    } else {
-      startSearchFrom = '00:00';
+      // If current time is later than the last booking, use current time
+      if (currentTimeStr > startSearchFrom) {
+        startSearchFrom = currentTimeStr;
+      }
     }
 
+    // 3. Round to the next 15-minute interval
+    const [hours, minutes] = startSearchFrom.split(':').map(Number);
+    const interval = 15;
+    const remainder = minutes % interval;
+    const minutesToAdd = remainder === 0 ? 0 : interval - remainder;
+    startSearchFrom = this.addMinutesToStringTime(startSearchFrom, minutesToAdd);
+
+    // 4. Filter available slots starting from our calculated starting point
     const relevantSlots = this.availableStartTimes.filter(time => time >= startSearchFrom);
 
     const maxSuggestions = 4;
