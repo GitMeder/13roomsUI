@@ -6,6 +6,33 @@
  */
 
 /**
+ * INTERNAL HELPER: Robustly extracts the time part from a datetime string.
+ *
+ * Supports both 'T' (ISO format) and space (SQL format) separators.
+ * This is the single source of truth for time extraction, ensuring consistency
+ * and eliminating duplicated logic across multiple formatters.
+ *
+ * @param timestamp - Datetime string in "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss" format
+ * @returns Time part (e.g., "14:30:00") or null if extraction fails
+ *
+ * @example
+ * _getTimePart("2025-11-13 14:30:00") // Returns "14:30:00"
+ * _getTimePart("2025-11-13T14:30:00") // Returns "14:30:00"
+ */
+function _getTimePart(timestamp: string): string | null {
+  if (!timestamp || typeof timestamp !== 'string') {
+    return null;
+  }
+
+  // Determine separator: 'T' for ISO format, space for SQL format
+  const separator = timestamp.includes('T') ? 'T' : ' ';
+  const parts = timestamp.split(separator);
+
+  // Return the time part (second element) if it exists
+  return parts.length > 1 ? parts[1] : null;
+}
+
+/**
  * TIMEZONE-NAIVE TIME FORMATTER
  *
  * Formats a datetime string to HH:mm format.
@@ -22,27 +49,8 @@
  * formatToHHMM("2025-11-13T14:30:00") // Returns "14:30"
  */
 export function formatToHHMM(timestamp: string | null | undefined): string {
-  if (!timestamp || typeof timestamp !== 'string') {
-    return '';
-  }
-
-  // Handle ISO format (YYYY-MM-DDTHH:mm:ss)
-  if (timestamp.includes('T')) {
-    const timePart = timestamp.split('T')[1];
-    if (timePart) {
-      return timePart.substring(0, 5);
-    }
-  }
-
-  // Handle SQL format (YYYY-MM-DD HH:mm:ss)
-  if (timestamp.includes(' ')) {
-    const timePart = timestamp.split(' ')[1];
-    if (timePart) {
-      return timePart.substring(0, 5);
-    }
-  }
-
-  return '';
+  const timePart = _getTimePart(timestamp || '');
+  return timePart ? timePart.substring(0, 5) : '';
 }
 
 /**
@@ -164,23 +172,21 @@ export function formatToVerboseGermanDate(date: Date): string {
 }
 
 /**
- * Extracts the time part (HH:mm:ss) from an ISO-like timestamp string in a timezone-safe way.
+ * Extracts the time part (HH:mm:ss) from a datetime string in a timezone-safe way.
  * This is used for full timestamp displays including seconds.
- * Example: "2025-11-13T14:30:45.000Z" -> "14:30:45"
+ *
+ * Supports both ISO format (with 'T') and SQL format (with space).
  *
  * @param timestamp - ISO string or SQL datetime string
  * @returns Time in HH:mm:ss format (e.g., "14:30:45")
+ *
+ * @example
+ * formatToHHMMSS("2025-11-13T14:30:45.000Z") // Returns "14:30:45"
+ * formatToHHMMSS("2025-11-13 14:30:45") // Returns "14:30:45"
  */
 export function formatToHHMMSS(timestamp: string | undefined | null): string {
-  if (!timestamp || !timestamp.includes('T')) {
-    return '';
-  }
-  const timePart = timestamp.split('T')[1];
-  if (!timePart) {
-    return '';
-  }
-  // Extract HH:mm:ss (first 8 characters of time part)
-  return timePart.substring(0, 8);
+  const timePart = _getTimePart(timestamp || '');
+  return timePart ? timePart.substring(0, 8) : '';
 }
 
 /**
