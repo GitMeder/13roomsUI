@@ -2,10 +2,6 @@
 
 This is the Angular 20 frontend application for the 13Rooms room booking system.
 
-## Current Status
-
-The booking form has been implemented, allowing users to book rooms. The UI has been enhanced for a better user experience. The latest code has been pushed to the GitHub repository.
-
 ## Getting Started with Docker (Recommended)
 
 The easiest way to run the frontend is using Docker. This setup automatically configures API proxying to the backend.

@@ -682,15 +682,20 @@ export class BookingFormComponent implements OnInit, OnDestroy {
         availableLabel ? `Wieder verfügbar ab ${availableLabel} Uhr` : null
       );
 
-      // Use Date object ONLY for countdown timer calculations
-      const conflictEndTimeMs = new Date(conflict.end_time).getTime();
+      // Use timezone-naive strings for all calculations
+      const conflictEndStr = conflict.end_time;
       this.countdownSubscription = timer(0, 1000).pipe(
         takeUntil(this.destroy$),
-        map(() => conflictEndTimeMs - Date.now()),
-        takeWhile(diffMs => diffMs > 0, true)
-      ).subscribe(diffMs => {
-        if (diffMs <= 0) {
+        map(() => {
+          const nowStr = getCurrentNaiveDateTimeString();
+          // Calculate remaining seconds using the safe utility function
+          return calculateSecondsBetweenNaive(nowStr, conflictEndStr);
+        }),
+        takeWhile(diffSeconds => diffSeconds > 0, true)
+      ).subscribe(diffSeconds => {
+        if (diffSeconds <= 0) {
           this.availabilityCountdown.set(null);
+          this.bookingConflict.set(null); // Also clear the conflict itself
           this.countdownSubscription?.unsubscribe();
           this.countdownSubscription = null;
         }
