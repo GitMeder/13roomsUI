@@ -21,6 +21,7 @@ import { ErrorHandlingService } from '../../core/services/error-handling.service
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { BookingWithRoomInfo, ApiUser } from '../../models/api-responses.model';
 import { CsvExportService } from '../../utils/csv-export.service';
+import { exportIcsUniversal } from '../../utils/ics-export.service';
 
 /**
  * Extended booking interface for admin table display.
@@ -287,5 +288,21 @@ export class AdminBookingsComponent implements OnInit {
     const headers = ['Raum', 'Titel', 'Datum', 'Zeit', 'Gebucht von', 'Kommentar'];
     this.csvExportService.exportToCsv(rows, 'bookings', headers);
   }
+
+  exportIcs(booking: AdminBooking): void {
+
+    exportIcsUniversal({
+      id: `booking-${booking.id}`,
+      title: booking.title,
+      description: booking.comment || '',
+      location: booking.room_name,
+      start: new Date(booking.start_time),
+      end: new Date(booking.end_time),
+      timezone: 'Europe/Berlin',   // oder dynamisch auswählbar
+      filename: `${booking.title}-${booking.start_time}.ics`
+    });
+
+  }
+
 
 }

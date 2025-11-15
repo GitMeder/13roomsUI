@@ -141,6 +141,13 @@
               <div class="admin-table__actions">
                 <button
                   mat-icon-button
+                  matTooltip="Als ICS exportieren"
+                  (click)="exportIcs(booking)"
+                >
+                  <mat-icon>event</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
                   color="primary"
                   matTooltip="Bearbeiten"
                   (click)="onEdit(booking)"
