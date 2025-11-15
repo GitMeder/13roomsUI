@@ -169,6 +169,8 @@
 .timeline-content {
   flex: 1;
   margin-left: 3.5rem;
+  overflow-wrap: break-word;
+  word-wrap: break-word; /* Legacy fallback */
 }
 
 .log-card {
@@ -277,6 +279,10 @@
   overflow-x: auto;
   color: #333;
   margin: 0;
+  white-space: pre-wrap;       /* Allows wrapping of preformatted text */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  font-family: monospace;      /* Ensure consistent font */
 }
 
 .load-more-container {
