@@ -1,0 +1,24 @@
+<!-- START: TEMPORARY SEEDING PANEL (REMOVE BEFORE PRODUCTION) -->
+<mat-card class="seeding-panel">
+  <mat-card-header>
+    <mat-card-title>Stress Test Data Generator ("God Mode")</mat-card-title>
+  </mat-card-header>
+  <mat-card-content class="seeding-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Number of Rooms to Create</mat-label>
+      <input matInput type="number" #numRoomsInput value="50">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Number of Bookings to Create</mat-label>
+      <input matInput type="number" #numBookingsInput value="500">
+    </mat-form-field>
+    <button mat-flat-button color="warn" (click)="runSeed(numRoomsInput.value, numBookingsInput.value)" [disabled]="isSeeding()">
+      <mat-icon>local_fire_department</mat-icon>
+      <span>Unleash the Flood</span>
+    </button>
+    @if (isSeeding()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+  </mat-card-content>
+</mat-card>
+<!-- END: TEMPORARY SEEDING PANEL -->
