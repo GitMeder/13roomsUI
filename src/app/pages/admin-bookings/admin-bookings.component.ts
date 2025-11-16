@@ -123,6 +123,16 @@ export class AdminBookingsComponent implements OnInit {
     this.loadRooms();
 
     // Benutzerfreundliches Filtern über mehrere Spalten
+    this.dataSource.sortingDataAccessor = (data: AdminBooking, filter: string) => {
+      switch (filter) {
+        case 'formattedDate':
+        case 'formattedTime':
+          return new Date(data.start_time).getTime();
+        default:
+          return (data as any)[filter];
+      }
+    };
+    
     this.dataSource.filterPredicate = (data: AdminBooking, filter: string) => {
       const f = filter.trim().toLowerCase();
       return (
