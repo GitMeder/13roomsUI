@@ -16,6 +16,7 @@ import { RenameBookingDialogComponent } from '../../components/rename-booking-di
 import { FormMode, BookingFormState } from '../../models/booking-form-state.model';
 import { BookingWithRoomInfo } from '../../models/api-responses.model';
 import { Location } from '@angular/common';
+import { exportIcsUniversal } from '../../utils/ics-export.service';
 
 @Component({
   selector: 'app-my-bookings-page',
@@ -194,38 +195,16 @@ export class MyBookingsPageComponent implements OnInit {
    * Erstellt eine ICS-Datei und startet den Download
    */
   onDownloadICS(booking: BookingWithRoomInfo): void {
-    const start = this.convertToICSFormat(booking.start_time);
-    const end = this.convertToICSFormat(booking.end_time);
-    const now = this.convertToICSFormat(getCurrentNaiveDateTimeString());
-    const uid = `${booking.id}@myapp.local`;
-    const title = booking.title || 'Buchung';
-    const description = booking.comment ? booking.comment.replace(/\n/g, '\\n') : '';
-    const location = booking.room_name;
-
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//MyApp//Bookings//DE',
-      'CALSCALE:GREGORIAN',
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `DTSTAMP:${now}`,
-      `DTSTART:${start}`,
-      `DTEND:${end}`,
-      `SUMMARY:${title}`,
-      `DESCRIPTION:${description}`,
-      `LOCATION:${location}`,
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].join('\r\n');
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${booking.title || 'buchung'}.ics`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportIcsUniversal({
+          id: `booking-${booking.id}`,
+          title: booking.title,
+          description: booking.comment || '',
+          location: booking.room_name,
+          start: new Date(booking.start_time),
+          end: new Date(booking.end_time),
+          timezone: 'Europe/Berlin',   // oder dynamisch auswählbar
+          filename: `${booking.title}.ics`
+        });
   }
 
 }
