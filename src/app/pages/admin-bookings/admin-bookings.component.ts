@@ -12,7 +12,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
 import { Booking } from '../../models/booking.model';
@@ -22,6 +21,8 @@ import { ConfirmationDialogComponent } from '../../components/confirmation-dialo
 import { BookingWithRoomInfo, ApiUser } from '../../models/api-responses.model';
 import { CsvExportService } from '../../utils/csv-export.service';
 import { exportIcsUniversal } from '../../utils/ics-export.service';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 
 /**
  * Extended booking interface for admin table display.
@@ -49,7 +50,9 @@ interface AdminBooking extends Booking {
     MatInputModule,
     MatFormFieldModule,
     MatProgressSpinnerModule,
-    MatSelectModule
+    MatSelectModule,
+    MatDatepickerModule,
+    MatNativeDateModule
   ],
   templateUrl: './admin-bookings.component.html',
   styleUrls: ['./admin-bookings.component.css'],
@@ -85,6 +88,8 @@ export class AdminBookingsComponent implements OnInit {
   readonly selectedRoomId = signal<number | 'all'>('all');
   readonly selectedUserId = signal<number | 'all'>('all');
   readonly textFilter = signal<string>('');
+  readonly filterStartDate = signal<string | null>(null); 
+  readonly filterEndDate = signal<string | null>(null);
 
   // Computed filtered data
   readonly filteredBookings = computed(() => {
@@ -92,6 +97,9 @@ export class AdminBookingsComponent implements OnInit {
     const roomId = this.selectedRoomId();
     const userId = this.selectedUserId();
     const text = this.textFilter().toLowerCase();
+
+    const startDate = this.filterStartDate();
+    const endDate = this.filterEndDate();
 
     return bookings.filter(booking => {
       const roomMatch = (roomId === 'all' || booking.room_id === roomId);
@@ -103,7 +111,15 @@ export class AdminBookingsComponent implements OnInit {
         booking.title.toLowerCase().includes(text) ||
         booking.bookedBy.toLowerCase().includes(text);
 
-      return roomMatch && userMatch && textMatch;
+      let bookingDate = new Date(booking.start_time.split(' ')[0] + "T00:00:00");
+      bookingDate = this.addDays(bookingDate, - 1);
+      const start = startDate ? new Date(startDate + "T00:00:00") : null;
+      const end   = endDate   ? new Date(endDate + "T23:59:59") : null;
+      
+      const startMatch = !start || bookingDate >= start;
+      const endMatch = !end || bookingDate <= end;
+
+      return roomMatch && userMatch && textMatch && startMatch && endMatch;
     });
   });
 
@@ -114,6 +130,12 @@ export class AdminBookingsComponent implements OnInit {
     // Update dataSource whenever filteredBookings changes
     effect(() => {
       this.dataSource.data = this.filteredBookings();
+      const start = this.filterStartDate();
+      const end = this.filterEndDate();
+
+      if (start && end && start > end) {
+        this.filterEndDate.set(null);
+      }
     });
   }
 
@@ -151,6 +173,7 @@ export class AdminBookingsComponent implements OnInit {
     this.apiService.getAllBookings().subscribe({
       next: (bookings) => {
         // BookingWithRoomInfo is already normalized by ApiService
+        console.log('Raw from backend:', bookings[0].start_time, new Date(bookings[0].start_time));
         const formatted = bookings.map(b => this.formatBooking(b));
         this.allBookings.set(formatted);
         this.loading.set(false);
@@ -225,6 +248,8 @@ export class AdminBookingsComponent implements OnInit {
     this.selectedRoomId.set('all');
     this.selectedUserId.set('all');
     this.textFilter.set('');
+    this.filterStartDate.set(null);
+    this.filterEndDate.set(null);
 
     if (this.dataSource.paginator) {
       this.dataSource.paginator.firstPage();
@@ -263,6 +288,12 @@ export class AdminBookingsComponent implements OnInit {
         this.deleteBooking(booking.id);
       }
     });
+  }
+
+  addDays(date: Date, days: number): Date {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
   }
 
   private deleteBooking(id: number): void {

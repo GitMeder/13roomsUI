@@ -64,8 +64,32 @@
         <!-- Text Search Filter -->
         <mat-form-field class="filter-search" appearance="outline">
           <mat-label>Filtern nach...</mat-label>
-          <input matInput [value]="textFilter()" (keyup)="applyFilter($event)" placeholder="Raum, Titel, Gebucht von ...">
+          <input matInput [value]="textFilter()" (keyup)="applyFilter($event)" placeholder="Titel, ...">
           <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+
+        <!-- Startdatum -->
+        <mat-form-field appearance="outline">
+          <mat-label>Zeitraum von...</mat-label>
+          <input
+            matInput
+            [matDatepicker]="pickerStart"
+            (dateChange)="filterStartDate.set($event.value ? $event.value.toISOString().split('T')[0] : null)"
+          >
+          <mat-datepicker-toggle matSuffix [for]="pickerStart"></mat-datepicker-toggle>
+          <mat-datepicker #pickerStart></mat-datepicker>
+        </mat-form-field>
+
+        <!-- Enddatum -->
+        <mat-form-field appearance="outline">
+          <mat-label>Zeitraum bis...</mat-label>
+          <input
+            matInput
+            [matDatepicker]="pickerEnd"
+            (dateChange)="filterEndDate.set($event.value ? $event.value.toISOString().split('T')[0] : null)"
+          >
+          <mat-datepicker-toggle matSuffix [for]="pickerEnd"></mat-datepicker-toggle>
+          <mat-datepicker #pickerEnd></mat-datepicker>
         </mat-form-field>
 
         <!-- Action Buttons -->
