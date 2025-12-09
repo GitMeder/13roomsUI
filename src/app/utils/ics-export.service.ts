@@ -1,4 +1,24 @@
 /**
+ * Safely converts a timezone-naive datetime string ("YYYY-MM-DD HH:mm:ss")
+ * to a Date object, interpreting it as local time.
+ *
+ * This function follows the 13Rooms Time Architecture by explicitly parsing
+ * the string components and creating a Date object with those components,
+ * ensuring the browser interprets it as local time (Europe/Berlin).
+ *
+ * @param datetimeString - A string in format "YYYY-MM-DD HH:mm:ss"
+ * @returns Date object representing the local time
+ */
+export function parseNaiveDateTimeToLocal(datetimeString: string): Date {
+  const [datePart, timePart] = datetimeString.split(' ');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes, seconds = 0] = timePart.split(':').map(Number);
+
+  // Create Date with explicit components - interpreted as local time
+  return new Date(year, month - 1, day, hours, minutes, seconds);
+}
+
+/**
  * Exportiert ein einzelnes Event als ICS Datei.
  * Unterstützt jede IANA-Zeitzone korrekt (DST, historische Offsets, Übergänge).
  */

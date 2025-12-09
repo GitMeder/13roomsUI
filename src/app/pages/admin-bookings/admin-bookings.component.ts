@@ -20,7 +20,7 @@ import { ErrorHandlingService } from '../../core/services/error-handling.service
 import { ConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { BookingWithRoomInfo, ApiUser } from '../../models/api-responses.model';
 import { CsvExportService } from '../../utils/csv-export.service';
-import { exportIcsUniversal } from '../../utils/ics-export.service';
+import { exportIcsUniversal, parseNaiveDateTimeToLocal } from '../../utils/ics-export.service';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 
@@ -331,18 +331,19 @@ export class AdminBookingsComponent implements OnInit {
   }
 
   exportIcs(booking: AdminBooking): void {
-
+    // Use the safe helper function to convert timezone-naive strings to Date objects
+    // This follows the 13Rooms Time Architecture by explicitly parsing the string
+    // components instead of relying on JavaScript's unreliable Date(string) constructor
     exportIcsUniversal({
       id: `booking-${booking.id}`,
       title: booking.title,
       description: booking.comment || '',
       location: booking.room_name,
-      start: new Date(booking.start_time),
-      end: new Date(booking.end_time),
-      timezone: 'Europe/Berlin',   // oder dynamisch auswählbar
-      filename: `${booking.title}-${booking.start_time}.ics`
+      start: parseNaiveDateTimeToLocal(booking.start_time),
+      end: parseNaiveDateTimeToLocal(booking.end_time),
+      timezone: 'Europe/Berlin',
+      filename: `${booking.title}-${booking.start_time.replace(/[: ]/g, '-')}.ics`
     });
-
   }
 
 
