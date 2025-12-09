@@ -111,13 +111,13 @@ export class AdminBookingsComponent implements OnInit {
         booking.title.toLowerCase().includes(text) ||
         booking.bookedBy.toLowerCase().includes(text);
 
-      let bookingDate = new Date(booking.start_time.split(' ')[0] + "T00:00:00");
-      bookingDate = this.addDays(bookingDate, - 1);
-      const start = startDate ? new Date(startDate + "T00:00:00") : null;
-      const end   = endDate   ? new Date(endDate + "T23:59:59") : null;
-      
-      const startMatch = !start || bookingDate >= start;
-      const endMatch = !end || bookingDate <= end;
+      // TIME ARCHITECTURE: Use pure string comparison for date filtering
+      // Extract date portion from booking start_time: "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DD"
+      const bookingDateStr = booking.start_time.split(' ')[0];
+
+      // String comparison works because YYYY-MM-DD format is lexicographically sortable
+      const startMatch = !startDate || bookingDateStr >= startDate;
+      const endMatch = !endDate || bookingDateStr <= endDate;
 
       return roomMatch && userMatch && textMatch && startMatch && endMatch;
     });
@@ -144,12 +144,13 @@ export class AdminBookingsComponent implements OnInit {
     this.loadUsers();
     this.loadRooms();
 
-    // Benutzerfreundliches Filtern über mehrere Spalten
+    // TIME ARCHITECTURE: Use string-based sorting (YYYY-MM-DD HH:mm:ss is lexicographically sortable)
     this.dataSource.sortingDataAccessor = (data: AdminBooking, filter: string) => {
       switch (filter) {
         case 'formattedDate':
         case 'formattedTime':
-          return new Date(data.start_time).getTime();
+          // Return the raw datetime string - it's naturally sortable
+          return data.start_time;
         default:
           return (data as any)[filter];
       }
@@ -173,7 +174,6 @@ export class AdminBookingsComponent implements OnInit {
     this.apiService.getAllBookings().subscribe({
       next: (bookings) => {
         // BookingWithRoomInfo is already normalized by ApiService
-        console.log('Raw from backend:', bookings[0].start_time, new Date(bookings[0].start_time));
         const formatted = bookings.map(b => this.formatBooking(b));
         this.allBookings.set(formatted);
         this.loading.set(false);
@@ -288,12 +288,6 @@ export class AdminBookingsComponent implements OnInit {
         this.deleteBooking(booking.id);
       }
     });
-  }
-
-  addDays(date: Date, days: number): Date {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d;
   }
 
   private deleteBooking(id: number): void {

@@ -16,7 +16,7 @@ import { RenameBookingDialogComponent } from '../../components/rename-booking-di
 import { FormMode, BookingFormState } from '../../models/booking-form-state.model';
 import { BookingWithRoomInfo } from '../../models/api-responses.model';
 import { Location } from '@angular/common';
-import { exportIcsUniversal } from '../../utils/ics-export.service';
+import { exportIcsUniversal, parseNaiveDateTimeToLocal } from '../../utils/ics-export.service';
 
 @Component({
   selector: 'app-my-bookings-page',
@@ -193,6 +193,7 @@ export class MyBookingsPageComponent implements OnInit {
 
   /**
    * Erstellt eine ICS-Datei und startet den Download
+   * TIME ARCHITECTURE: Uses parseNaiveDateTimeToLocal to safely convert timezone-naive strings
    */
   onDownloadICS(booking: BookingWithRoomInfo): void {
     exportIcsUniversal({
@@ -200,9 +201,9 @@ export class MyBookingsPageComponent implements OnInit {
           title: booking.title,
           description: booking.comment || '',
           location: booking.room_name,
-          start: new Date(booking.start_time),
-          end: new Date(booking.end_time),
-          timezone: 'Europe/Berlin',   // oder dynamisch auswählbar
+          start: parseNaiveDateTimeToLocal(booking.start_time),
+          end: parseNaiveDateTimeToLocal(booking.end_time),
+          timezone: 'Europe/Berlin',
           filename: `${booking.title}.ics`
         });
   }

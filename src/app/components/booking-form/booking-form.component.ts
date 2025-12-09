@@ -310,7 +310,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatToYYYYMMDD(date);
 
     this.isLoadingSlots.set(true);
 
@@ -659,7 +659,7 @@ export class BookingFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const formattedDate = date.toISOString().split('T')[0];
+    const formattedDate = formatToYYYYMMDD(date);
 
     this.apiService.checkBookingConflict(roomId, formattedDate, startTime, endTime)
       .pipe(takeUntil(this.destroy$))

@@ -98,33 +98,46 @@ export function formatTimeRange(startTime: string, endTime: string): string {
  * Formats a date/time to a localized German format with relative day labels.
  * Shows "Heute", "Morgen", or "Day, DD. MMM" based on the date.
  *
+ * TIME ARCHITECTURE: Uses string comparison (YYYY-MM-DD) for date logic,
+ * only creates Date objects for final display formatting.
+ *
  * @param dateString - ISO string or SQL datetime string
  * @returns Formatted string (e.g., "Heute, 14:30" or "Mi, 13. Nov, 14:30")
  */
 export function formatDateTime(dateString: string): string {
   if (!dateString) return '';
 
-  const date = new Date(dateString);
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // Extract date part (YYYY-MM-DD) from input string using pure string operations
+  const inputDateStr = dateString.includes(' ')
+    ? dateString.split(' ')[0]  // SQL format: "YYYY-MM-DD HH:mm:ss"
+    : dateString.split('T')[0];  // ISO format: "YYYY-MM-DDTHH:mm:ss"
 
-  const dateStr = date.toDateString();
-  const todayStr = today.toDateString();
-  const tomorrowStr = tomorrow.toDateString();
+  // Get today's date string using safe helper
+  const todayDateStr = formatToYYYYMMDD(new Date());
 
+  // Get tomorrow's date string using safe helper
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowDateStr = formatToYYYYMMDD(tomorrowDate);
+
+  // TIME ARCHITECTURE: Compare date strings directly (no Date object comparison)
   let dayLabel = '';
-  if (dateStr === todayStr) {
+  if (inputDateStr === todayDateStr) {
     dayLabel = 'Heute';
-  } else if (dateStr === tomorrowStr) {
+  } else if (inputDateStr === tomorrowDateStr) {
     dayLabel = 'Morgen';
   } else {
+    // For display purposes only: Create Date object to extract day/month names
+    // This is ALLOWED per the blueprint (Date objects for pure formatting)
+    const [year, month, day] = inputDateStr.split('-').map(Number);
+    const displayDate = new Date(year, month - 1, day);
+
     const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-    const dayOfWeek = dayNames[date.getDay()];
-    const day = date.getDate();
-    const month = monthNames[date.getMonth()];
-    dayLabel = `${dayOfWeek}, ${day}. ${month}`;
+    const dayOfWeek = dayNames[displayDate.getDay()];
+    const dayNum = displayDate.getDate();
+    const monthName = monthNames[displayDate.getMonth()];
+    dayLabel = `${dayOfWeek}, ${dayNum}. ${monthName}`;
   }
 
   const time = formatToHHMM(dateString);

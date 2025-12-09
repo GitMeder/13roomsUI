@@ -12,6 +12,7 @@ import {
   GetUsersResponse,
   UserResponse
 } from '../models/api-responses.model';
+import { formatToYYYYMMDD } from '../utils/date-time.utils';
 
 interface ApiRoom {
   id: number;
@@ -218,8 +219,8 @@ export class ApiService {
 
   getBookingPageData(roomId: number): Observable<{ room: Room; conflict: Booking | null }> {
     return this.getRoom(roomId).pipe(
-      switchMap(room => 
-        this.checkBookingConflict(roomId, new Date().toISOString().split('T')[0], '00:00', '23:59').pipe(
+      switchMap(room =>
+        this.checkBookingConflict(roomId, formatToYYYYMMDD(new Date()), '00:00', '23:59').pipe(
           map(conflict => ({ room, conflict }))
         )
       )
@@ -284,7 +285,8 @@ export class ApiService {
       location: room.location ?? null,
       amenities: amenitiesArray.length ? amenitiesArray : null,
       icon: room.icon ?? null,
-      nextAvailableTime: room.nextAvailableTime ? new Date(room.nextAvailableTime) : null,
+      // TIME ARCHITECTURE: Keep nextAvailableTime as string (no Date conversion)
+      nextAvailableTime: room.nextAvailableTime ?? null,
       remainingTimeMinutes: room.remainingTimeMinutes ?? null,
       currentBooking: currentBooking ?? undefined,
       nextBooking: nextBooking ?? undefined,

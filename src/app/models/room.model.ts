@@ -9,7 +9,8 @@ export interface Room {
   location?: string | null;
   amenities?: string[] | null;
   icon?: string | null;
-  nextAvailableTime?: Date | null;
+  // TIME ARCHITECTURE: nextAvailableTime is a timezone-naive datetime string
+  nextAvailableTime?: string | null;
   remainingTimeMinutes?: number | null;
   currentBooking?: Booking;
   nextBooking?: Booking;
